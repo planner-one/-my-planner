@@ -1,11 +1,13 @@
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+
 :root {
-  --bg: #f8f9fa;
-  --bg2: #ffffff;
-  --bg3: #f1f3f5;
-  --bg4: #e9ecef;
+  --bg: #f2f4f3;
+  --bg2: #e4eae5;
+  --bg3: #d6dfd7;
+  --bg4: #c8d4c9;
   --text: #1a1a2e;
-  --muted: #868e96;
-  --border: #dee2e6;
+  --muted: #6b7280;
+  --border: #c4cfc5;
   --accent: #4a8c5c;
   --green: #3fb950;
   --red: #f85149;
@@ -14,13 +16,13 @@
 }
 
 [data-theme="dark"] {
-  --bg: #0d1117;
-  --bg2: #161b22;
-  --bg3: #21262d;
-  --bg4: #30363d;
+  --bg: #1a1a1a;
+  --bg2: #333333;
+  --bg3: #3d3d3d;
+  --bg4: #474747;
   --text: #e6edf3;
-  --muted: #7d8590;
-  --border: #30363d;
+  --muted: #9ca3af;
+  --border: #4a4a4a;
   --accent: #4a8c5c;
 }
 
@@ -33,8 +35,9 @@
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-size: 14px;
+  line-height: 1.5;
 }
 
 /* react-grid-layout 리사이즈 핸들 */

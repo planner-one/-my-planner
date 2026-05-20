@@ -88,8 +88,26 @@ export default function Dashboard() {
                 <div key={item.i} style={{
                   background: 'var(--bg2)', border: '1px solid var(--border)',
                   borderRadius: 12, overflow: 'hidden',
+                  display: 'flex', flexDirection: 'column',
+                  height: '100%',
                 }}>
-                  <Comp />
+                  <div style={{
+                    padding: '6px 12px', fontSize: 11, fontWeight: 600,
+                    color: 'var(--accent)', borderBottom: '1px solid var(--border)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    flexShrink: 0,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <span>{meta.icon}</span>
+                      <span>{meta.name}</span>
+                    </div>
+                    {meta.Actions && <meta.Actions />}
+                  </div>
+                  <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+                    <div style={{ position: 'absolute', inset: 0 }}>
+                      <Comp />
+                    </div>
+                  </div>
                 </div>
               )
             })}

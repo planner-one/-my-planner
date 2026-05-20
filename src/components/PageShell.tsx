@@ -42,51 +42,6 @@ export default function PageShell({ children }: { children: ReactNode }) {
   return (
     <div style={{ display: 'flex', height: '100vh', background: 'var(--bg)', overflow: 'hidden' }}>
 
-      {/* 사이드바 (태블릿/데스크톱) */}
-      <aside style={{
-        width: 200, flexShrink: 0,
-        background: 'var(--bg2)', borderRight: '1px solid var(--border)',
-        display: 'flex', flexDirection: 'column', padding: '16px 0',
-        overflowY: 'auto',
-      }} className="sidebar">
-        <div style={{ padding: '0 16px 16px', fontWeight: 700, fontSize: 16, color: 'var(--accent)' }}>
-          나만의 플래너
-        </div>
-
-        <nav style={{ flex: 1 }}>
-          {NAV_ITEMS.map(item => (
-            <button key={item.id} onClick={() => setPage(item.id)} style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              width: '100%', padding: '10px 16px', border: 'none',
-              background: page === item.id ? 'var(--bg3)' : 'transparent',
-              color: page === item.id ? 'var(--accent)' : 'var(--text)',
-              fontWeight: page === item.id ? 600 : 400,
-              cursor: 'pointer', fontSize: 14, textAlign: 'left',
-              borderRadius: '0 8px 8px 0', marginRight: 8,
-            }}>
-              <span>{item.icon}</span>
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </nav>
-
-        <div style={{ padding: 16, borderTop: '1px solid var(--border)' }}>
-          <div style={{
-            fontSize: 12, color: 'var(--muted)', marginBottom: 8,
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>
-            {user?.displayName}
-          </div>
-          <button onClick={handleSignOut} style={{
-            width: '100%', padding: 8, borderRadius: 8,
-            border: '1px solid var(--border)', background: 'transparent',
-            color: 'var(--muted)', cursor: 'pointer', fontSize: 13,
-          }}>
-            로그아웃
-          </button>
-        </div>
-      </aside>
-
       {/* 메인 콘텐츠 */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <header style={{
@@ -120,6 +75,51 @@ export default function PageShell({ children }: { children: ReactNode }) {
           ))}
         </nav>
       </div>
+
+      {/* 사이드바 (태블릿/데스크톱) */}
+      <aside style={{
+        width: 200, flexShrink: 0,
+        background: 'var(--bg2)', borderLeft: '1px solid var(--border)',
+        display: 'flex', flexDirection: 'column', padding: '16px 0',
+        overflowY: 'auto',
+      }} className="sidebar">
+        <div style={{ padding: '0 16px 16px', fontWeight: 700, fontSize: 16, color: 'var(--accent)' }}>
+          나만의 플래너
+        </div>
+
+        <nav style={{ flex: 1 }}>
+          {NAV_ITEMS.map(item => (
+            <button key={item.id} onClick={() => setPage(item.id)} style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              width: '100%', padding: '10px 16px', border: 'none',
+              background: page === item.id ? 'var(--bg3)' : 'transparent',
+              color: page === item.id ? 'var(--accent)' : 'var(--text)',
+              fontWeight: page === item.id ? 600 : 400,
+              cursor: 'pointer', fontSize: 14, textAlign: 'left',
+              borderRadius: '8px 0 0 8px', marginLeft: 8,
+            }}>
+              <span>{item.icon}</span>
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </nav>
+
+        <div style={{ padding: 16, borderTop: '1px solid var(--border)' }}>
+          <div style={{
+            fontSize: 12, color: 'var(--muted)', marginBottom: 8,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {user?.displayName}
+          </div>
+          <button onClick={handleSignOut} style={{
+            width: '100%', padding: 8, borderRadius: 8,
+            border: '1px solid var(--border)', background: 'transparent',
+            color: 'var(--muted)', cursor: 'pointer', fontSize: 13,
+          }}>
+            로그아웃
+          </button>
+        </div>
+      </aside>
 
       <style>{`
         @media (max-width: 767px) {

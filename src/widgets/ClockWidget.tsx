@@ -29,12 +29,16 @@ export default function ClockWidget() {
     year: 'numeric', month: 'long', day: 'numeric', weekday: 'long',
   })
 
-  const fontSize = Math.min(w / 5.5, h / 2.5, 52)
+  if (w === 0 || h === 0) return <div ref={ref} style={{ width: '100%', height: '100%' }} />
+
+  // HH:MM:SS = 8자 기준, 양쪽 패딩 고려
+  const fontSize = Math.max(12, Math.min((w - 32) / 5.5, (h - 32) / 2.2))
 
   return (
     <div ref={ref} style={{
       width: '100%', height: '100%', overflow: 'hidden', boxSizing: 'border-box',
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      padding: 16,
     }}>
       <div style={{
         fontFamily: 'monospace', fontWeight: 700, fontSize,

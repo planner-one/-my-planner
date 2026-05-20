@@ -63,16 +63,34 @@ export default function DashboardEditor({ onDone }: Props) {
     setLayout(normalizeLayout(newLayout as LayoutItem[]))
   }
 
+  const getBottomY = (currentLayout: LayoutItem[]) =>
+    currentLayout.reduce((max, item) => Math.max(max, item.y + item.h), 0)
+
   const addWidget = (widgetId: string) => {
     const meta = WIDGET_MAP[widgetId]
     if (!meta) return
-    const instanceId = `${widgetId}-${Date.now()}`
-    const newItem: LayoutItem = {
-      i: instanceId, x: 0, y: Infinity,
-      w: meta.defaultW, h: meta.defaultH,
-      minW: meta.minW, minH: meta.minH,
+
+    // 이미 존재하면 현재 레이아웃 최하단으로 이동
+    const existing = active.find(id => id.split('-')[0] === widgetId)
+    if (existing) {
+      setLayout(prev => {
+        const bottomY = getBottomY(prev.filter(l => l.i !== existing))
+        return prev.map(l => l.i === existing ? { ...l, x: 0, y: bottomY } : l)
+      })
+      return
     }
-    setLayout(prev => [...prev, newItem])
+
+    // 없으면 최하단에 새로 추가
+    const instanceId = `${widgetId}-${Date.now()}`
+    setLayout(prev => {
+      const bottomY = getBottomY(prev)
+      const newItem: LayoutItem = {
+        i: instanceId, x: 0, y: bottomY,
+        w: meta.defaultW, h: meta.defaultH,
+        minW: meta.minW, minH: meta.minH,
+      }
+      return [...prev, newItem]
+    })
     setActive(prev => [...prev, instanceId])
   }
 
@@ -150,6 +168,7 @@ export default function DashboardEditor({ onDone }: Props) {
                     background: 'var(--bg2)', border: '1px solid var(--border)',
                     borderRadius: 12, overflow: 'hidden',
                     display: 'flex', flexDirection: 'column',
+                    height: '100%',
                   }}>
                     {/* 드래그 핸들 바 */}
                     <div className="drag-handle" style={{
@@ -177,8 +196,10 @@ export default function DashboardEditor({ onDone }: Props) {
                     </div>
 
                     {/* 위젯 콘텐츠 — 클릭 차단 */}
-                    <div style={{ flex: 1, overflow: 'hidden', pointerEvents: 'none' }}>
-                      <Comp />
+                    <div style={{ flex: 1, overflow: 'hidden', position: 'relative', pointerEvents: 'none' }}>
+                      <div style={{ position: 'absolute', inset: 0 }}>
+                        <Comp />
+                      </div>
                     </div>
                   </div>
                 )
