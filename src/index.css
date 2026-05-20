@@ -1,0 +1,55 @@
+:root {
+  --bg: #f8f9fa;
+  --bg2: #ffffff;
+  --bg3: #f1f3f5;
+  --bg4: #e9ecef;
+  --text: #1a1a2e;
+  --muted: #868e96;
+  --border: #dee2e6;
+  --accent: #4a8c5c;
+  --green: #3fb950;
+  --red: #f85149;
+  --yellow: #d2991a;
+  --purple: #9c68c5;
+}
+
+[data-theme="dark"] {
+  --bg: #0d1117;
+  --bg2: #161b22;
+  --bg3: #21262d;
+  --bg4: #30363d;
+  --text: #e6edf3;
+  --muted: #7d8590;
+  --border: #30363d;
+  --accent: #4a8c5c;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+}
+
+/* react-grid-layout 리사이즈 핸들 */
+.react-resizable-handle {
+  z-index: 20;
+  opacity: 0;
+  transition: opacity 0.15s;
+  background-image: none;
+  background-color: transparent;
+}
+
+.react-grid-item:hover .react-resizable-handle {
+  opacity: 1;
+}
+
+.react-grid-item:hover .react-resizable-handle::after {
+  border-color: var(--accent);
+}
