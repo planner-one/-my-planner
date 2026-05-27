@@ -54,9 +54,9 @@ export default function Dashboard() {
   )
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div style={{ position: 'relative', padding: '0 24px 24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)' }}>대시보드</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.02em' }}>나만의 플래너</h2>
         <button onClick={() => setIsEditing(true)} style={{
           padding: '6px 16px', borderRadius: 8, border: '1px solid var(--border)',
           background: 'var(--bg2)', color: 'var(--text)', cursor: 'pointer', fontSize: 13,
@@ -87,13 +87,13 @@ export default function Dashboard() {
               return (
                 <div key={item.i} style={{
                   background: 'var(--bg2)', border: '1px solid var(--border)',
-                  borderRadius: 12, overflow: 'hidden',
+                  borderRadius: 20, overflow: 'hidden',
                   display: 'flex', flexDirection: 'column',
                   height: '100%',
                 }}>
                   <div style={{
-                    padding: '6px 12px', fontSize: 11, fontWeight: 600,
-                    color: 'var(--accent)', borderBottom: '1px solid var(--border)',
+                    padding: '10px 14px 8px', fontSize: 13, fontWeight: 600,
+                    color: 'var(--accent)',
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     flexShrink: 0,
                   }}>

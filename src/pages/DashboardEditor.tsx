@@ -66,16 +66,25 @@ export default function DashboardEditor({ onDone }: Props) {
   const getBottomY = (currentLayout: LayoutItem[]) =>
     currentLayout.reduce((max, item) => Math.max(max, item.y + item.h), 0)
 
+  const hasOverlap = (others: LayoutItem[], x: number, y: number, w: number, h: number) =>
+    others.some(l =>
+      x < l.x + l.w && x + w > l.x &&
+      y < l.y + l.h && y + h > l.y
+    )
+
   const addWidget = (widgetId: string) => {
     const meta = WIDGET_MAP[widgetId]
     if (!meta) return
 
-    // 이미 존재하면 현재 레이아웃 최하단으로 이동
+    // 이미 존재하면 기본 위치(0,0)가 비어 있으면 거기로, 아니면 최하단으로 이동
     const existing = active.find(id => id.split('-')[0] === widgetId)
     if (existing) {
       setLayout(prev => {
-        const bottomY = getBottomY(prev.filter(l => l.i !== existing))
-        return prev.map(l => l.i === existing ? { ...l, x: 0, y: bottomY } : l)
+        const others = prev.filter(l => l.i !== existing)
+        const targetY = hasOverlap(others, 0, 0, meta.defaultW, meta.defaultH)
+          ? getBottomY(others)
+          : 0
+        return prev.map(l => l.i === existing ? { ...l, x: 0, y: targetY } : l)
       })
       return
     }
@@ -112,7 +121,7 @@ export default function DashboardEditor({ onDone }: Props) {
 
   return (
     <div
-      style={{ position: 'relative' }}
+      style={{ position: 'relative', padding: '0 24px 24px' }}
       onMouseEnter={() => setSidebarVisible(true)}
       onMouseLeave={() => setSidebarVisible(false)}
     >
@@ -121,7 +130,7 @@ export default function DashboardEditor({ onDone }: Props) {
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         marginBottom: 16,
       }}>
-        <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)' }}>대시보드 편집</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.02em' }}>나만의 플래너 편집</h2>
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={cancel} style={{
             padding: '6px 16px', borderRadius: 8, border: '1px solid var(--border)',
@@ -166,7 +175,7 @@ export default function DashboardEditor({ onDone }: Props) {
                 return (
                   <div key={item.i} style={{
                     background: 'var(--bg2)', border: '1px solid var(--border)',
-                    borderRadius: 12, overflow: 'hidden',
+                    borderRadius: 20, overflow: 'hidden',
                     display: 'flex', flexDirection: 'column',
                     height: '100%',
                   }}>
@@ -174,9 +183,8 @@ export default function DashboardEditor({ onDone }: Props) {
                     <div className="drag-handle" style={{
                       height: HANDLE_H, flexShrink: 0,
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '0 10px', cursor: 'grab',
-                      borderBottom: '1px solid var(--border)',
-                      background: 'var(--bg3)', userSelect: 'none',
+                      padding: '0 12px', cursor: 'grab',
+                      background: 'var(--bg2)', userSelect: 'none',
                     }}>
                       <span style={{ fontSize: 13, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span style={{ letterSpacing: 2 }}>⠿⠿</span>

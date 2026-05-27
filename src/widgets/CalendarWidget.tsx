@@ -1,0 +1,705 @@
+import { useState, useEffect, type ReactNode, type CSSProperties } from 'react'
+import { createPortal } from 'react-dom'
+import { useWidgetSize } from '../hooks/useWidgetSize'
+import { useApp } from '../store/AppContext'
+import { fetchHolidays } from '../services/holidayService'
+import type { Todo, ScheduledTask, Goal, Project } from '../types'
+
+export const meta = {
+  id: 'calendar',
+  name: '캘린더',
+  icon: '🗓️',
+  defaultW: 16,
+  defaultH: 11,
+  minW: 12,
+  minH: 9,
+  order: 3,
+}
+
+// ── 공휴일 데이터 ─────────────────────────────────────────
+const FIXED_HOLIDAYS: Record<string, string> = {
+  '01-01': '신정',
+  '03-01': '삼일절',
+  '05-05': '어린이날',
+  '06-06': '현충일',
+  '08-15': '광복절',
+  '10-03': '개천절',
+  '10-09': '한글날',
+  '12-25': '성탄절',
+}
+
+const LUNAR_HOLIDAYS: Record<number, Record<string, string>> = {
+  2024: {
+    '02-09': '설날 전날', '02-10': '설날', '02-11': '설날 연휴',
+    '05-15': '부처님오신날',
+    '09-16': '추석 전날', '09-17': '추석', '09-18': '추석 연휴',
+  },
+  2025: {
+    '01-28': '설날 전날', '01-29': '설날', '01-30': '설날 연휴',
+    '05-05': '부처님오신날',
+    '10-05': '추석 전날', '10-06': '추석', '10-07': '추석 연휴',
+  },
+  2026: {
+    '02-16': '설날 전날', '02-17': '설날', '02-18': '설날 연휴',
+    '05-24': '부처님오신날',
+    '09-24': '추석 전날', '09-25': '추석', '09-26': '추석 연휴',
+  },
+  2027: {
+    '02-06': '설날 전날', '02-07': '설날', '02-08': '설날 연휴',
+    '05-13': '부처님오신날',
+    '09-15': '추석 전날', '09-16': '추석', '09-17': '추석 연휴',
+  },
+  2028: {
+    '01-26': '설날 전날', '01-27': '설날', '01-28': '설날 연휴',
+    '05-02': '부처님오신날',
+    '10-02': '추석 전날', '10-03': '추석', '10-04': '추석 연휴',
+  },
+}
+
+function getHoliday(year: number, mmdd: string): string | undefined {
+  return FIXED_HOLIDAYS[mmdd] ?? LUNAR_HOLIDAYS[year]?.[mmdd]
+}
+
+// ── 유틸 ─────────────────────────────────────────────────
+const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
+const MONTH_NAMES = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월']
+
+function toDateStr(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+
+function getCalendarDays(year: number, month: number): Date[] {
+  const firstDay = new Date(year, month, 1).getDay()
+  const lastDate = new Date(year, month + 1, 0).getDate()
+  const days: Date[] = []
+  for (let i = firstDay - 1; i >= 0; i--) days.push(new Date(year, month, -i))
+  for (let i = 1; i <= lastDate; i++) days.push(new Date(year, month, i))
+  while (days.length < 42) days.push(new Date(year, month + 1, days.length - firstDay - lastDate + 1))
+  return days
+}
+
+// ── 연/월 피커 ────────────────────────────────────────────
+function YearMonthPicker({
+  year, month, onSelect, onClose,
+}: {
+  year: number; month: number
+  onSelect: (y: number, m: number) => void
+  onClose: () => void
+}) {
+  const [pickerYear, setPickerYear] = useState(year)
+
+  return createPortal(
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, zIndex: 9998,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'rgba(0,0,0,0.3)',
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: 'var(--bg2)', border: '1px solid var(--border)',
+        borderRadius: 14, padding: 20, width: 260,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+      }}>
+        {/* 연도 선택 */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <button onClick={() => setPickerYear(y => y - 1)} style={navBtnStyle}>‹</button>
+          <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{pickerYear}년</span>
+          <button onClick={() => setPickerYear(y => y + 1)} style={navBtnStyle}>›</button>
+        </div>
+        {/* 월 선택 */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+          {MONTH_NAMES.map((name, i) => {
+            const isActive = pickerYear === year && i === month
+            return (
+              <button key={i} onClick={() => { onSelect(pickerYear, i); onClose() }} style={{
+                padding: '8px 0', borderRadius: 8, border: 'none', cursor: 'pointer',
+                background: isActive ? 'var(--accent)' : 'var(--bg3)',
+                color: isActive ? '#fff' : 'var(--text)',
+                fontSize: 13, fontWeight: isActive ? 700 : 400,
+                transition: 'background 0.12s',
+              }}>
+                {name}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+}
+
+const navBtnStyle: CSSProperties = {
+  border: 'none', background: 'transparent', cursor: 'pointer',
+  color: 'var(--muted)', fontSize: 18, padding: '0 8px',
+  display: 'flex', alignItems: 'center',
+}
+
+// ── 항목 추가/수정 폼 ─────────────────────────────────────
+type FormType = 'scheduled' | 'todo'
+interface FormState {
+  mode: 'add' | 'edit'
+  type: FormType
+  id?: string
+  title: string
+  date: string
+  time: string
+  priority: Todo['priority']
+  done: boolean
+}
+
+function ItemForm({
+  initial, onSave, onDelete, onCancel,
+}: {
+  initial: FormState
+  onSave: (f: FormState) => void
+  onDelete?: () => void
+  onCancel: () => void
+}) {
+  const [form, setForm] = useState<FormState>(initial)
+  const set = (k: keyof FormState, v: unknown) => setForm(f => ({ ...f, [k]: v }))
+
+  return (
+    <div style={{
+      background: 'var(--bg3)', borderRadius: 10, padding: 12,
+      display: 'flex', flexDirection: 'column', gap: 8,
+    }}>
+      {initial.mode === 'add' && (
+        <div style={{ display: 'flex', gap: 6 }}>
+          {(['scheduled', 'todo'] as FormType[]).map(t => (
+            <button key={t} onClick={() => set('type', t)} style={{
+              flex: 1, padding: '5px 0', borderRadius: 6, border: 'none', cursor: 'pointer',
+              background: form.type === t ? 'var(--accent)' : 'var(--bg4)',
+              color: form.type === t ? '#fff' : 'var(--muted)',
+              fontSize: 12, fontWeight: form.type === t ? 600 : 400,
+            }}>
+              {t === 'scheduled' ? '예정 작업' : '할 일'}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <input
+        autoFocus
+        value={form.title}
+        onChange={e => set('title', e.target.value)}
+        placeholder={form.type === 'scheduled' ? '작업 제목' : '할 일 내용'}
+        style={{
+          width: '100%', padding: '7px 10px', borderRadius: 7,
+          border: '1px solid var(--border)', background: 'var(--bg2)',
+          color: 'var(--text)', fontSize: 13, fontFamily: 'inherit',
+          boxSizing: 'border-box', outline: 'none',
+        }}
+      />
+
+      {form.type === 'scheduled' && (
+        <>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input
+              type="date"
+              value={form.date}
+              onChange={e => set('date', e.target.value)}
+              style={{
+                flex: 1, padding: '7px 10px', borderRadius: 7,
+                border: '1px solid var(--border)', background: 'var(--bg2)',
+                color: 'var(--text)', fontSize: 13, fontFamily: 'inherit',
+                boxSizing: 'border-box', outline: 'none',
+              }}
+            />
+            <input
+              type="time"
+              value={form.time}
+              onChange={e => set('time', e.target.value)}
+              style={{
+                flex: 1, padding: '7px 10px', borderRadius: 7,
+                border: '1px solid var(--border)', background: 'var(--bg2)',
+                color: 'var(--text)', fontSize: 13, fontFamily: 'inherit',
+                boxSizing: 'border-box', outline: 'none',
+              }}
+            />
+          </div>
+        </>
+      )}
+
+      {form.type === 'todo' && (
+        <div style={{ display: 'flex', gap: 6 }}>
+          {([['high','⭐ 중요'],['medium','보통'],['low','낮음']] as [Todo['priority'],string][]).map(([p, label]) => (
+            <button key={p} onClick={() => set('priority', p)} style={{
+              flex: 1, padding: '5px 0', borderRadius: 6, border: 'none', cursor: 'pointer',
+              background: form.priority === p ? (p === 'high' ? 'var(--accent)' : 'var(--bg4)') : 'var(--bg4)',
+              color: form.priority === p ? (p === 'high' ? '#fff' : 'var(--text)') : 'var(--muted)',
+              fontSize: 11, fontWeight: form.priority === p ? 600 : 400,
+            }}>
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
+        <button
+          onClick={() => form.title.trim() && onSave(form)}
+          style={{
+            flex: 1, padding: '7px 0', borderRadius: 7, border: 'none', cursor: 'pointer',
+            background: 'var(--accent)', color: '#fff', fontSize: 13, fontWeight: 600,
+          }}>
+          저장
+        </button>
+        {onDelete && (
+          <button onClick={onDelete} style={{
+            padding: '7px 12px', borderRadius: 7, border: '1px solid var(--border)',
+            background: 'transparent', color: '#e05252', fontSize: 13, cursor: 'pointer',
+          }}>
+            삭제
+          </button>
+        )}
+        <button onClick={onCancel} style={{
+          padding: '7px 12px', borderRadius: 7, border: '1px solid var(--border)',
+          background: 'transparent', color: 'var(--muted)', fontSize: 13, cursor: 'pointer',
+        }}>
+          취소
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── 하루 모달 ─────────────────────────────────────────────
+interface ModalProps {
+  date: Date
+  holiday?: string
+  todos: Todo[]
+  scheduled: ScheduledTask[]
+  goals: Goal[]
+  projects: Project[]
+  onClose: () => void
+  onAddTodo: (text: string, priority: Todo['priority']) => void
+  onAddScheduled: (title: string, date: string, time: string) => void
+  onUpdateTodo: (id: string, patch: Partial<Todo>) => void
+  onUpdateScheduled: (id: string, patch: Partial<ScheduledTask>) => void
+  onDeleteTodo: (id: string) => void
+  onDeleteScheduled: (id: string) => void
+}
+
+function DayModal(props: ModalProps) {
+  const { date, holiday, todos, scheduled, goals, projects, onClose } = props
+  const dateStr = toDateStr(date)
+  const dateLabel = date.toLocaleDateString('ko-KR', { year:'numeric', month:'long', day:'numeric', weekday:'long' })
+
+  const [form, setForm] = useState<FormState | null>(null)
+
+  const important = todos.filter(t => t.priority === 'high')
+  const normal    = todos.filter(t => t.priority !== 'high')
+
+  const handleSave = (f: FormState) => {
+    if (f.mode === 'add') {
+      if (f.type === 'todo') props.onAddTodo(f.title, f.priority)
+      else props.onAddScheduled(f.title, f.date, f.time)
+    } else {
+      if (f.type === 'todo') props.onUpdateTodo(f.id!, { text: f.title, priority: f.priority, done: f.done })
+      else props.onUpdateScheduled(f.id!, { title: f.title, date: f.date, time: f.time || undefined, done: f.done })
+    }
+    setForm(null)
+  }
+
+  const startAdd = () => setForm({ mode:'add', type:'scheduled', title:'', date:dateStr, time:'', priority:'medium', done:false })
+  const startEditTodo = (t: Todo) =>
+    setForm({ mode:'edit', type:'todo', id:t.id, title:t.text, date:t.date||dateStr, time:'', priority:t.priority, done:t.done })
+  const startEditScheduled = (s: ScheduledTask) =>
+    setForm({ mode:'edit', type:'scheduled', id:s.id, title:s.title, date:s.date, time:s.time||'', priority:'medium', done:s.done })
+
+  const Section = ({ title, color, children }: { title: string; color: string; children: ReactNode }) => (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color, marginBottom: 6, letterSpacing:'0.02em' }}>{title}</div>
+      <div style={{ display:'flex', flexDirection:'column', gap:4 }}>{children}</div>
+    </div>
+  )
+
+  const ItemRow = ({
+    text, done, tag, onEdit, onToggle,
+  }: {
+    text: string; done?: boolean; tag?: string
+    onEdit?: () => void; onToggle?: () => void
+  }) => (
+    <div style={{
+      display:'flex', alignItems:'center', gap:8,
+      padding:'8px 10px', borderRadius:8, background:'var(--bg3)',
+      cursor: onEdit ? 'pointer' : 'default',
+    }} onClick={onEdit}>
+      {onToggle && (
+        <button
+          onClick={e => { e.stopPropagation(); onToggle() }}
+          style={{ border:'none', background:'transparent', cursor:'pointer',
+            fontSize:14, color: done ? 'var(--accent)' : 'var(--border)', padding:0, flexShrink:0 }}
+        >
+          {done ? '✓' : '○'}
+        </button>
+      )}
+      <span style={{
+        flex:1, fontSize:13, lineHeight:1.4,
+        color: done ? 'var(--muted)' : 'var(--text)',
+        textDecoration: done ? 'line-through' : 'none',
+      }}>
+        {text}
+      </span>
+      {tag && (
+        <span style={{ fontSize:11, padding:'2px 7px', borderRadius:4,
+          background:'var(--bg4)', color:'var(--muted)', flexShrink:0 }}>
+          {tag}
+        </span>
+      )}
+    </div>
+  )
+
+  const hasAnything = important.length + scheduled.length + normal.length + goals.length + projects.length > 0
+
+  return createPortal(
+    <div onClick={onClose} style={{
+      position:'fixed', inset:0, zIndex:9999,
+      background:'rgba(0,0,0,0.4)',
+      display:'flex', alignItems:'center', justifyContent:'center',
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background:'var(--bg2)', borderRadius:16,
+        border:'1px solid var(--border)',
+        width:380, maxWidth:'92vw', maxHeight:'82vh',
+        display:'flex', flexDirection:'column',
+        boxShadow:'0 8px 32px rgba(0,0,0,0.25)',
+      }}>
+        {/* 헤더 */}
+        <div style={{
+          padding:'14px 16px 12px',
+          borderBottom:'1px solid var(--border)',
+          display:'flex', flexDirection:'column', gap:2, flexShrink:0,
+        }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+            <span style={{ fontSize:15, fontWeight:700, color:'var(--text)', letterSpacing:'-0.01em' }}>
+              {dateLabel}
+            </span>
+            <button onClick={onClose} style={{
+              border:'none', background:'transparent', cursor:'pointer',
+              color:'var(--muted)', fontSize:18, lineHeight:1, padding:'0 2px',
+            }}>✕</button>
+          </div>
+          {holiday && (
+            <span style={{ fontSize:12, color:'#e05252', fontWeight:600 }}>🇰🇷 {holiday}</span>
+          )}
+        </div>
+
+        {/* 본문 */}
+        <div style={{ padding:'14px 16px', overflowY:'auto', flex:1 }}>
+          {!hasAnything && !form && (
+            <div style={{ textAlign:'center', color:'var(--muted)', fontSize:13, padding:'20px 0' }}>
+              이 날의 일정이 없어요
+            </div>
+          )}
+
+          {important.length > 0 && (
+            <Section title="⭐ 중요" color="var(--accent)">
+              {important.map(t => (
+                <ItemRow key={t.id} text={t.text} done={t.done} tag="할일"
+                  onEdit={() => startEditTodo(t)}
+                  onToggle={() => props.onUpdateTodo(t.id, { done: !t.done })}
+                />
+              ))}
+            </Section>
+          )}
+
+          {scheduled.length > 0 && (
+            <Section title="📌 예정 작업" color="var(--text)">
+              {scheduled.map(s => (
+                <ItemRow key={s.id} text={s.title} done={s.done} tag={s.time}
+                  onEdit={() => startEditScheduled(s)}
+                  onToggle={() => props.onUpdateScheduled(s.id, { done: !s.done })}
+                />
+              ))}
+            </Section>
+          )}
+
+          {normal.length > 0 && (
+            <Section title="☑️ 할 일" color="var(--text)">
+              {normal.map(t => (
+                <ItemRow key={t.id} text={t.text} done={t.done}
+                  onEdit={() => startEditTodo(t)}
+                  onToggle={() => props.onUpdateTodo(t.id, { done: !t.done })}
+                />
+              ))}
+            </Section>
+          )}
+
+          {goals.length > 0 && (
+            <Section title="🎯 목표" color="var(--text)">
+              {goals.map(g => <ItemRow key={g.id} text={g.name} tag={`${g.pct}%`} />)}
+            </Section>
+          )}
+
+          {projects.length > 0 && (
+            <Section title="📁 프로젝트" color="var(--text)">
+              {projects.map(p => <ItemRow key={p.id} text={p.name} tag={`${p.pct}%`} />)}
+            </Section>
+          )}
+
+          {/* 편집/추가 폼 */}
+          {form && (
+            <ItemForm
+              initial={form}
+              onSave={handleSave}
+              onDelete={form.mode === 'edit' ? () => {
+                if (form.type === 'todo') props.onDeleteTodo(form.id!)
+                else props.onDeleteScheduled(form.id!)
+                setForm(null)
+              } : undefined}
+              onCancel={() => setForm(null)}
+            />
+          )}
+        </div>
+
+        {/* 하단 추가 버튼 */}
+        {!form && (
+          <div style={{ padding:'10px 16px 14px', borderTop:'1px solid var(--border)', flexShrink:0 }}>
+            <button onClick={startAdd} style={{
+              width:'100%', padding:'9px 0', borderRadius:9,
+              border:'1px dashed var(--border)', background:'transparent',
+              color:'var(--muted)', fontSize:13, cursor:'pointer',
+              display:'flex', alignItems:'center', justifyContent:'center', gap:6,
+            }}>
+              <span style={{ fontSize:16, lineHeight:1 }}>+</span> 항목 추가
+            </button>
+          </div>
+        )}
+      </div>
+    </div>,
+    document.body
+  )
+}
+
+// ── 메인 위젯 ─────────────────────────────────────────────
+export default function CalendarWidget() {
+  const { ref, w, h } = useWidgetSize()
+  const { todos, setTodos, scheduledTasks, setScheduledTasks, goals, projects } = useApp()
+
+  const today = new Date()
+  const [year, setYear]   = useState(today.getFullYear())
+  const [month, setMonth] = useState(today.getMonth())
+  const [selected, setSelected] = useState<Date | null>(null)
+  const [showPicker, setShowPicker] = useState(false)
+  // API 공휴일: 키 'MM-DD' → 이름 (없으면 하드코딩 폴백)
+  const [apiHolidays, setApiHolidays] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    fetchHolidays(year, month + 1).then(data => {
+      setApiHolidays(prev => ({ ...prev, ...data }))
+    })
+  }, [year, month])
+
+  const days = getCalendarDays(year, month)
+  const todayStr = toDateStr(today)
+
+  const HEADER_H = 44
+  const LABEL_H  = 28
+  const cellW = w > 0 ? Math.floor(w / 7) : 40
+  const cellH = h > 0 ? Math.floor((h - HEADER_H - LABEL_H) / 6) : 36
+
+  const prevMonth = () => {
+    if (month === 0) { setYear(y => y - 1); setMonth(11) } else setMonth(m => m - 1)
+  }
+  const nextMonth = () => {
+    if (month === 11) { setYear(y => y + 1); setMonth(0) } else setMonth(m => m + 1)
+  }
+  const goToday   = () => { setYear(today.getFullYear()); setMonth(today.getMonth()) }
+
+  const getItemsForDate = (dateStr: string) => ({
+    todos:     todos.filter(t => t.date === dateStr),
+    scheduled: scheduledTasks.filter(s => s.date === dateStr),
+    goals:     goals.filter(g => g.due === dateStr),
+    projects:  projects.filter(p => p.due === dateStr),
+  })
+
+  const getImportantCount = (dateStr: string) =>
+    todos.filter(t => t.date === dateStr && t.priority === 'high').length
+
+  const getHasItems = (dateStr: string) => {
+    const { todos: t, scheduled: s, goals: g, projects: p } = getItemsForDate(dateStr)
+    return t.length + s.length + g.length + p.length > 0
+  }
+
+  // CRUD handlers
+  const handleAddTodo = (text: string, priority: Todo['priority']) => {
+    const newTodo: Todo = { id: Date.now().toString(), text, done: false, priority, date: toDateStr(selected!) }
+    setTodos(prev => [...prev, newTodo])
+  }
+  const handleAddScheduled = (title: string, date: string, time: string) => {
+    const newTask: ScheduledTask = { id: Date.now().toString(), title, date, time: time||undefined, done: false }
+    setScheduledTasks(prev => [...prev, newTask])
+  }
+  const handleUpdateTodo = (id: string, patch: Partial<Todo>) =>
+    setTodos(prev => prev.map(t => t.id === id ? { ...t, ...patch } : t))
+  const handleUpdateScheduled = (id: string, patch: Partial<ScheduledTask>) =>
+    setScheduledTasks(prev => prev.map(s => s.id === id ? { ...s, ...patch } : s))
+  const handleDeleteTodo = (id: string) => setTodos(prev => prev.filter(t => t.id !== id))
+  const handleDeleteScheduled = (id: string) => setScheduledTasks(prev => prev.filter(s => s.id !== id))
+
+  const selectedItems = selected ? getItemsForDate(toDateStr(selected)) : null
+  const selectedHoliday = selected
+    ? (() => {
+        const mmdd = `${String(selected.getMonth()+1).padStart(2,'0')}-${String(selected.getDate()).padStart(2,'0')}`
+        return apiHolidays[mmdd] ?? getHoliday(selected.getFullYear(), mmdd)
+      })()
+    : undefined
+
+  const numSize    = Math.max(15, Math.min(24, cellH * 0.52))
+  const circleSize = Math.min(cellW - 2, Math.max(28, cellH - 6))
+
+  return (
+    <div ref={ref} style={{ width:'100%', height:'100%', overflow:'hidden', userSelect:'none' }}>
+      {w > 0 && h > 0 && (
+        <>
+          {/* 헤더 */}
+          <div style={{
+            height: HEADER_H, display:'flex', alignItems:'center',
+            justifyContent:'space-between', padding:'0 8px', flexShrink:0,
+          }}>
+            <button onClick={prevMonth} style={navBtnStyle}>‹</button>
+
+            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <button
+                onClick={() => setShowPicker(true)}
+                style={{
+                  border:'none', background:'transparent', cursor:'pointer',
+                  fontSize:16, fontWeight:700, color:'var(--text)', letterSpacing:'-0.01em',
+                  padding:'4px 8px', borderRadius:6,
+                }}
+              >
+                {year}년 {month + 1}월
+              </button>
+              {(year !== today.getFullYear() || month !== today.getMonth()) && (
+                <button onClick={goToday} style={{
+                  border:'1px solid var(--border)', background:'transparent', cursor:'pointer',
+                  fontSize:11, color:'var(--muted)', borderRadius:5, padding:'2px 8px',
+                }}>
+                  오늘
+                </button>
+              )}
+            </div>
+
+            <button onClick={nextMonth} style={navBtnStyle}>›</button>
+          </div>
+
+          {/* 요일 */}
+          <div style={{ display:'flex', height:LABEL_H }}>
+            {DAY_LABELS.map((d, i) => (
+              <div key={d} style={{
+                width:cellW, flexShrink:0,
+                display:'flex', alignItems:'center', justifyContent:'center',
+                fontSize:14, fontWeight:600,
+                color: i === 0 ? '#e05252' : i === 6 ? 'var(--accent)' : 'var(--muted)',
+              }}>{d}</div>
+            ))}
+          </div>
+
+          {/* 날짜 그리드 */}
+          <div style={{ display:'flex', flexWrap:'wrap' }}>
+            {days.map((day, idx) => {
+              const dateStr    = toDateStr(day)
+              const mmdd       = `${String(day.getMonth()+1).padStart(2,'0')}-${String(day.getDate()).padStart(2,'0')}`
+              const isToday    = dateStr === todayStr
+              const isCurMonth = day.getMonth() === month
+              const isSun      = idx % 7 === 0
+              const isSat      = idx % 7 === 6
+              const holiday    = isCurMonth ? (apiHolidays[mmdd] ?? getHoliday(day.getFullYear(), mmdd)) : undefined
+              const isHoliday  = !!holiday
+              const impCnt     = isCurMonth ? getImportantCount(dateStr) : 0
+              const hasItems   = isCurMonth && getHasItems(dateStr)
+
+              const textColor = isToday ? '#fff'
+                : !isCurMonth ? 'var(--bg4)'
+                : isHoliday || isSun ? '#e05252'
+                : isSat ? 'var(--accent)'
+                : 'var(--text)'
+
+              return (
+                <div
+                  key={idx}
+                  onClick={() => isCurMonth && setSelected(day)}
+                  style={{
+                    width:cellW, height:cellH, flexShrink:0, position:'relative',
+                    display:'flex', flexDirection:'column',
+                    alignItems:'center', justifyContent:'flex-start',
+                    paddingTop: Math.max(3, cellH * 0.1),
+                    cursor: isCurMonth ? 'pointer' : 'default',
+                  }}
+                >
+                  <div style={{
+                    width:circleSize, height:circleSize,
+                    display:'flex', alignItems:'center', justifyContent:'center',
+                    borderRadius:'50%',
+                    background: isToday ? 'var(--accent)' : 'transparent',
+                    fontSize:numSize, fontWeight: isToday ? 700 : 400,
+                    color: textColor,
+                  }}>
+                    {day.getDate()}
+                  </div>
+
+                  {impCnt > 0 && (
+                    <div style={{
+                      position:'absolute', top:2, right:3,
+                      fontSize:12, fontWeight:700, color:'var(--accent)', lineHeight:1,
+                    }}>
+                      {impCnt}
+                    </div>
+                  )}
+
+                  {holiday && isCurMonth && (
+                    <div style={{
+                      fontSize: Math.max(11, Math.min(14, cellH * 0.24)),
+                      color: '#e05252', lineHeight: 1, marginTop: 1,
+                      maxWidth: cellW - 4, overflow: 'hidden',
+                      textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      textAlign: 'center',
+                    }}>
+                      {holiday}
+                    </div>
+                  )}
+
+                  {hasItems && (
+                    <div style={{
+                      width:4, height:4, borderRadius:'50%', marginTop:1,
+                      background: isToday ? '#fff' : 'var(--muted)', opacity:0.7,
+                    }} />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* 연/월 피커 */}
+          {showPicker && (
+            <YearMonthPicker
+              year={year} month={month}
+              onSelect={(y, m) => { setYear(y); setMonth(m) }}
+              onClose={() => setShowPicker(false)}
+            />
+          )}
+
+          {/* 날짜 모달 */}
+          {selected && selectedItems && (
+            <DayModal
+              date={selected}
+              holiday={selectedHoliday}
+              todos={selectedItems.todos}
+              scheduled={selectedItems.scheduled}
+              goals={selectedItems.goals}
+              projects={selectedItems.projects}
+              onClose={() => setSelected(null)}
+              onAddTodo={handleAddTodo}
+              onAddScheduled={handleAddScheduled}
+              onUpdateTodo={handleUpdateTodo}
+              onUpdateScheduled={handleUpdateScheduled}
+              onDeleteTodo={handleDeleteTodo}
+              onDeleteScheduled={handleDeleteScheduled}
+            />
+          )}
+        </>
+      )}
+    </div>
+  )
+}
