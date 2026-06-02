@@ -158,7 +158,7 @@ export default function DashboardEditor({ onDone }: Props) {
               width={containerW}
               margin={[GAP, GAP]}
               containerPadding={[0, 0]}
-              compactType={null}
+              compactType="vertical"
               allowOverlap={false}
               isDraggable={true}
               isResizable={true}
