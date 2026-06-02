@@ -71,10 +71,11 @@ function toDateStr(d: Date) {
 function getCalendarDays(year: number, month: number): Date[] {
   const firstDay = new Date(year, month, 1).getDay()
   const lastDate = new Date(year, month + 1, 0).getDate()
+  const totalCells = Math.ceil((firstDay + lastDate) / 7) * 7
   const days: Date[] = []
   for (let i = firstDay - 1; i >= 0; i--) days.push(new Date(year, month, -i))
   for (let i = 1; i <= lastDate; i++) days.push(new Date(year, month, i))
-  while (days.length < 42) days.push(new Date(year, month + 1, days.length - firstDay - lastDate + 1))
+  while (days.length < totalCells) days.push(new Date(year, month + 1, days.length - firstDay - lastDate + 1))
   return days
 }
 
@@ -496,8 +497,9 @@ export default function CalendarWidget() {
 
   const HEADER_H = 44
   const LABEL_H  = 28
+  const weeks  = days.length / 7
   const cellW = w > 0 ? Math.floor(w / 7) : 40
-  const cellH = h > 0 ? Math.floor((h - HEADER_H - LABEL_H) / 6) : 36
+  const cellH = h > 0 ? Math.floor((h - HEADER_H - LABEL_H) / weeks) : 36
 
   const prevMonth = () => {
     if (month === 0) { setYear(y => y - 1); setMonth(11) } else setMonth(m => m - 1)
@@ -546,8 +548,8 @@ export default function CalendarWidget() {
       })()
     : undefined
 
-  const numSize    = Math.max(15, Math.min(24, cellH * 0.52))
-  const circleSize = Math.min(cellW - 2, Math.max(28, cellH - 6))
+  const numSize    = Math.max(11, Math.min(14, cellH * 0.32))
+  const circleSize = Math.max(20, numSize + 8)
 
   return (
     <div ref={ref} style={{ width:'100%', height:'100%', overflow:'hidden', userSelect:'none' }}>
@@ -585,10 +587,9 @@ export default function CalendarWidget() {
           </div>
 
           {/* 요일 */}
-          <div style={{ display:'flex', height:LABEL_H }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(7, 1fr)', height:LABEL_H }}>
             {DAY_LABELS.map((d, i) => (
               <div key={d} style={{
-                width:cellW, flexShrink:0,
                 display:'flex', alignItems:'center', justifyContent:'center',
                 fontSize:14, fontWeight:600,
                 color: i === 0 ? '#e05252' : i === 6 ? 'var(--accent)' : 'var(--muted)',
@@ -597,7 +598,7 @@ export default function CalendarWidget() {
           </div>
 
           {/* 날짜 그리드 */}
-          <div style={{ display:'flex', flexWrap:'wrap' }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(7, 1fr)' }}>
             {days.map((day, idx) => {
               const dateStr    = toDateStr(day)
               const mmdd       = `${String(day.getMonth()+1).padStart(2,'0')}-${String(day.getDate()).padStart(2,'0')}`
@@ -607,8 +608,6 @@ export default function CalendarWidget() {
               const isSat      = idx % 7 === 6
               const holiday    = isCurMonth ? (apiHolidays[mmdd] ?? getHoliday(day.getFullYear(), mmdd)) : undefined
               const isHoliday  = !!holiday
-              const impCnt     = isCurMonth ? getImportantCount(dateStr) : 0
-              const hasItems   = isCurMonth && getHasItems(dateStr)
 
               const textColor = isToday ? '#fff'
                 : !isCurMonth ? 'var(--bg4)'
@@ -616,55 +615,76 @@ export default function CalendarWidget() {
                 : isSat ? 'var(--accent)'
                 : 'var(--text)'
 
+              // 이벤트 블록 (할일: 노란색, 예정작업: 파란색)
+              const dayTodos     = isCurMonth ? todos.filter(t => t.date === dateStr) : []
+              const dayScheduled = isCurMonth ? scheduledTasks.filter(s => s.date === dateStr) : []
+
+              const allEvents = [
+                ...dayScheduled.map(s => ({ key: s.id, label: s.time ? `${s.time} ${s.title}` : s.title, color: '#3b82f6', bg: 'rgba(59,130,246,0.15)', done: s.done })),
+                ...dayTodos.map(t => ({ key: t.id, label: t.text, color: '#f59e0b', bg: 'rgba(245,158,11,0.15)', done: t.done })),
+              ]
+              const MAX_VISIBLE = Math.max(1, Math.floor((cellH - circleSize - 8) / 18))
+              const visibleEvents = allEvents.slice(0, MAX_VISIBLE)
+              const overflowCnt  = allEvents.length - visibleEvents.length
+
               return (
                 <div
                   key={idx}
                   onClick={() => isCurMonth && setSelected(day)}
                   style={{
-                    width:cellW, height:cellH, flexShrink:0, position:'relative',
+                    height:cellH, position:'relative',
                     display:'flex', flexDirection:'column',
-                    alignItems:'center', justifyContent:'flex-start',
-                    paddingTop: Math.max(3, cellH * 0.1),
+                    alignItems:'flex-start', justifyContent:'flex-start',
+                    padding: '4px 3px 2px 4px',
                     cursor: isCurMonth ? 'pointer' : 'default',
+                    borderTop: '1px solid var(--border)',
                   }}
                 >
+                  {/* 날짜 숫자 */}
                   <div style={{
                     width:circleSize, height:circleSize,
                     display:'flex', alignItems:'center', justifyContent:'center',
                     borderRadius:'50%',
                     background: isToday ? 'var(--accent)' : 'transparent',
                     fontSize:numSize, fontWeight: isToday ? 700 : 400,
-                    color: textColor,
+                    color: textColor, flexShrink: 0,
                   }}>
                     {day.getDate()}
                   </div>
 
-                  {impCnt > 0 && (
-                    <div style={{
-                      position:'absolute', top:2, right:3,
-                      fontSize:12, fontWeight:700, color:'var(--accent)', lineHeight:1,
-                    }}>
-                      {impCnt}
-                    </div>
-                  )}
-
+                  {/* 공휴일 */}
                   {holiday && isCurMonth && (
                     <div style={{
-                      fontSize: Math.max(11, Math.min(14, cellH * 0.24)),
-                      color: '#e05252', lineHeight: 1, marginTop: 1,
-                      maxWidth: cellW - 4, overflow: 'hidden',
+                      fontSize: 9, color: '#e05252', lineHeight: 1, marginTop: 1,
+                      width: '100%', overflow: 'hidden',
                       textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                      textAlign: 'center',
                     }}>
                       {holiday}
                     </div>
                   )}
 
-                  {hasItems && (
-                    <div style={{
-                      width:4, height:4, borderRadius:'50%', marginTop:1,
-                      background: isToday ? '#fff' : 'var(--muted)', opacity:0.7,
-                    }} />
+                  {/* 이벤트 블록 */}
+                  {visibleEvents.map(ev => (
+                    <div key={ev.key} style={{
+                      width: '100%', marginTop: 2,
+                      padding: '1px 4px', borderRadius: 3,
+                      background: ev.bg,
+                      borderLeft: `2px solid ${ev.color}`,
+                      fontSize: 10, lineHeight: '14px',
+                      color: ev.done ? 'var(--muted)' : 'var(--text)',
+                      textDecoration: ev.done ? 'line-through' : 'none',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      boxSizing: 'border-box',
+                    }}>
+                      {ev.label}
+                    </div>
+                  ))}
+
+                  {/* 오버플로우 */}
+                  {overflowCnt > 0 && (
+                    <div style={{ fontSize: 9, color: 'var(--muted)', marginTop: 2, lineHeight: 1 }}>
+                      +{overflowCnt}개 더
+                    </div>
                   )}
                 </div>
               )

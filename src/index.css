@@ -1,29 +1,33 @@
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
 
 :root {
-  --bg: #f2f4f3;
-  --bg2: #e4eae5;
-  --bg3: #d6dfd7;
-  --bg4: #c8d4c9;
-  --text: #1a1a2e;
+  --bg: #eef0ef;
+  --bg2: #ffffff;
+  --bg3: #f0f2f1;
+  --bg4: #e2e6e3;
+  --text: #111827;
   --muted: #6b7280;
-  --border: #c4cfc5;
-  --accent: #4a8c5c;
-  --green: #3fb950;
-  --red: #f85149;
-  --yellow: #d2991a;
+  --border: #d8deda;
+  --accent: #3a7d50;
+  --accent-soft: rgba(58,125,80,0.12);
+  --green: #22c55e;
+  --red: #ef4444;
+  --yellow: #f59e0b;
   --purple: #9c68c5;
+  --shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
 }
 
 [data-theme="dark"] {
-  --bg: #1a1a1a;
-  --bg2: #333333;
-  --bg3: #3d3d3d;
-  --bg4: #474747;
-  --text: #e6edf3;
-  --muted: #9ca3af;
-  --border: #4a4a4a;
-  --accent: #4a8c5c;
+  --bg: #0d0d0d;
+  --bg2: #181818;
+  --bg3: #222222;
+  --bg4: #2c2c2c;
+  --text: #e8edf2;
+  --muted: #8b949e;
+  --border: #272727;
+  --accent: #4ade80;
+  --accent-soft: rgba(74,222,128,0.12);
+  --shadow: 0 1px 4px rgba(0,0,0,0.3), 0 4px 16px rgba(0,0,0,0.2);
 }
 
 * {

@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from 'react'
+import { type ReactNode, useState, useEffect } from 'react'
 import { useAuth } from '../store/AuthContext'
 import { useApp } from '../store/AppContext'
 import { useRouter } from '../store/RouterContext'
@@ -78,6 +78,22 @@ export default function PageShell({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(() =>
     localStorage.getItem('sidebar_open') !== 'false'
   )
+  const [isDark, setIsDark] = useState(() => {
+    const saved = localStorage.getItem('theme')
+    if (saved) return saved === 'dark'
+    return window.matchMedia('(prefers-color-scheme: dark)').matches
+  })
+
+  const toggleTheme = () => {
+    const next = !isDark
+    setIsDark(next)
+    localStorage.setItem('theme', next ? 'dark' : 'light')
+    document.documentElement.setAttribute('data-theme', next ? 'dark' : '')
+  }
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : '')
+  }, [isDark])
 
   const toggleSidebar = () => {
     const next = !sidebarOpen
@@ -224,6 +240,36 @@ export default function PageShell({ children }: { children: ReactNode }) {
             )
           })}
         </nav>
+
+        {/* 다크모드 토글 */}
+        <div style={{ padding: '8px 10px 4px', minWidth: 200, flexShrink: 0 }}>
+          <button onClick={toggleTheme} style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            width: '100%', padding: '8px 12px', borderRadius: 8,
+            border: '1px solid var(--border)', background: 'var(--bg3)',
+            color: 'var(--muted)', cursor: 'pointer', fontSize: 12,
+            fontFamily: 'inherit', transition: 'background 0.12s',
+          }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {isDark ? '🌙' : '☀️'}
+              <span>{isDark ? '다크 모드' : '라이트 모드'}</span>
+            </span>
+            <span style={{
+              width: 32, height: 18, borderRadius: 9, position: 'relative',
+              background: isDark ? 'var(--accent)' : 'var(--bg4)',
+              display: 'inline-block', flexShrink: 0,
+              transition: 'background 0.2s',
+            }}>
+              <span style={{
+                position: 'absolute', top: 2,
+                left: isDark ? 16 : 2,
+                width: 14, height: 14, borderRadius: '50%',
+                background: '#fff',
+                transition: 'left 0.2s',
+              }} />
+            </span>
+          </button>
+        </div>
 
         {/* 유저 영역 */}
         <div style={{

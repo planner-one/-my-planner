@@ -2,6 +2,18 @@ import { type ComponentType } from 'react'
 import ClockWidget, { meta as clockMeta, ClockActions } from './ClockWidget'
 import MemoWidget, { meta as memoMeta, MemoActions } from './MemoWidget'
 import CalendarWidget, { meta as calendarMeta } from './CalendarWidget'
+import TodoWidget, { meta as todoMeta } from './TodoWidget'
+import HabitWidget, { meta as habitMeta } from './HabitWidget'
+import PomodoroWidget, { meta as pomodoroMeta } from './PomodoroWidget'
+import CounterWidget, { meta as counterMeta } from './CounterWidget'
+import ChartWidget, { meta as chartMeta } from './ChartWidget'
+import GoalWidget, { meta as goalMeta } from './GoalWidget'
+import TopGoalWidget, { meta as topGoalMeta } from './TopGoalWidget'
+import MenuWidget, { meta as menuMeta } from './MenuWidget'
+import ReviewWidget, { meta as reviewMeta } from './ReviewWidget'
+import QuickAddWidget, { meta as quickAddMeta } from './QuickAddWidget'
+import ScheduledTaskWidget, { meta as scheduledMeta } from './ScheduledTaskWidget'
+import WeatherWidget, { meta as weatherMeta } from './WeatherWidget'
 
 export interface WidgetMeta {
   id: string
@@ -17,9 +29,21 @@ export interface WidgetMeta {
 }
 
 export const WIDGETS: WidgetMeta[] = [
-  { ...clockMeta,    component: ClockWidget,    Actions: ClockActions },
-  { ...memoMeta,     component: MemoWidget,     Actions: MemoActions },
+  { ...clockMeta,    component: ClockWidget,         Actions: ClockActions },
+  { ...memoMeta,     component: MemoWidget,           Actions: MemoActions },
   { ...calendarMeta, component: CalendarWidget },
+  { ...todoMeta,     component: TodoWidget },
+  { ...habitMeta,    component: HabitWidget },
+  { ...pomodoroMeta, component: PomodoroWidget },
+  { ...counterMeta,  component: CounterWidget },
+  { ...chartMeta,    component: ChartWidget },
+  { ...goalMeta,     component: GoalWidget },
+  { ...topGoalMeta,  component: TopGoalWidget },
+  { ...menuMeta,     component: MenuWidget },
+  { ...reviewMeta,   component: ReviewWidget },
+  { ...quickAddMeta, component: QuickAddWidget },
+  { ...scheduledMeta,component: ScheduledTaskWidget },
+  { ...weatherMeta,  component: WeatherWidget },
 ].sort((a, b) => a.order - b.order)
 
 export const WIDGET_MAP: Record<string, WidgetMeta> = Object.fromEntries(
