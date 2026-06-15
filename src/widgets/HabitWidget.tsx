@@ -105,7 +105,7 @@ export default function HabitWidget() {
   const compact = w > 0 && w < 310
   const short = h > 0 && h < 250
   const horizontalPadding = compact ? 12 : 18
-  const rowHeight = short ? 34 : compact ? 38 : 42
+  const rowHeight = short ? 30 : compact ? 34 : 37
   const checkSize = compact ? 21 : 24
 
   return (
@@ -128,7 +128,7 @@ export default function HabitWidget() {
       )}
       <div style={{
         flex: 1, overflowY: 'auto',
-        display: 'flex', flexDirection: 'column', gap: 3,
+        display: 'flex', flexDirection: 'column', gap: 1,
       }}>
         {habits.length === 0 && (
           <div style={{
@@ -170,7 +170,7 @@ export default function HabitWidget() {
                 display: 'grid',
                 gridTemplateColumns: `${checkSize}px ${compact ? 20 : 24}px minmax(0, 1fr)`,
                 alignItems: 'center', gap: compact ? 7 : 8,
-                padding: short ? '2px 0' : compact ? '4px 0' : '5px 0',
+                padding: short ? '1px 0' : compact ? '2px 0' : '3px 0',
                 border: 0, background: 'transparent', color: 'var(--text)',
                 cursor: 'pointer', textAlign: 'left',
               }}
