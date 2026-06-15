@@ -1,6 +1,24 @@
 import { useApp } from '../store/AppContext'
 import { useRouter } from '../store/RouterContext'
 import { toLocalDateKey } from '../utils/date'
+import { getHabitIcon } from '../utils/habits'
+
+function HabitProgress() {
+  const { habits, habitHistory } = useApp()
+  const todayRecord = habitHistory[toLocalDateKey()] ?? {}
+  const done = habits.filter(habit => todayRecord[habit.id]).length
+  const percentage = habits.length === 0 ? 0 : Math.round((done / habits.length) * 100)
+
+  return (
+    <span style={{
+      minWidth: 40, padding: '3px 8px', borderRadius: 999,
+      background: 'var(--bg3)', color: 'var(--accent)',
+      fontSize: 12, fontWeight: 700, textAlign: 'center',
+    }}>
+      {percentage}%
+    </span>
+  )
+}
 
 export const meta = {
   id: 'habit',
@@ -11,6 +29,7 @@ export const meta = {
   minW: 4,
   minH: 3,
   order: 4,
+  Actions: HabitProgress,
 }
 
 export default function HabitWidget() {
@@ -30,10 +49,29 @@ export default function HabitWidget() {
   }
 
   const doneCnt = habits.filter(h => todayRecord[h.id]).length
+  const percentage = habits.length === 0 ? 0 : Math.round((doneCnt / habits.length) * 100)
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '8px 12px', boxSizing: 'border-box', gap: 6 }}>
-      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+    <div style={{
+      display: 'flex', flexDirection: 'column', height: '100%',
+      padding: '2px 18px 14px', boxSizing: 'border-box', gap: 14,
+    }}>
+      {habits.length > 0 && (
+        <div style={{
+          height: 7, borderRadius: 999, background: 'var(--bg3)',
+          overflow: 'hidden', flexShrink: 0,
+        }}>
+          <div style={{
+            width: `${percentage}%`, height: '100%',
+            borderRadius: 'inherit', background: 'var(--accent)',
+            transition: 'width 0.25s ease',
+          }} />
+        </div>
+      )}
+      <div style={{
+        flex: 1, overflowY: 'auto',
+        display: 'flex', flexDirection: 'column', gap: 3,
+      }}>
         {habits.length === 0 && (
           <div style={{
             flex: 1, display: 'flex', flexDirection: 'column',
@@ -57,30 +95,39 @@ export default function HabitWidget() {
         {habits.map(h => {
           const done = !!todayRecord[h.id]
           return (
-            <div
+            <button
+              type="button"
               key={h.id}
               onClick={() => toggle(h.id)}
               style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: '7px 10px', borderRadius: 8, cursor: 'pointer',
-                background: done ? 'var(--accent)' : 'var(--bg3)',
-                transition: 'background 0.15s',
+                width: '100%', minHeight: 42,
+                display: 'grid', gridTemplateColumns: '26px 24px minmax(0, 1fr)',
+                alignItems: 'center', gap: 8, padding: '5px 0',
+                border: 0, background: 'transparent', color: 'var(--text)',
+                cursor: 'pointer', textAlign: 'left',
               }}
             >
-              <span style={{ fontSize: 16 }}>{done ? '✅' : '⬜'}</span>
               <span style={{
-                fontSize: 13, color: done ? '#fff' : 'var(--text)',
+                width: 24, height: 24, borderRadius: 6, boxSizing: 'border-box',
+                display: 'grid', placeItems: 'center',
+                border: `1.5px solid ${done ? 'var(--accent)' : 'var(--border)'}`,
+                background: done ? 'var(--accent)' : 'transparent',
+                color: '#fff', fontSize: 15, fontWeight: 800,
+                transition: 'background 0.15s, border-color 0.15s',
+              }}>
+                {done ? '✓' : ''}
+              </span>
+              <span style={{ fontSize: 17, lineHeight: 1 }}>{getHabitIcon(h)}</span>
+              <span style={{
+                minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap', fontSize: 14,
+                color: done ? 'var(--muted)' : 'var(--text)',
                 textDecoration: done ? 'line-through' : 'none',
               }}>{h.name}</span>
-            </div>
+            </button>
           )
         })}
       </div>
-      {habits.length > 0 && (
-        <div style={{ fontSize: 11, color: 'var(--muted)', textAlign: 'right' }}>
-          {doneCnt} / {habits.length} 완료
-        </div>
-      )}
     </div>
   )
 }

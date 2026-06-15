@@ -41,6 +41,7 @@ export interface Habit {
   id: string
   name: string
   createdAt: string
+  icon?: string
 }
 
 export interface Task {

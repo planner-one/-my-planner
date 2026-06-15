@@ -2,20 +2,24 @@ import type { Habit } from '../types'
 
 export const HABITS_VERSION = 3
 
-const DEFAULT_HABIT_NAMES = [
-  '물 마시기',
-  '스트레칭',
-  '운동',
-  '독서',
-  '하루 정리',
+const DEFAULT_HABITS = [
+  { name: '물 마시기', icon: '💧' },
+  { name: '스트레칭', icon: '🤸' },
+  { name: '운동', icon: '🏃' },
+  { name: '독서', icon: '📖' },
+  { name: '하루 정리', icon: '📝' },
 ]
 
 export const createDefaultHabits = (createdAt = new Date().toISOString()): Habit[] =>
-  DEFAULT_HABIT_NAMES.map((name, index) => ({
+  DEFAULT_HABITS.map(({ name, icon }, index) => ({
     id: `default-habit-${index + 1}`,
     name,
+    icon,
     createdAt,
   }))
+
+export const getHabitIcon = (habit: Pick<Habit, 'name' | 'icon'>): string =>
+  habit.icon ?? DEFAULT_HABITS.find(item => item.name === habit.name)?.icon ?? '✨'
 
 export const createHabitId = (): string => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -48,6 +52,7 @@ export const migrateHabits = (
     : rawHabits.map((habit, index) => ({
         id: habit.id || legacyHabitId(habit.name, index),
         name: habit.name,
+        icon: getHabitIcon(habit),
         createdAt: habit.createdAt || createdAt,
       }))
 

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useApp } from '../store/AppContext'
 import { addLocalDays, toLocalDateKey } from '../utils/date'
-import { createDefaultHabits, createHabitId } from '../utils/habits'
+import { createDefaultHabits, createHabitId, getHabitIcon } from '../utils/habits'
 
 const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
 const MONTH_LABELS = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월']
@@ -41,7 +41,7 @@ export default function HabitTracker() {
   const addHabit = () => {
     const name = input.trim()
     if (!name || habits.some(habit => habit.name === name)) return
-    const habit = { id: createHabitId(), name, createdAt: new Date().toISOString() }
+    const habit = { id: createHabitId(), name, icon: '✨', createdAt: new Date().toISOString() }
     setHabits(previous => [...previous, habit])
     setHabitHistory(previous => ({
       ...previous,
@@ -204,6 +204,7 @@ export default function HabitTracker() {
                   />
                 ) : (
                   <button type="button" className="habit-name" onClick={() => toggle(habit.id)}>
+                    <span style={{ marginRight: 8 }}>{getHabitIcon(habit)}</span>
                     {habit.name}
                   </button>
                 )}
