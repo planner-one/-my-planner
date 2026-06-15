@@ -83,8 +83,8 @@ body {
 
 @media (max-width: 767px) {
   :root {
-    --app-scale: 1;
-    --app-viewport-height: 100vh;
+    --app-scale: 1 !important;
+    --app-viewport-height: 100vh !important;
   }
 }
 

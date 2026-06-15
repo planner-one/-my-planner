@@ -38,6 +38,8 @@ interface AppContextValue {
   setDashboardLayout: React.Dispatch<React.SetStateAction<LayoutItem[]>>
   dashboardActive: string[]
   setDashboardActive: React.Dispatch<React.SetStateAction<string[]>>
+  uiScale: number
+  setUiScale: React.Dispatch<React.SetStateAction<number>>
   nickname: string;          setNickname: React.Dispatch<React.SetStateAction<string>>
   saveWithOverrides: (overrides?: Partial<UserData>) => Promise<void>
   saveNow: () => Promise<void>
@@ -72,6 +74,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [chartHistory, setChartHistory] = useState<number[]>([])
   const [dashboardLayout, setDashboardLayout] = useState<LayoutItem[]>([])
   const [dashboardActive, setDashboardActive] = useState<string[]>([])
+  const [uiScale, setUiScale] = useState<number>(90)
   const [nickname, setNickname] = useState<string>('')
   const [dataLoaded, setDataLoaded] = useState<boolean>(false)
   const [currentDate, setCurrentDate] = useState(toLocalDateKey)
@@ -89,6 +92,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       notes, weekTasks, timeBlockData, scheduledTasks,
       journal, chartHistory,
       dashboardLayout, dashboardActive,
+      uiScale,
       nickname,
       _lastSaved: new Date().toISOString(),
       _displayName: user?.displayName ?? '',
@@ -109,6 +113,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     isLoadingRef.current = true
     setDataLoaded(false)
+    setUiScale(90)
 
     loadUserData(user.uid).then(d => {
       if (d) {
@@ -135,12 +140,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (d.nickname) setNickname(d.nickname)
         localStorage.setItem('dashboard_cols_v', '2')
       }
+      setUiScale(d?.uiScale ?? 90)
       setTimeout(() => {
         isLoadingRef.current = false
         setDataLoaded(true)
       }, 300)
     })
   }, [user?.uid])
+
+  useEffect(() => {
+    const scale = Math.min(110, Math.max(80, uiScale)) / 100
+    document.documentElement.style.setProperty('--app-scale', String(scale))
+    document.documentElement.style.setProperty('--app-viewport-height', `${100 / scale}vh`)
+  }, [uiScale])
 
   useEffect(() => {
     const now = new Date()
@@ -196,7 +208,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     todos, todoHistory, habits, habitHistory, tasks, goals, projects, topGoals,
     energy, counters, quickMemo, review, notes, weekTasks,
     timeBlockData, scheduledTasks, journal, chartHistory,
-    dashboardLayout, dashboardActive, nickname,
+    dashboardLayout, dashboardActive, uiScale, nickname,
   ])
 
   const saveWithOverrides = (overrides: Partial<UserData> = {}): Promise<void> => {
@@ -239,6 +251,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     chartHistory, setChartHistory,
     dashboardLayout, setDashboardLayout,
     dashboardActive, setDashboardActive,
+    uiScale, setUiScale,
     nickname, setNickname,
     saveWithOverrides,
     saveNow,

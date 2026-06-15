@@ -15,6 +15,21 @@ export interface TodoDailyResult {
   savedAt: string
   source: 'auto' | 'manual'
   items: Todo[]
+  correctionNote?: string
+  correctedAt?: string
+  correctionHistory?: TodoCorrection[]
+}
+
+export interface TodoCorrection {
+  correctedAt: string
+  note: string
+  changes: {
+    itemId: string
+    text: string
+    action?: 'toggle' | 'add' | 'remove'
+    fromDone?: boolean
+    toDone?: boolean
+  }[]
 }
 
 export interface Habit {
@@ -140,6 +155,7 @@ export interface UserData {
   chartHistory?: number[]
   dashboardLayout?: LayoutItem[]
   dashboardActive?: string[]
+  uiScale?: number
   nickname?: string
   _lastSaved?: string
   _displayName?: string

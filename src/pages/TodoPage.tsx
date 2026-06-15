@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useApp } from '../store/AppContext'
-import type { Todo, TodoDailyResult } from '../types'
+import type { Todo, TodoCorrection, TodoDailyResult } from '../types'
 import { addLocalDays, toLocalDateKey } from '../utils/date'
 
 type Category = 'work' | 'personal' | 'study'
@@ -49,6 +49,13 @@ export default function TodoPage() {
   const [editText, setEditText] = useState('')
   const [editCategory, setEditCategory] = useState<Category>('work')
   const [saveMessage, setSaveMessage] = useState('')
+  const [correctionDate, setCorrectionDate] = useState<string | null>(null)
+  const [correctionItems, setCorrectionItems] = useState<Todo[]>([])
+  const [correctionNote, setCorrectionNote] = useState('')
+  const [correctionSaving, setCorrectionSaving] = useState(false)
+  const [correctionNewText, setCorrectionNewText] = useState('')
+  const [correctionNewCategory, setCorrectionNewCategory] = useState<Category>('work')
+  const [correctionNewDone, setCorrectionNewDone] = useState(true)
   const editRef = useRef<HTMLInputElement>(null)
 
   const today = toLocalDateKey()
@@ -134,6 +141,123 @@ export default function TodoPage() {
     setTodoHistory(nextHistory)
     await saveWithOverrides({ todoHistory: nextHistory })
     setSaveMessage('오늘 결과를 저장했습니다.')
+    window.setTimeout(() => setSaveMessage(''), 2000)
+  }
+
+  const startCorrection = (result: TodoDailyResult) => {
+    setCorrectionDate(result.date)
+    setCorrectionItems(result.items.map(item => ({ ...item })))
+    setCorrectionNote('')
+    setCorrectionNewText('')
+    setCorrectionNewCategory('work')
+    setCorrectionNewDone(true)
+  }
+
+  const cancelCorrection = () => {
+    setCorrectionDate(null)
+    setCorrectionItems([])
+    setCorrectionNote('')
+    setCorrectionNewText('')
+    setCorrectionNewCategory('work')
+    setCorrectionNewDone(true)
+  }
+
+  const toggleCorrectionItem = (id: string) => {
+    setCorrectionItems(items =>
+      items.map(item => item.id === id ? { ...item, done: !item.done } : item)
+    )
+  }
+
+  const addCorrectionItem = (result: TodoDailyResult) => {
+    const text = correctionNewText.trim()
+    if (!text) return
+    setCorrectionItems(items => [
+      ...items,
+      {
+        id: `correction-${Date.now()}`,
+        text,
+        done: correctionNewDone,
+        priority: 'medium',
+        category: correctionNewCategory,
+        date: result.date,
+      },
+    ])
+    setCorrectionNewText('')
+    setCorrectionNewDone(true)
+  }
+
+  const removeCorrectionItem = (id: string) => {
+    setCorrectionItems(items => items.filter(item => item.id !== id))
+  }
+
+  const saveCorrection = async (result: TodoDailyResult) => {
+    if (correctionSaving) return
+
+    const stateChanges = correctionItems.reduce<TodoCorrection['changes']>((acc, item) => {
+      const original = result.items.find(saved => saved.id === item.id)
+      if (!original) {
+        acc.push({
+          itemId: item.id,
+          text: item.text,
+          action: 'add',
+          toDone: item.done,
+        })
+        return acc
+      }
+      if (original.done !== item.done) {
+        acc.push({
+          itemId: item.id,
+          text: item.text,
+          action: 'toggle',
+          fromDone: original.done,
+          toDone: item.done,
+        })
+      }
+      return acc
+    }, [])
+    const removedChanges: TodoCorrection['changes'] = result.items
+      .filter(original => !correctionItems.some(item => item.id === original.id))
+      .map(original => ({
+        itemId: original.id,
+        text: original.text,
+        action: 'remove',
+        fromDone: original.done,
+      }))
+    const changes = [...stateChanges, ...removedChanges]
+    const note = correctionNote.trim()
+    if (changes.length === 0 && !note) {
+      setSaveMessage('변경된 항목이나 메모가 없습니다.')
+      window.setTimeout(() => setSaveMessage(''), 2000)
+      return
+    }
+
+    const correctedAt = new Date().toISOString()
+    const doneCount = correctionItems.filter(item => item.done).length
+    const corrected: TodoDailyResult = {
+      ...result,
+      items: correctionItems.map(item => ({ ...item })),
+      total: correctionItems.length,
+      done: doneCount,
+      completionRate: correctionItems.length === 0
+        ? 0
+        : Math.round((doneCount / correctionItems.length) * 100),
+      correctionNote: note || result.correctionNote,
+      correctedAt,
+      correctionHistory: [
+        ...(result.correctionHistory ?? []),
+        { correctedAt, note, changes },
+      ],
+    }
+    const nextHistory = todoHistory.map(item =>
+      item.date === result.date ? corrected : item
+    )
+
+    setCorrectionSaving(true)
+    setTodoHistory(nextHistory)
+    await saveWithOverrides({ todoHistory: nextHistory })
+    setCorrectionSaving(false)
+    cancelCorrection()
+    setSaveMessage('Todo 기록을 보정했습니다.')
     window.setTimeout(() => setSaveMessage(''), 2000)
   }
 
@@ -357,6 +481,9 @@ export default function TodoPage() {
                 <div style={{ fontSize: 13, fontWeight: 700 }}>{result.date}</div>
                 <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2 }}>
                   {result.source === 'manual' ? '직접 저장' : '자동 저장'}
+                  {result.correctedAt && (
+                    <span style={{ color: 'var(--accent)', marginLeft: 5 }}>· 수동 보정됨</span>
+                  )}
                 </div>
               </div>
               <ProgressBar pct={result.completionRate} color="var(--accent)" height={6} />
@@ -367,25 +494,249 @@ export default function TodoPage() {
                 </span>
               </div>
             </summary>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, padding: '12px 0 2px 136px' }}>
-              {result.items.length === 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7, padding: '12px 0 2px 136px' }}>
+              {(correctionDate === result.date ? correctionItems : result.items).length === 0 ? (
                 <span style={{ fontSize: 12, color: 'var(--muted)' }}>저장된 항목이 없습니다.</span>
-              ) : result.items.map(item => (
-                <div key={item.id} style={{
+              ) : (correctionDate === result.date ? correctionItems : result.items).map(item => (
+                <label key={item.id} style={{
                   display: 'flex', alignItems: 'center', gap: 8,
                   fontSize: 12, color: item.done ? 'var(--muted)' : 'var(--text)',
+                  cursor: correctionDate === result.date ? 'pointer' : 'default',
                 }}>
-                  <span style={{ color: item.done ? 'var(--accent)' : 'var(--border)' }}>
-                    {item.done ? '✓' : '○'}
-                  </span>
+                  {correctionDate === result.date ? (
+                    <input
+                      type="checkbox"
+                      checked={item.done}
+                      onChange={() => toggleCorrectionItem(item.id)}
+                      style={{ width: 14, height: 14, accentColor: 'var(--accent)' }}
+                    />
+                  ) : (
+                    <span style={{ color: item.done ? 'var(--accent)' : 'var(--border)' }}>
+                      {item.done ? '✓' : '○'}
+                    </span>
+                  )}
                   <Badge category={cat(item)} />
-                  <span style={{ textDecoration: item.done ? 'line-through' : 'none' }}>{item.text}</span>
-                </div>
+                  <span style={{ flex: 1, textDecoration: item.done ? 'line-through' : 'none' }}>{item.text}</span>
+                  {correctionDate === result.date && !result.items.some(saved => saved.id === item.id) && (
+                    <span style={{
+                      flexShrink: 0, padding: '1px 5px', borderRadius: 4,
+                      background: 'var(--accent-soft)', color: 'var(--accent)',
+                      fontSize: 9, fontWeight: 700,
+                    }}>
+                      보정 추가
+                    </span>
+                  )}
+                  {correctionDate === result.date && (
+                    <button
+                      type="button"
+                      onClick={event => {
+                        event.preventDefault()
+                        removeCorrectionItem(item.id)
+                      }}
+                      title="기록에서 제거"
+                      aria-label={`${item.text} 기록에서 제거`}
+                      style={{
+                        flexShrink: 0, border: 'none', background: 'transparent',
+                        color: 'var(--muted)', fontSize: 16, lineHeight: 1,
+                        padding: 1, cursor: 'pointer',
+                      }}
+                    >
+                      ×
+                    </button>
+                  )}
+                </label>
               ))}
+
+              {result.correctionNote && correctionDate !== result.date && (
+                <div style={{
+                  marginTop: 5, padding: '9px 10px', borderRadius: 7,
+                  background: 'var(--bg3)', borderLeft: '3px solid var(--accent)',
+                  color: 'var(--text)', fontSize: 12, whiteSpace: 'pre-wrap',
+                }}>
+                  <b style={{ display: 'block', marginBottom: 3, color: 'var(--accent)', fontSize: 10 }}>
+                    보정 메모
+                  </b>
+                  {result.correctionNote}
+                </div>
+              )}
+
+              {correctionDate === result.date ? (
+                <div style={{ marginTop: 5 }}>
+                  <div className="todo-correction-add-row" style={{
+                    display: 'grid', gridTemplateColumns: '88px 1fr auto auto',
+                    gap: 6, marginBottom: 7,
+                  }}>
+                    <select
+                      value={correctionNewCategory}
+                      onChange={event => setCorrectionNewCategory(event.target.value as Category)}
+                      aria-label="추가 항목 카테고리"
+                      style={{
+                        minWidth: 0, border: '1px solid var(--border)', borderRadius: 7,
+                        background: 'var(--bg3)', color: CATEGORY_CONFIG[correctionNewCategory].color,
+                        padding: '6px 5px', fontSize: 11, fontWeight: 700,
+                      }}
+                    >
+                      {(Object.entries(CATEGORY_CONFIG) as [Category, typeof CATEGORY_CONFIG[Category]][])
+                        .map(([value, config]) => (
+                          <option key={value} value={value}>{config.label}</option>
+                        ))}
+                    </select>
+                    <input
+                      value={correctionNewText}
+                      maxLength={200}
+                      onChange={event => setCorrectionNewText(event.target.value)}
+                      onKeyDown={event => {
+                        if (event.key === 'Enter' && !event.nativeEvent.isComposing) addCorrectionItem(result)
+                      }}
+                      placeholder="누락된 항목 추가"
+                      style={{
+                        minWidth: 0, border: '1px solid var(--border)', borderRadius: 7,
+                        background: 'var(--bg3)', color: 'var(--text)',
+                        padding: '6px 8px', fontSize: 12, outline: 'none',
+                      }}
+                    />
+                    <label style={{
+                      display: 'flex', alignItems: 'center', gap: 4,
+                      whiteSpace: 'nowrap', color: 'var(--muted)', fontSize: 10,
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={correctionNewDone}
+                        onChange={event => setCorrectionNewDone(event.target.checked)}
+                        style={{ accentColor: 'var(--accent)' }}
+                      />
+                      완료
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => addCorrectionItem(result)}
+                      disabled={!correctionNewText.trim()}
+                      style={{
+                        padding: '5px 9px', border: 'none', borderRadius: 6,
+                        background: 'var(--accent)', color: '#fff',
+                        fontSize: 11, fontWeight: 600,
+                        opacity: correctionNewText.trim() ? 1 : 0.45,
+                        cursor: correctionNewText.trim() ? 'pointer' : 'default',
+                      }}
+                    >
+                      추가
+                    </button>
+                  </div>
+                  <textarea
+                    value={correctionNote}
+                    maxLength={1000}
+                    onChange={event => setCorrectionNote(event.target.value)}
+                    placeholder="누락된 완료 처리나 당시 상황을 메모하세요."
+                    style={{
+                      width: '100%', minHeight: 74, resize: 'vertical',
+                      border: '1px solid var(--border)', borderRadius: 7,
+                      background: 'var(--bg3)', color: 'var(--text)',
+                      padding: 9, fontFamily: 'inherit', fontSize: 12,
+                      lineHeight: 1.5, outline: 'none',
+                    }}
+                  />
+                  <div style={{
+                    display: 'flex', alignItems: 'center',
+                    justifyContent: 'space-between', marginTop: 6,
+                  }}>
+                    <span style={{ fontSize: 10, color: 'var(--muted)' }}>
+                      이 수정은 보정 이력에 남습니다.
+                    </span>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={cancelCorrection} style={{
+                        padding: '5px 10px', borderRadius: 6,
+                        border: '1px solid var(--border)', background: 'transparent',
+                        color: 'var(--muted)', fontSize: 11, cursor: 'pointer',
+                      }}>
+                        취소
+                      </button>
+                      <button
+                        onClick={() => saveCorrection(result)}
+                        disabled={correctionSaving}
+                        style={{
+                          padding: '5px 11px', borderRadius: 6, border: 'none',
+                          background: 'var(--accent)', color: '#fff',
+                          fontSize: 11, fontWeight: 600,
+                          cursor: correctionSaving ? 'wait' : 'pointer',
+                          opacity: correctionSaving ? 0.6 : 1,
+                        }}
+                      >
+                        {correctionSaving ? '저장 중...' : '보정 저장'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5 }}>
+                  <button
+                    onClick={() => startCorrection(result)}
+                    disabled={correctionDate !== null}
+                    style={{
+                      padding: '5px 10px', borderRadius: 6,
+                      border: '1px solid var(--border)', background: 'var(--bg2)',
+                      color: 'var(--text)', fontSize: 11,
+                      cursor: correctionDate !== null ? 'default' : 'pointer',
+                      opacity: correctionDate !== null ? 0.45 : 1,
+                    }}
+                  >
+                    기록 보정
+                  </button>
+                  {result.correctedAt && (
+                    <span style={{ fontSize: 10, color: 'var(--muted)' }}>
+                      최근 보정 {new Date(result.correctedAt).toLocaleString('ko-KR')}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {(result.correctionHistory?.length ?? 0) > 1 && correctionDate !== result.date && (
+                <details style={{ marginTop: 3 }}>
+                  <summary style={{ cursor: 'pointer', color: 'var(--muted)', fontSize: 10 }}>
+                    이전 보정 이력 {result.correctionHistory!.length}건
+                  </summary>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5, paddingTop: 6 }}>
+                    {result.correctionHistory!.slice().reverse().map((history, index) => (
+                      <div key={`${history.correctedAt}-${index}`} style={{
+                        padding: '7px 9px', borderRadius: 6,
+                        background: 'var(--bg3)', color: 'var(--muted)', fontSize: 10,
+                      }}>
+                        <div>{new Date(history.correctedAt).toLocaleString('ko-KR')}</div>
+                        {history.note && <div style={{ color: 'var(--text)', marginTop: 2 }}>{history.note}</div>}
+                        {history.changes.length > 0 && (
+                          <div style={{ marginTop: 2 }}>
+                            {[
+                              history.changes.filter(change => !change.action || change.action === 'toggle').length > 0
+                                ? `완료 변경 ${history.changes.filter(change => !change.action || change.action === 'toggle').length}건`
+                                : '',
+                              history.changes.filter(change => change.action === 'add').length > 0
+                                ? `추가 ${history.changes.filter(change => change.action === 'add').length}건`
+                                : '',
+                              history.changes.filter(change => change.action === 'remove').length > 0
+                                ? `삭제 ${history.changes.filter(change => change.action === 'remove').length}건`
+                                : '',
+                            ].filter(Boolean).join(' · ')}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
             </div>
           </details>
         ))}
       </section>
+      <style>{`
+        @media (max-width: 640px) {
+          .todo-correction-add-row {
+            grid-template-columns: 84px 1fr !important;
+          }
+          .todo-correction-add-row > label,
+          .todo-correction-add-row > button {
+            min-height: 30px;
+          }
+        }
+      `}</style>
     </div>
   )
 }

@@ -19,7 +19,10 @@ const normalizeLayout = (layout: LayoutItem[]): LayoutItem[] =>
   }))
 
 export default function Dashboard() {
-  const { dashboardLayout, dashboardActive } = useApp()
+  const {
+    dashboardLayout, dashboardActive,
+    uiScale, setUiScale, saveWithOverrides,
+  } = useApp()
   const [isEditing, setIsEditing] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const [containerW, setContainerW] = useState(0)
@@ -57,17 +60,84 @@ export default function Dashboard() {
       })
   )
 
+  const changeScale = (next: number) => {
+    const value = Math.min(110, Math.max(80, next))
+    setUiScale(value)
+    saveWithOverrides({ uiScale: value })
+  }
+
   return (
     <div style={{ position: 'relative', padding: '0 24px 24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.02em' }}>나만의 플래너</h2>
-        <button onClick={() => setIsEditing(true)} style={{
-          padding: '6px 16px', borderRadius: 8, border: '1px solid var(--border)',
-          background: 'var(--bg2)', color: 'var(--text)', cursor: 'pointer', fontSize: 13,
-        }}>
-          편집
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="dashboard-scale-control" style={{
+            display: 'flex', alignItems: 'center', height: 31,
+            border: '1px solid var(--border)', borderRadius: 8,
+            background: 'var(--bg2)', overflow: 'hidden',
+          }}>
+            <button
+              type="button"
+              onClick={() => changeScale(uiScale - 5)}
+              disabled={uiScale <= 80}
+              title="화면 축소"
+              aria-label="화면 축소"
+              style={{
+                width: 30, height: '100%', border: 'none',
+                background: 'transparent', color: 'var(--muted)',
+                fontSize: 17, cursor: uiScale <= 80 ? 'default' : 'pointer',
+                opacity: uiScale <= 80 ? 0.35 : 1,
+              }}
+            >
+              −
+            </button>
+            <select
+              value={uiScale}
+              onChange={event => changeScale(Number(event.target.value))}
+              aria-label="화면 비율"
+              style={{
+                height: '100%', border: 'none',
+                borderLeft: '1px solid var(--border)',
+                borderRight: '1px solid var(--border)',
+                background: 'transparent', color: 'var(--text)',
+                fontSize: 12, fontWeight: 600, padding: '0 6px',
+                outline: 'none', cursor: 'pointer',
+              }}
+            >
+              {[80, 85, 90, 95, 100, 105, 110].map(value => (
+                <option key={value} value={value}>{value}%</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => changeScale(uiScale + 5)}
+              disabled={uiScale >= 110}
+              title="화면 확대"
+              aria-label="화면 확대"
+              style={{
+                width: 30, height: '100%', border: 'none',
+                background: 'transparent', color: 'var(--muted)',
+                fontSize: 17, cursor: uiScale >= 110 ? 'default' : 'pointer',
+                opacity: uiScale >= 110 ? 0.35 : 1,
+              }}
+            >
+              +
+            </button>
+          </div>
+          <button onClick={() => setIsEditing(true)} style={{
+            padding: '6px 16px', borderRadius: 8, border: '1px solid var(--border)',
+            background: 'var(--bg2)', color: 'var(--text)', cursor: 'pointer', fontSize: 13,
+          }}>
+            편집
+          </button>
+        </div>
       </div>
+
+      <style>{`
+        @media (max-width: 767px) {
+          .dashboard-scale-control { display: none !important; }
+        }
+      `}</style>
 
       <div ref={containerRef} style={{ width: '100%' }}>
         {containerW > 0 && layout.length > 0 && (
