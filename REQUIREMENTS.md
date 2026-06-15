@@ -41,6 +41,7 @@ _마지막 업데이트: 2026-05-20_
 | R-025 | 저장 버튼 클릭 시 **즉시** Firestore 저장 (debounce 금지) |
 | R-026 | onLayoutChange 사용 금지 → onDragStop / onResizeStop 사용 |
 | R-027 | layout 저장 전 normalizeLayout으로 x+w > cols 클램프 |
+| R-028 | 대시보드 외 페이지에서 사이드바를 열지 않고 홈으로 즉시 이동 가능한 상단 버튼 제공 |
 
 ---
 

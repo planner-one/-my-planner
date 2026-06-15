@@ -117,6 +117,8 @@ export default function PageShell({ children }: { children: ReactNode }) {
   }
 
   const initial = user?.displayName?.[0]?.toUpperCase() ?? '?'
+  const currentNavItem = NAV_ITEMS.find(item => item.id === page)
+  const showReturnHeader = page !== 'dashboard'
 
   return (
     <div style={{ display: 'flex', height: 'var(--app-viewport-height)', background: 'var(--bg)', overflow: 'hidden' }}>
@@ -124,11 +126,36 @@ export default function PageShell({ children }: { children: ReactNode }) {
       {/* 메인 콘텐츠 */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <header style={{
-          padding: '12px 16px', borderBottom: '1px solid var(--border)',
-          background: 'var(--bg2)', fontWeight: 600, fontSize: 15,
-          color: 'var(--text)', display: 'none', letterSpacing: '-0.01em',
-        }} className="mobile-header">
-          나만의 플래너
+          minHeight: 46, padding: '7px 16px', boxSizing: 'border-box',
+          borderBottom: '1px solid var(--border)',
+          background: 'var(--bg2)', fontWeight: 600, fontSize: 13,
+          color: 'var(--text)',
+          display: showReturnHeader ? 'flex' : 'none',
+          alignItems: 'center', gap: 9, letterSpacing: '-0.01em',
+          flexShrink: 0,
+        }} className="page-return-header">
+          {showReturnHeader ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setPage('dashboard')}
+                title="홈으로 이동"
+                aria-label="홈으로 이동"
+                style={{
+                  width: 32, height: 32, padding: 0,
+                  display: 'grid', placeItems: 'center',
+                  border: '1px solid var(--border)', borderRadius: 7,
+                  background: 'var(--bg3)', color: 'var(--muted)',
+                  cursor: 'pointer', flexShrink: 0,
+                }}
+              >
+                <Icon paths={NAV_ITEMS[0].paths} />
+              </button>
+              <span>{currentNavItem?.label ?? '나만의 플래너'}</span>
+            </>
+          ) : (
+            <span>나만의 플래너</span>
+          )}
         </header>
 
         <main style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
@@ -328,7 +355,7 @@ export default function PageShell({ children }: { children: ReactNode }) {
       <style>{`
         @media (max-width: 767px) {
           .sidebar { display: none !important; }
-          .mobile-header { display: block !important; }
+          .page-return-header { display: flex !important; }
           .bottom-nav { display: flex !important; }
         }
         .nav-item:hover {
