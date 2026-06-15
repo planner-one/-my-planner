@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useApp } from '../store/AppContext'
 import { useRouter } from '../store/RouterContext'
+import { useWidgetSize } from '../hooks/useWidgetSize'
 import { toLocalDateKey } from '../utils/date'
 import { getHabitIcon, isHabitScheduled } from '../utils/habits'
 
@@ -44,15 +45,18 @@ function HabitActions() {
           onClick={saveToday}
           disabled={saving}
           title={saved ? '오늘 기록 다시 저장' : '오늘 기록 저장'}
+          aria-label={saved ? '오늘 기록 다시 저장' : '오늘 기록 저장'}
           style={{
-            height: 24, padding: '0 8px',
+            width: 26, height: 26, padding: 0,
             border: '1px solid var(--border)', borderRadius: 6,
             background: 'transparent', color: saved ? 'var(--accent)' : 'var(--muted)',
-            fontSize: 10, fontWeight: 700, cursor: saving ? 'default' : 'pointer',
+            fontSize: saved ? 14 : 12, fontWeight: 800,
+            cursor: saving ? 'default' : 'pointer',
             opacity: saving ? 0.55 : 1,
+            display: 'grid', placeItems: 'center', flexShrink: 0,
           }}
         >
-          {saving ? '저장 중' : saved ? '✓ 저장' : '저장'}
+          {saving ? '…' : saved ? '✓' : '💾'}
         </button>
       )}
       <span style={{
@@ -79,6 +83,7 @@ export const meta = {
 }
 
 export default function HabitWidget() {
+  const { ref, w, h } = useWidgetSize()
   const { habits, habitHistory, setHabitHistory } = useApp()
   const { setPage } = useRouter()
   const today = toLocalDateKey()
@@ -97,15 +102,21 @@ export default function HabitWidget() {
 
   const doneCnt = activeHabits.filter(h => todayRecord[h.id]).length
   const percentage = activeHabits.length === 0 ? 0 : Math.round((doneCnt / activeHabits.length) * 100)
+  const compact = w > 0 && w < 310
+  const short = h > 0 && h < 250
+  const horizontalPadding = compact ? 12 : 18
+  const rowHeight = short ? 34 : compact ? 38 : 42
+  const checkSize = compact ? 21 : 24
 
   return (
-    <div style={{
+    <div ref={ref} style={{
       display: 'flex', flexDirection: 'column', height: '100%',
-      padding: '2px 18px 14px', boxSizing: 'border-box', gap: 14,
+      padding: `2px ${horizontalPadding}px ${compact ? 10 : 14}px`,
+      boxSizing: 'border-box', gap: compact ? 9 : 14,
     }}>
       {activeHabits.length > 0 && (
         <div style={{
-          height: 7, borderRadius: 999, background: 'var(--bg3)',
+          height: compact ? 5 : 7, borderRadius: 999, background: 'var(--bg3)',
           overflow: 'hidden', flexShrink: 0,
         }}>
           <div style={{
@@ -155,27 +166,30 @@ export default function HabitWidget() {
               key={h.id}
               onClick={() => toggle(h.id)}
               style={{
-                width: '100%', minHeight: 42,
-                display: 'grid', gridTemplateColumns: '26px 24px minmax(0, 1fr)',
-                alignItems: 'center', gap: 8, padding: '5px 0',
+                width: '100%', minHeight: rowHeight,
+                display: 'grid',
+                gridTemplateColumns: `${checkSize}px ${compact ? 20 : 24}px minmax(0, 1fr)`,
+                alignItems: 'center', gap: compact ? 7 : 8,
+                padding: short ? '2px 0' : compact ? '4px 0' : '5px 0',
                 border: 0, background: 'transparent', color: 'var(--text)',
                 cursor: 'pointer', textAlign: 'left',
               }}
             >
               <span style={{
-                width: 24, height: 24, borderRadius: 6, boxSizing: 'border-box',
+                width: checkSize, height: checkSize,
+                borderRadius: compact ? 5 : 6, boxSizing: 'border-box',
                 display: 'grid', placeItems: 'center',
                 border: `1.5px solid ${done ? 'var(--accent)' : 'var(--border)'}`,
                 background: done ? 'var(--accent)' : 'transparent',
-                color: '#fff', fontSize: 15, fontWeight: 800,
+                color: '#fff', fontSize: compact ? 13 : 15, fontWeight: 800,
                 transition: 'background 0.15s, border-color 0.15s',
               }}>
                 {done ? '✓' : ''}
               </span>
-              <span style={{ fontSize: 17, lineHeight: 1 }}>{getHabitIcon(h)}</span>
+              <span style={{ fontSize: compact ? 15 : 17, lineHeight: 1 }}>{getHabitIcon(h)}</span>
               <span style={{
                 minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap', fontSize: 14,
+                whiteSpace: 'nowrap', fontSize: compact ? 12 : 14,
                 color: done ? 'var(--muted)' : 'var(--text)',
                 textDecoration: done ? 'line-through' : 'none',
               }}>{h.name}</span>

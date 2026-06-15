@@ -171,11 +171,18 @@ export default function Dashboard() {
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     flexShrink: 0,
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <span>{meta.icon}</span>
-                      <span>{meta.name}</span>
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 5,
+                      minWidth: 0, whiteSpace: 'nowrap',
+                    }}>
+                      <span style={{ flexShrink: 0 }}>{meta.icon}</span>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{meta.name}</span>
                     </div>
-                    {meta.Actions && <meta.Actions />}
+                    {meta.Actions && (
+                      <div style={{ flexShrink: 0, marginLeft: 8 }}>
+                        <meta.Actions />
+                      </div>
+                    )}
                   </div>
                   <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
                     <div style={{ position: 'absolute', inset: 0 }}>
