@@ -14,7 +14,7 @@ export default function LoginPage() {
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center',
-      justifyContent: 'center', height: '100vh', gap: 24,
+      justifyContent: 'center', height: 'var(--app-viewport-height)', gap: 24,
       background: 'var(--bg)', color: 'var(--text)',
     }}>
       <h1 style={{ fontSize: 28, fontWeight: 700 }}>나만의 플래너</h1>

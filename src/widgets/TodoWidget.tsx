@@ -8,9 +8,9 @@ export const meta = {
   name: '오늘 할 일',
   icon: '✅',
   defaultW: 8,
-  defaultH: 10,
+  defaultH: 7,
   minW: 4,
-  minH: 6,
+  minH: 4,
   order: 3,
 }
 
@@ -51,19 +51,10 @@ export default function TodoWidget() {
   const active = filtered.filter(t => !t.done)
   const done = filtered.filter(t => t.done)
   const sorted = [...active, ...done]
-
-  // 진행률
-  const total = todayTodos.length
-  const doneCount = todayTodos.filter(t => t.done).length
-  const pct = total === 0 ? 0 : Math.round((doneCount / total) * 100)
-  const todayAdded = todayTodos.length
-
-  const catPct = (cat: Category) => {
-    const catItems = todayTodos.filter(t => (t.category ?? DEFAULT_CATEGORY) === cat)
-    if (catItems.length === 0) return null
-    const catDone = catItems.filter(t => t.done).length
-    return { done: catDone, total: catItems.length, pct: Math.round((catDone / catItems.length) * 100) }
-  }
+  const completedCount = todayTodos.filter(t => t.done).length
+  const completionRate = todayTodos.length === 0
+    ? 0
+    : Math.round((completedCount / todayTodos.length) * 100)
 
   useEffect(() => {
     if (editId) editRef.current?.focus()
@@ -111,56 +102,6 @@ export default function TodoWidget() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '10px 12px', boxSizing: 'border-box', gap: 8 }}>
-
-      {/* 진행률 섹션 */}
-      <div style={{
-        background: 'var(--bg3)', borderRadius: 10, padding: '10px 12px',
-        flexShrink: 0, border: '1px solid var(--border)',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>
-            오늘 진행률
-          </span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 10, color: 'var(--muted)' }}>오늘 추가 {todayAdded}개</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>{pct}%</span>
-          </div>
-        </div>
-
-        {/* 전체 프로그레스 바 */}
-        <div style={{ height: 6, borderRadius: 3, background: 'var(--bg4)', overflow: 'hidden', marginBottom: 8 }}>
-          <div style={{
-            height: '100%', borderRadius: 3,
-            background: 'var(--accent)',
-            width: `${pct}%`,
-            transition: 'width 0.4s ease',
-          }} />
-        </div>
-
-        {/* 타입별 미니 진행률 */}
-        <div style={{ display: 'flex', gap: 6 }}>
-          {(Object.entries(CATEGORY_CONFIG) as [Category, typeof CATEGORY_CONFIG[Category]][]).map(([cat, cfg]) => {
-            const stat = catPct(cat)
-            if (!stat) return null
-            return (
-              <div key={cat} style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
-                  <span style={{ fontSize: 9, color: cfg.color, fontWeight: 600 }}>{cfg.label}</span>
-                  <span style={{ fontSize: 9, color: 'var(--muted)' }}>{stat.done}/{stat.total}</span>
-                </div>
-                <div style={{ height: 3, borderRadius: 2, background: 'var(--bg4)', overflow: 'hidden' }}>
-                  <div style={{
-                    height: '100%', borderRadius: 2,
-                    background: cfg.color,
-                    width: `${stat.pct}%`,
-                    transition: 'width 0.4s ease',
-                  }} />
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
 
       {/* 입력 */}
       <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
@@ -213,7 +154,7 @@ export default function TodoWidget() {
           )
         })}
         <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--muted)', alignSelf: 'center' }}>
-          {active.length}개 남음
+          {completedCount}/{todayTodos.length} · {completionRate}%
         </span>
       </div>
 

@@ -14,11 +14,12 @@ import Notes from './pages/Notes'
 import Journal from './pages/Journal'
 import ProfilePage from './pages/ProfilePage'
 import TodoPage from './pages/TodoPage'
+import Inquiries from './pages/Inquiries'
 import type { ComponentType } from 'react'
 
 type PageId =
   | 'dashboard' | 'habits' | 'tasks' | 'todos' | 'goals' | 'projects'
-  | 'weekly' | 'daily' | 'notes' | 'journal' | 'profile'
+  | 'weekly' | 'daily' | 'notes' | 'journal' | 'profile' | 'inquiries'
 
 const PAGE_MAP: Record<PageId, ComponentType> = {
   dashboard: Dashboard,
@@ -32,13 +33,14 @@ const PAGE_MAP: Record<PageId, ComponentType> = {
   notes:     Notes,
   journal:   Journal,
   profile:   ProfilePage,
+  inquiries: Inquiries,
 }
 
 function Loading() {
   return (
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      height: '100vh', color: 'var(--muted)',
+      height: 'var(--app-viewport-height)', color: 'var(--muted)',
     }}>
       불러오는 중...
     </div>

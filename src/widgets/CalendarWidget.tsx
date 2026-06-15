@@ -549,8 +549,11 @@ export default function CalendarWidget() {
       })()
     : undefined
 
-  const numSize    = Math.max(10, Math.min(14, cellH * 0.32))
-  const circleSize = Math.max(18, numSize + 7)
+  const numSize = Math.max(
+    compact ? 12 : 13,
+    Math.min(compact ? 15 : 17, cellH * 0.34, cellW * 0.32),
+  )
+  const circleSize = Math.max(compact ? 20 : 22, numSize + 7)
 
   return (
     <div ref={ref} style={{ width:'100%', height:'100%', overflow:'hidden', userSelect:'none' }}>
@@ -568,7 +571,7 @@ export default function CalendarWidget() {
                 onClick={() => setShowPicker(true)}
                 style={{
                   border:'none', background:'transparent', cursor:'pointer',
-                  fontSize: compact ? 13 : 16, fontWeight:700, color:'var(--text)',
+                  fontSize: compact ? 14 : 17, fontWeight:700, color:'var(--text)',
                   padding: compact ? '3px 4px' : '4px 8px', borderRadius:6,
                 }}
               >
@@ -588,18 +591,26 @@ export default function CalendarWidget() {
           </div>
 
           {/* 요일 */}
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(7, 1fr)', height:LABEL_H }}>
+          <div style={{
+            display:'grid',
+            gridTemplateColumns:'repeat(7, minmax(0, 1fr))',
+            height:LABEL_H,
+          }}>
             {DAY_LABELS.map((d, i) => (
               <div key={d} style={{
                 display:'flex', alignItems:'center', justifyContent:'center',
-                fontSize: compact ? 11 : 14, fontWeight:600,
+                fontSize: compact ? 12 : 15, fontWeight:600,
                 color: i === 0 ? '#e05252' : i === 6 ? 'var(--accent)' : 'var(--muted)',
               }}>{d}</div>
             ))}
           </div>
 
           {/* 날짜 그리드 */}
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(7, 1fr)' }}>
+          <div style={{
+            display:'grid',
+            gridTemplateColumns:'repeat(7, minmax(0, 1fr))',
+            width:'100%',
+          }}>
             {days.map((day, idx) => {
               const dateStr    = toDateStr(day)
               const mmdd       = `${String(day.getMonth()+1).padStart(2,'0')}-${String(day.getDate()).padStart(2,'0')}`
@@ -624,7 +635,7 @@ export default function CalendarWidget() {
                 ...dayScheduled.map(s => ({ key: s.id, label: s.time ? `${s.time} ${s.title}` : s.title, color: '#3b82f6', bg: 'rgba(59,130,246,0.15)', done: s.done })),
                 ...dayTodos.map(t => ({ key: t.id, label: t.text, color: '#f59e0b', bg: 'rgba(245,158,11,0.15)', done: t.done })),
               ]
-              const eventRowH = compact ? 13 : 18
+              const eventRowH = compact ? 15 : 19
               const MAX_VISIBLE = Math.max(1, Math.floor((cellH - circleSize - 8) / eventRowH))
               const visibleEvents = allEvents.slice(0, MAX_VISIBLE)
               const overflowCnt  = allEvents.length - visibleEvents.length
@@ -635,6 +646,7 @@ export default function CalendarWidget() {
                   onClick={() => isCurMonth && setSelected(day)}
                   style={{
                     height:cellH, position:'relative',
+                    minWidth:0, overflow:'hidden',
                     display:'flex', flexDirection:'column',
                     alignItems:'flex-start', justifyContent:'flex-start',
                     padding: compact ? '2px 2px 1px 2px' : '4px 3px 2px 4px',
@@ -657,8 +669,8 @@ export default function CalendarWidget() {
                   {/* 공휴일 */}
                   {holiday && isCurMonth && (
                     <div style={{
-                      fontSize: compact ? 8 : 9, color: '#e05252', lineHeight: 1, marginTop: 1,
-                      width: '100%', overflow: 'hidden',
+                      fontSize: compact ? 9 : 10, color: '#e05252', lineHeight: 1.1, marginTop: 1,
+                      width: '100%', minWidth:0, overflow: 'hidden',
                       textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                     }}>
                       {holiday}
@@ -668,11 +680,11 @@ export default function CalendarWidget() {
                   {/* 이벤트 블록 */}
                   {visibleEvents.map(ev => (
                     <div key={ev.key} style={{
-                      width: '100%', marginTop: 2,
+                      width: '100%', minWidth:0, maxWidth:'100%', marginTop: 2,
                       padding: compact ? '0 2px' : '1px 4px', borderRadius: 3,
                       background: ev.bg,
                       borderLeft: `2px solid ${ev.color}`,
-                      fontSize: compact ? 8 : 10, lineHeight: compact ? '11px' : '14px',
+                      fontSize: compact ? 9 : 11, lineHeight: compact ? '13px' : '15px',
                       color: ev.done ? 'var(--muted)' : 'var(--text)',
                       textDecoration: ev.done ? 'line-through' : 'none',
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
@@ -684,7 +696,7 @@ export default function CalendarWidget() {
 
                   {/* 오버플로우 */}
                   {overflowCnt > 0 && (
-                    <div style={{ fontSize: 9, color: 'var(--muted)', marginTop: 2, lineHeight: 1 }}>
+                    <div style={{ fontSize: compact ? 9 : 10, color: 'var(--muted)', marginTop: 2, lineHeight: 1 }}>
                       +{overflowCnt}개 더
                     </div>
                   )}

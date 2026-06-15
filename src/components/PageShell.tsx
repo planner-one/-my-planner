@@ -6,7 +6,7 @@ import { signOut } from '../services/authService'
 
 type PageId =
   | 'dashboard' | 'habits' | 'tasks' | 'todos' | 'goals' | 'projects'
-  | 'weekly' | 'daily' | 'notes' | 'journal' | 'profile'
+  | 'weekly' | 'daily' | 'notes' | 'journal' | 'profile' | 'inquiries'
 
 interface NavItem {
   id: PageId
@@ -71,6 +71,10 @@ const NAV_ITEMS: NavItem[] = [
     id: 'profile', label: '프로필',
     paths: ['M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2', 'M12 11a4 4 0 100-8 4 4 0 000 8z'],
   },
+  {
+    id: 'inquiries', label: '문의',
+    paths: ['M21 15a4 4 0 01-4 4H8l-5 3V7a4 4 0 014-4h10a4 4 0 014 4z', 'M8 9h8M8 13h5'],
+  },
 ]
 
 const BOTTOM_TABS: PageId[] = ['dashboard', 'tasks', 'goals', 'weekly', 'profile']
@@ -111,7 +115,7 @@ export default function PageShell({ children }: { children: ReactNode }) {
   const initial = user?.displayName?.[0]?.toUpperCase() ?? '?'
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: 'var(--bg)', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', height: 'var(--app-viewport-height)', background: 'var(--bg)', overflow: 'hidden' }}>
 
       {/* 메인 콘텐츠 */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>

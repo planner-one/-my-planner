@@ -1,0 +1,64 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && request.auth.token.email_verified == true
+        && request.auth.token.email == 'site100402@gmail.com';
+    }
+
+    match /users/{userId} {
+      allow read, write: if signedIn() && request.auth.uid == userId;
+    }
+
+    match /inquiries/{inquiryId} {
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.userEmail == request.auth.token.email
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.title.size() <= 80
+        && request.resource.data.content is string
+        && request.resource.data.content.size() > 0
+        && request.resource.data.content.size() <= 2000
+        && request.resource.data.category in ['usage', 'bug', 'suggestion', 'other']
+        && request.resource.data.status == 'open'
+        && request.resource.data.answer == ''
+        && request.resource.data.keys().hasOnly([
+          'userId',
+          'userName',
+          'userEmail',
+          'category',
+          'title',
+          'content',
+          'status',
+          'answer',
+          'createdAt',
+          'answeredAt',
+          'updatedAt'
+        ]);
+
+      allow read: if signedIn()
+        && (resource.data.userId == request.auth.uid || isAdmin());
+
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'answer',
+          'status',
+          'answeredAt',
+          'updatedAt'
+        ])
+        && request.resource.data.status == 'answered'
+        && request.resource.data.answer is string
+        && request.resource.data.answer.size() > 0
+        && request.resource.data.answer.size() <= 2000;
+
+      allow delete: if false;
+    }
+  }
+}

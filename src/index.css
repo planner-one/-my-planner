@@ -1,6 +1,8 @@
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
 
 :root {
+  --app-scale: 0.9;
+  --app-viewport-height: 111.111111vh;
   --bg: #eef0ef;
   --bg2: #ffffff;
   --bg3: #f0f2f1;
@@ -71,11 +73,19 @@
 }
 
 body {
+  zoom: var(--app-scale);
   background: var(--bg);
   color: var(--text);
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-size: 14px;
   line-height: 1.5;
+}
+
+@media (max-width: 767px) {
+  :root {
+    --app-scale: 1;
+    --app-viewport-height: 100vh;
+  }
 }
 
 /* react-grid-layout 리사이즈 핸들 */
