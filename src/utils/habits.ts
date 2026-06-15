@@ -35,14 +35,14 @@ const legacyHabitId = (name: string, index: number): string => {
 export const migrateHabits = (
   rawHabits: Array<Partial<Habit> & { name: string }>,
   rawHistory: Record<string, Record<string, boolean>>,
-  habitsVersion?: number,
+  habitsInitialized?: boolean,
 ): {
   habits: Habit[]
   habitHistory: Record<string, Record<string, boolean>>
   initializedDefaults: boolean
 } => {
   const createdAt = new Date().toISOString()
-  const shouldInitializeDefaults = habitsVersion !== HABITS_VERSION && rawHabits.length === 0
+  const shouldInitializeDefaults = habitsInitialized !== true && rawHabits.length === 0
   const habits = shouldInitializeDefaults
     ? createDefaultHabits(createdAt)
     : rawHabits.map((habit, index) => ({

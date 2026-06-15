@@ -147,6 +147,7 @@ export interface UserData {
   habits?: Habit[]
   habitHistory?: Record<string, Record<string, boolean>>
   habitsVersion?: number
+  habitsInitialized?: boolean
   tasks?: Task[]
   goals?: Goal[]
   projects?: Project[]

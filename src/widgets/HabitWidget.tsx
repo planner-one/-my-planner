@@ -1,4 +1,5 @@
 import { useApp } from '../store/AppContext'
+import { useRouter } from '../store/RouterContext'
 import { toLocalDateKey } from '../utils/date'
 
 export const meta = {
@@ -14,6 +15,7 @@ export const meta = {
 
 export default function HabitWidget() {
   const { habits, habitHistory, setHabitHistory } = useApp()
+  const { setPage } = useRouter()
   const today = toLocalDateKey()
   const todayRecord = habitHistory[today] ?? {}
 
@@ -33,9 +35,24 @@ export default function HabitWidget() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '8px 12px', boxSizing: 'border-box', gap: 6 }}>
       <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
         {habits.length === 0 && (
-          <p style={{ color: 'var(--muted)', fontSize: 12, textAlign: 'center', marginTop: 16 }}>
-            습관 트래커 페이지에서 루틴을 추가하세요
-          </p>
+          <div style={{
+            flex: 1, display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center', gap: 10,
+            color: 'var(--muted)', textAlign: 'center',
+          }}>
+            <span style={{ fontSize: 12 }}>아직 등록된 루틴이 없습니다.</span>
+            <button
+              type="button"
+              onClick={() => setPage('habits')}
+              style={{
+                border: 0, borderRadius: 7, padding: '8px 12px',
+                background: 'var(--accent)', color: '#fff',
+                fontSize: 12, fontWeight: 700, cursor: 'pointer',
+              }}
+            >
+              습관 페이지에서 루틴 추가
+            </button>
+          </div>
         )}
         {habits.map(h => {
           const done = !!todayRecord[h.id]

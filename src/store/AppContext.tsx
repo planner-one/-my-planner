@@ -94,7 +94,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     currentDataRef.current = sanitize({
       todos, todoHistory, todoHistoryTrash, todoHistoryDeletedDates,
-      habits, habitHistory, habitsVersion: HABITS_VERSION,
+      habits, habitHistory, habitsVersion: HABITS_VERSION, habitsInitialized: true,
       tasks, goals, projects, topGoals,
       energy, counters, quickMemo, review,
       notes, weekTasks, timeBlockData, scheduledTasks,
@@ -134,7 +134,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const migratedHabits = migrateHabits(
           (d.habits ?? []) as Array<Partial<Habit> & { name: string }>,
           d.habitHistory ?? {},
-          d.habitsVersion,
+          d.habitsInitialized,
         )
         setHabits(migratedHabits.habits)
         setHabitHistory(migratedHabits.habitHistory)
