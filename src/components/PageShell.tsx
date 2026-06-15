@@ -36,7 +36,7 @@ const NAV_ITEMS: NavItem[] = [
     paths: ['M9 11l3 3L22 4', 'M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11'],
   },
   {
-    id: 'todos', label: '투두',
+    id: 'todos', label: 'Todo',
     paths: ['M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01'],
   },
   {
@@ -79,13 +79,12 @@ export default function PageShell({ children }: { children: ReactNode }) {
   const { user } = useAuth()
   const { saveNow } = useApp()
   const { page, setPage } = useRouter()
-  const [sidebarOpen, setSidebarOpen] = useState(() =>
-    localStorage.getItem('sidebar_open') !== 'false'
-  )
-  type Theme = 'light' | 'dark' | 'karrot' | 'toss'
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  type Theme = 'light' | 'dark' | 'coral' | 'blue'
   const [theme, setThemeState] = useState<Theme>(() => {
-    const saved = localStorage.getItem('theme') as Theme | null
-    if (saved && ['light', 'dark', 'karrot', 'toss'].includes(saved)) return saved
+    const raw = localStorage.getItem('theme')
+    const saved = raw === 'karrot' ? 'coral' : raw === 'toss' ? 'blue' : raw
+    if (saved && ['light', 'dark', 'coral', 'blue'].includes(saved)) return saved as Theme
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
   })
 
@@ -96,13 +95,12 @@ export default function PageShell({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
+    localStorage.setItem('theme', theme)
     document.documentElement.setAttribute('data-theme', theme === 'light' ? '' : theme)
   }, [theme])
 
   const toggleSidebar = () => {
-    const next = !sidebarOpen
-    setSidebarOpen(next)
-    localStorage.setItem('sidebar_open', String(next))
+    setSidebarOpen(open => !open)
   }
 
   const handleSignOut = async () => {
@@ -155,22 +153,23 @@ export default function PageShell({ children }: { children: ReactNode }) {
       {/* 사이드바 토글 버튼 (닫혔을 때) */}
       {!sidebarOpen && (
         <button onClick={toggleSidebar} className="sidebar-fab" style={{
-          position: 'fixed', right: 12, top: '50%', transform: 'translateY(-50%)',
+          position: 'fixed', left: 12, top: '50%', transform: 'translateY(-50%)',
           width: 28, height: 28, borderRadius: '50%', zIndex: 100,
           border: '1px solid var(--border)', background: 'var(--bg2)',
           color: 'var(--muted)', cursor: 'pointer', fontSize: 14,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
         }}>
-          ‹
+          ›
         </button>
       )}
 
       {/* 사이드바 (태블릿/데스크톱) */}
       <aside style={{
         width: sidebarOpen ? 200 : 0,
+        order: -1,
         flexShrink: 0, overflow: 'hidden',
-        background: 'var(--bg2)', borderLeft: sidebarOpen ? '1px solid var(--border)' : 'none',
+        background: 'var(--bg2)', borderRight: sidebarOpen ? '1px solid var(--border)' : 'none',
         display: 'flex', flexDirection: 'column',
         transition: 'width 0.2s ease',
       }} className="sidebar">
@@ -202,7 +201,7 @@ export default function PageShell({ children }: { children: ReactNode }) {
             color: 'var(--muted)', fontSize: 16, padding: '0 2px',
             display: 'flex', alignItems: 'center',
           }}>
-            ›
+            ‹
           </button>
         </div>
 
@@ -252,8 +251,8 @@ export default function PageShell({ children }: { children: ReactNode }) {
             {([
               { id: 'light',  label: '라이트', dot: '#eef0ef', accent: '#3a7d50' },
               { id: 'dark',   label: '다크',   dot: '#181818', accent: '#4ade80' },
-              { id: 'karrot', label: '당근',   dot: '#fff1ea', accent: '#ff6f0f' },
-              { id: 'toss',   label: '토스',   dot: '#f2f4f6', accent: '#3182f6' },
+              { id: 'coral', label: '코랄', dot: '#fff1ea', accent: '#ff6f0f' },
+              { id: 'blue',  label: '블루', dot: '#f2f4f6', accent: '#3182f6' },
             ] as const).map(t => {
               const active = theme === t.id
               return (

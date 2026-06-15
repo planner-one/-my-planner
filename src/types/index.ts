@@ -7,6 +7,16 @@ export interface Todo {
   date?: string
 }
 
+export interface TodoDailyResult {
+  date: string
+  total: number
+  done: number
+  completionRate: number
+  savedAt: string
+  source: 'auto' | 'manual'
+  items: Todo[]
+}
+
 export interface Habit {
   name: string
   done: boolean
@@ -110,6 +120,7 @@ export interface LayoutItem {
 
 export interface UserData {
   todos?: Todo[]
+  todoHistory?: TodoDailyResult[]
   habits?: Habit[]
   habitHistory?: Record<string, Record<string, boolean>>
   habitsVersion?: number

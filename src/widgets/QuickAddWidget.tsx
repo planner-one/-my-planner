@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useApp } from '../store/AppContext'
 import type { Todo } from '../types'
+import { toLocalDateKey } from '../utils/date'
 
 export const meta = {
   id: 'quickadd',
@@ -27,7 +28,7 @@ export default function QuickAddWidget() {
       text,
       done: false,
       priority: 'medium',
-      date: new Date().toISOString().slice(0, 10),
+      date: toLocalDateKey(),
     }
     setTodos(prev => [item, ...prev])
     setInput('')

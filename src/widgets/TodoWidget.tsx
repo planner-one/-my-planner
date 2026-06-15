@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useApp } from '../store/AppContext'
 import type { Todo } from '../types'
+import { toLocalDateKey } from '../utils/date'
 
 export const meta = {
   id: 'todo',
@@ -43,7 +44,7 @@ export default function TodoWidget() {
   const [editCategory, setEditCategory] = useState<Category>('work')
   const editRef = useRef<HTMLInputElement>(null)
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = toLocalDateKey()
   const todayTodos = todos.filter(t => !t.date || t.date === today)
 
   const filtered = todayTodos.filter(t => filter === 'all' || cat(t) === filter)

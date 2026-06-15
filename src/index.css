@@ -30,7 +30,7 @@
   --shadow: 0 1px 4px rgba(0,0,0,0.3), 0 4px 16px rgba(0,0,0,0.2);
 }
 
-[data-theme="karrot"] {
+[data-theme="coral"] {
   --bg: #fff8f5;
   --bg2: #ffffff;
   --bg3: #fff1ea;
@@ -47,7 +47,7 @@
   --shadow: 0 1px 4px rgba(255,111,15,0.08), 0 4px 16px rgba(255,111,15,0.04);
 }
 
-[data-theme="toss"] {
+[data-theme="blue"] {
   --bg: #f2f4f6;
   --bg2: #ffffff;
   --bg3: #f8f9fa;

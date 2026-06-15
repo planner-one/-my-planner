@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useApp } from '../store/AppContext'
-import type { Todo } from '../types'
+import type { Todo, TodoDailyResult } from '../types'
+import { addLocalDays, toLocalDateKey } from '../utils/date'
 
 type Category = 'work' | 'personal' | 'study'
 type FilterType = 'all' | Category
@@ -38,7 +39,7 @@ function ProgressBar({ pct, color, height = 6 }: { pct: number; color: string; h
 }
 
 export default function TodoPage() {
-  const { todos, setTodos } = useApp()
+  const { todos, setTodos, todoHistory, setTodoHistory, saveWithOverrides } = useApp()
   const [input, setInput] = useState('')
   const [newCategory, setNewCategory] = useState<Category>('work')
   const [filterCat, setFilterCat] = useState<FilterType>('all')
@@ -47,10 +48,11 @@ export default function TodoPage() {
   const [editId, setEditId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
   const [editCategory, setEditCategory] = useState<Category>('work')
+  const [saveMessage, setSaveMessage] = useState('')
   const editRef = useRef<HTMLInputElement>(null)
 
-  const today = new Date().toISOString().slice(0, 10)
-  const weekAgo = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10)
+  const today = toLocalDateKey()
+  const weekAgo = toLocalDateKey(addLocalDays(new Date(), -6))
 
   useEffect(() => { if (editId) editRef.current?.focus() }, [editId])
 
@@ -114,6 +116,27 @@ export default function TodoPage() {
   const clearDone = () =>
     setTodos(prev => prev.filter(t => !t.done || t.date !== today))
 
+  const saveTodayResult = async () => {
+    const items = todos.filter(t => !t.date || t.date === today).map(t => ({ ...t, date: today }))
+    const completed = items.filter(t => t.done).length
+    const result: TodoDailyResult = {
+      date: today,
+      total: items.length,
+      done: completed,
+      completionRate: items.length === 0 ? 0 : Math.round((completed / items.length) * 100),
+      savedAt: new Date().toISOString(),
+      source: 'manual',
+      items,
+    }
+    const nextHistory = [result, ...todoHistory.filter(item => item.date !== today)]
+      .sort((a, b) => b.date.localeCompare(a.date))
+
+    setTodoHistory(nextHistory)
+    await saveWithOverrides({ todoHistory: nextHistory })
+    setSaveMessage('오늘 결과를 저장했습니다.')
+    window.setTimeout(() => setSaveMessage(''), 2000)
+  }
+
   return (
     <div style={{ maxWidth: 860, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
@@ -127,11 +150,19 @@ export default function TodoPage() {
             {new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' })}
           </p>
         </div>
-        <button onClick={clearDone} style={{
-          fontSize: 12, padding: '7px 14px', borderRadius: 8,
-          border: '1px solid var(--border)', background: 'var(--bg2)',
-          color: 'var(--muted)', cursor: 'pointer',
-        }}>완료 항목 지우기</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {saveMessage && <span style={{ fontSize: 12, color: 'var(--accent)' }}>{saveMessage}</span>}
+          <button onClick={saveTodayResult} style={{
+            fontSize: 12, padding: '7px 14px', borderRadius: 8,
+            border: 'none', background: 'var(--accent)',
+            color: '#fff', cursor: 'pointer', fontWeight: 600,
+          }}>오늘 결과 저장</button>
+          <button onClick={clearDone} style={{
+            fontSize: 12, padding: '7px 14px', borderRadius: 8,
+            border: '1px solid var(--border)', background: 'var(--bg2)',
+            color: 'var(--muted)', cursor: 'pointer',
+          }}>완료 항목 지우기</button>
+        </div>
       </div>
 
       {/* 진행률 카드 */}
@@ -296,6 +327,65 @@ export default function TodoPage() {
           onToggle={toggle} onRemove={remove} onStartEdit={startEdit} onSave={saveEdit} onCancel={cancelEdit}
           onEditTextChange={setEditText} onEditCategoryChange={setEditCategory} />)}
       </div>
+
+      <section style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 4 }}>
+        <div>
+          <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>Todo 기록</h2>
+          <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
+            지난 날짜는 자동 저장되며, 오늘 기록은 위 버튼으로 언제든 갱신할 수 있습니다.
+          </p>
+        </div>
+
+        {todoHistory.length === 0 ? (
+          <div style={{
+            padding: '22px 18px', borderTop: '1px solid var(--border)',
+            color: 'var(--muted)', fontSize: 13, textAlign: 'center',
+          }}>
+            저장된 Todo 결과가 없습니다.
+          </div>
+        ) : todoHistory.map(result => (
+          <details key={result.date} style={{
+            borderTop: '1px solid var(--border)',
+            padding: '12px 4px 0',
+          }}>
+            <summary style={{
+              display: 'grid', gridTemplateColumns: '120px 1fr auto',
+              gap: 16, alignItems: 'center', cursor: 'pointer',
+              color: 'var(--text)', listStyle: 'none',
+            }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>{result.date}</div>
+                <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2 }}>
+                  {result.source === 'manual' ? '직접 저장' : '자동 저장'}
+                </div>
+              </div>
+              <ProgressBar pct={result.completionRate} color="var(--accent)" height={6} />
+              <div style={{ minWidth: 92, textAlign: 'right' }}>
+                <b style={{ color: 'var(--accent)', fontSize: 15 }}>{result.completionRate}%</b>
+                <span style={{ display: 'block', fontSize: 11, color: 'var(--muted)' }}>
+                  완료 {result.done} / {result.total}
+                </span>
+              </div>
+            </summary>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, padding: '12px 0 2px 136px' }}>
+              {result.items.length === 0 ? (
+                <span style={{ fontSize: 12, color: 'var(--muted)' }}>저장된 항목이 없습니다.</span>
+              ) : result.items.map(item => (
+                <div key={item.id} style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  fontSize: 12, color: item.done ? 'var(--muted)' : 'var(--text)',
+                }}>
+                  <span style={{ color: item.done ? 'var(--accent)' : 'var(--border)' }}>
+                    {item.done ? '✓' : '○'}
+                  </span>
+                  <Badge category={cat(item)} />
+                  <span style={{ textDecoration: item.done ? 'line-through' : 'none' }}>{item.text}</span>
+                </div>
+              ))}
+            </div>
+          </details>
+        ))}
+      </section>
     </div>
   )
 }
@@ -382,7 +472,7 @@ function TodoRow({ t, editId, editText, editCategory, editRef, onToggle, onRemov
               cursor: 'text',
             }}
           >{t.text}</span>
-          {t.date && t.date !== new Date().toISOString().slice(0, 10) && (
+          {t.date && t.date !== toLocalDateKey() && (
             <span style={{ fontSize: 11, color: 'var(--muted)', flexShrink: 0 }}>{t.date}</span>
           )}
           <button onClick={() => onRemove(t.id)} style={{

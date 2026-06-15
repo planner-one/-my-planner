@@ -105,6 +105,11 @@ _마지막 업데이트: 2026-05-20_
   12. ChartWidget (chartHistory)
   13. WeatherWidget (외부 API)
 - **완료 기준**: 각 위젯이 AppContext 데이터와 연동, 리사이즈 반응형
+- **Todo 연동 기준**:
+  - TodoWidget과 TodoPage는 동일한 `todos` 상태 사용
+  - 지난 날짜 결과는 자동 저장
+  - 오늘 결과는 TodoPage에서 수동 저장 및 갱신 가능
+  - 날짜별 결과와 당시 항목 목록은 Firestore에 보존
 
 ---
 

@@ -45,7 +45,11 @@ export default function Dashboard() {
       .map(id => {
         const saved = dashboardLayout.find(l => l.i === id)
         const meta = WIDGET_MAP[id.split('-')[0]]
-        return saved ?? {
+        return saved ? {
+          ...saved,
+          minW: meta.minW,
+          minH: meta.minH,
+        } : {
           i: id, x: 0, y: 0,
           w: meta.defaultW, h: meta.defaultH,
           minW: meta.minW, minH: meta.minH,

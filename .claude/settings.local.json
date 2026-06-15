@@ -3,17 +3,25 @@
     "allow": [
       "Bash(git init *)",
       "Bash(git remote *)",
-      "Bash(npm --version)",
-      "Bash(npm list *)",
-      "Bash(npm install *)",
-      "Bash(npm audit *)",
-      "Bash(npm run *)",
-      "Bash(curl -s http://localhost:5173)",
-      "Bash(curl -s http://localhost:5175)",
+      "Bash(git -C /Users/minsujeong/planner log --oneline -10)",
+      "Bash(git -C /Users/minsujeong/planner fetch origin)",
+      "Bash(git -C /Users/minsujeong/planner log origin/main --oneline -10)",
+      "Bash(git -C /Users/minsujeong/planner show origin/main:src/components/DashboardEditor.tsx)",
+      "Bash(git -C /Users/minsujeong/planner ls-tree -r origin/main --name-only)",
+      "Bash(git -C /Users/minsujeong/planner show origin/main:src/pages/DashboardEditor.tsx)",
+      "Bash(git -C /Users/minsujeong/planner rm -r --cached .claude)",
+      "Bash(git -C /Users/minsujeong/planner pull origin main)",
+      "Bash(mv /Users/minsujeong/planner/.claude /tmp/claude_backup && git -C /Users/minsujeong/planner pull origin main 2>&1)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(npm install *)",
+      "mcp__Claude_Preview__preview_start",
       "Bash(pkill -f \"vite\")",
-      "Read(//tmp/**)"
+      "Bash(gh auth *)",
+      "Bash(npx tsc *)",
+      "Bash(git commit -m 'feat: 할 일 전용 페이지\\(TodoPage\\) 추가 및 사이드바 연결 *)",
+      "Bash(npm run *)"
     ]
   }
 }

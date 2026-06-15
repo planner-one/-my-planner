@@ -11,8 +11,8 @@ export const meta = {
   icon: '🗓️',
   defaultW: 16,
   defaultH: 11,
-  minW: 12,
-  minH: 9,
+  minW: 10,
+  minH: 7,
   order: 3,
 }
 
@@ -495,8 +495,9 @@ export default function CalendarWidget() {
   const days = getCalendarDays(year, month)
   const todayStr = toDateStr(today)
 
-  const HEADER_H = 44
-  const LABEL_H  = 28
+  const compact = w < 300 || h < 330
+  const HEADER_H = compact ? 38 : 44
+  const LABEL_H  = compact ? 24 : 28
   const weeks  = days.length / 7
   const cellW = w > 0 ? Math.floor(w / 7) : 40
   const cellH = h > 0 ? Math.floor((h - HEADER_H - LABEL_H) / weeks) : 36
@@ -548,8 +549,8 @@ export default function CalendarWidget() {
       })()
     : undefined
 
-  const numSize    = Math.max(11, Math.min(14, cellH * 0.32))
-  const circleSize = Math.max(20, numSize + 8)
+  const numSize    = Math.max(10, Math.min(14, cellH * 0.32))
+  const circleSize = Math.max(18, numSize + 7)
 
   return (
     <div ref={ref} style={{ width:'100%', height:'100%', overflow:'hidden', userSelect:'none' }}>
@@ -558,17 +559,17 @@ export default function CalendarWidget() {
           {/* 헤더 */}
           <div style={{
             height: HEADER_H, display:'flex', alignItems:'center',
-            justifyContent:'space-between', padding:'0 8px', flexShrink:0,
+            justifyContent:'space-between', padding: compact ? '0 4px' : '0 8px', flexShrink:0,
           }}>
             <button onClick={prevMonth} style={navBtnStyle}>‹</button>
 
-            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            <div style={{ display:'flex', alignItems:'center', gap: compact ? 3 : 8 }}>
               <button
                 onClick={() => setShowPicker(true)}
                 style={{
                   border:'none', background:'transparent', cursor:'pointer',
-                  fontSize:16, fontWeight:700, color:'var(--text)', letterSpacing:'-0.01em',
-                  padding:'4px 8px', borderRadius:6,
+                  fontSize: compact ? 13 : 16, fontWeight:700, color:'var(--text)',
+                  padding: compact ? '3px 4px' : '4px 8px', borderRadius:6,
                 }}
               >
                 {year}년 {month + 1}월
@@ -591,7 +592,7 @@ export default function CalendarWidget() {
             {DAY_LABELS.map((d, i) => (
               <div key={d} style={{
                 display:'flex', alignItems:'center', justifyContent:'center',
-                fontSize:14, fontWeight:600,
+                fontSize: compact ? 11 : 14, fontWeight:600,
                 color: i === 0 ? '#e05252' : i === 6 ? 'var(--accent)' : 'var(--muted)',
               }}>{d}</div>
             ))}
@@ -623,7 +624,8 @@ export default function CalendarWidget() {
                 ...dayScheduled.map(s => ({ key: s.id, label: s.time ? `${s.time} ${s.title}` : s.title, color: '#3b82f6', bg: 'rgba(59,130,246,0.15)', done: s.done })),
                 ...dayTodos.map(t => ({ key: t.id, label: t.text, color: '#f59e0b', bg: 'rgba(245,158,11,0.15)', done: t.done })),
               ]
-              const MAX_VISIBLE = Math.max(1, Math.floor((cellH - circleSize - 8) / 18))
+              const eventRowH = compact ? 13 : 18
+              const MAX_VISIBLE = Math.max(1, Math.floor((cellH - circleSize - 8) / eventRowH))
               const visibleEvents = allEvents.slice(0, MAX_VISIBLE)
               const overflowCnt  = allEvents.length - visibleEvents.length
 
@@ -635,7 +637,7 @@ export default function CalendarWidget() {
                     height:cellH, position:'relative',
                     display:'flex', flexDirection:'column',
                     alignItems:'flex-start', justifyContent:'flex-start',
-                    padding: '4px 3px 2px 4px',
+                    padding: compact ? '2px 2px 1px 2px' : '4px 3px 2px 4px',
                     cursor: isCurMonth ? 'pointer' : 'default',
                     borderTop: '1px solid var(--border)',
                   }}
@@ -655,7 +657,7 @@ export default function CalendarWidget() {
                   {/* 공휴일 */}
                   {holiday && isCurMonth && (
                     <div style={{
-                      fontSize: 9, color: '#e05252', lineHeight: 1, marginTop: 1,
+                      fontSize: compact ? 8 : 9, color: '#e05252', lineHeight: 1, marginTop: 1,
                       width: '100%', overflow: 'hidden',
                       textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                     }}>
@@ -667,10 +669,10 @@ export default function CalendarWidget() {
                   {visibleEvents.map(ev => (
                     <div key={ev.key} style={{
                       width: '100%', marginTop: 2,
-                      padding: '1px 4px', borderRadius: 3,
+                      padding: compact ? '0 2px' : '1px 4px', borderRadius: 3,
                       background: ev.bg,
                       borderLeft: `2px solid ${ev.color}`,
-                      fontSize: 10, lineHeight: '14px',
+                      fontSize: compact ? 8 : 10, lineHeight: compact ? '11px' : '14px',
                       color: ev.done ? 'var(--muted)' : 'var(--text)',
                       textDecoration: ev.done ? 'line-through' : 'none',
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
