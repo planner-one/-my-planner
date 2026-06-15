@@ -13,16 +13,18 @@ import DailyPlanner from './pages/DailyPlanner'
 import Notes from './pages/Notes'
 import Journal from './pages/Journal'
 import ProfilePage from './pages/ProfilePage'
+import TodoPage from './pages/TodoPage'
 import type { ComponentType } from 'react'
 
 type PageId =
-  | 'dashboard' | 'habits' | 'tasks' | 'goals' | 'projects'
+  | 'dashboard' | 'habits' | 'tasks' | 'todos' | 'goals' | 'projects'
   | 'weekly' | 'daily' | 'notes' | 'journal' | 'profile'
 
 const PAGE_MAP: Record<PageId, ComponentType> = {
   dashboard: Dashboard,
   habits:    HabitTracker,
   tasks:     TaskTracker,
+  todos:     TodoPage,
   goals:     Goals,
   projects:  Projects,
   weekly:    WeeklyPlanner,

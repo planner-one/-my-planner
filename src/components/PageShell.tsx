@@ -5,7 +5,7 @@ import { useRouter } from '../store/RouterContext'
 import { signOut } from '../services/authService'
 
 type PageId =
-  | 'dashboard' | 'habits' | 'tasks' | 'goals' | 'projects'
+  | 'dashboard' | 'habits' | 'tasks' | 'todos' | 'goals' | 'projects'
   | 'weekly' | 'daily' | 'notes' | 'journal' | 'profile'
 
 interface NavItem {
@@ -34,6 +34,10 @@ const NAV_ITEMS: NavItem[] = [
   {
     id: 'tasks', label: '할일',
     paths: ['M9 11l3 3L22 4', 'M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11'],
+  },
+  {
+    id: 'todos', label: '투두',
+    paths: ['M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01'],
   },
   {
     id: 'habits', label: '습관',
