@@ -1,4 +1,5 @@
 import { useApp } from '../store/AppContext'
+import { toLocalDateKey } from '../utils/date'
 
 export const meta = {
   id: 'habit',
@@ -12,18 +13,21 @@ export const meta = {
 }
 
 export default function HabitWidget() {
-  const { habits, setHabits, habitHistory, setHabitHistory } = useApp()
-  const today = new Date().toISOString().slice(0, 10)
+  const { habits, habitHistory, setHabitHistory } = useApp()
+  const today = toLocalDateKey()
   const todayRecord = habitHistory[today] ?? {}
 
-  const toggle = (name: string) => {
+  const toggle = (id: string) => {
     setHabitHistory(prev => ({
       ...prev,
-      [today]: { ...todayRecord, [name]: !todayRecord[name] },
+      [today]: {
+        ...Object.fromEntries(habits.map(habit => [habit.id, prev[today]?.[habit.id] ?? false])),
+        [id]: !prev[today]?.[id],
+      },
     }))
   }
 
-  const doneCnt = habits.filter(h => todayRecord[h.name]).length
+  const doneCnt = habits.filter(h => todayRecord[h.id]).length
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '8px 12px', boxSizing: 'border-box', gap: 6 }}>
@@ -34,11 +38,11 @@ export default function HabitWidget() {
           </p>
         )}
         {habits.map(h => {
-          const done = !!todayRecord[h.name]
+          const done = !!todayRecord[h.id]
           return (
             <div
-              key={h.name}
-              onClick={() => toggle(h.name)}
+              key={h.id}
+              onClick={() => toggle(h.id)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 10,
                 padding: '7px 10px', borderRadius: 8, cursor: 'pointer',

@@ -4,6 +4,7 @@ import {
 import { loadUserData, saveUserData } from '../services/userService'
 import { useAuth } from './AuthContext'
 import { toLocalDateKey } from '../utils/date'
+import { HABITS_VERSION, migrateHabits } from '../utils/habits'
 import type {
   Todo, TodoDailyResult, DeletedTodoDailyResult, Habit, Task, Goal, Project, TopGoal, Counters, Review,
   Note, WeekTask, ScheduledTask, JournalEntry, LayoutItem, UserData,
@@ -93,7 +94,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     currentDataRef.current = sanitize({
       todos, todoHistory, todoHistoryTrash, todoHistoryDeletedDates,
-      habits, habitHistory, habitsVersion: 2,
+      habits, habitHistory, habitsVersion: HABITS_VERSION,
       tasks, goals, projects, topGoals,
       energy, counters, quickMemo, review,
       notes, weekTasks, timeBlockData, scheduledTasks,
@@ -130,8 +131,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (d.todoHistory) setTodoHistory(d.todoHistory)
         setTodoHistoryTrash(d.todoHistoryTrash ?? [])
         setTodoHistoryDeletedDates(d.todoHistoryDeletedDates ?? [])
-        if (d.habits) setHabits(d.habits)
-        if (d.habitHistory) setHabitHistory(d.habitHistory)
+        const migratedHabits = migrateHabits(
+          (d.habits ?? []) as Array<Partial<Habit> & { name: string }>,
+          d.habitHistory ?? {},
+          d.habitsVersion,
+        )
+        setHabits(migratedHabits.habits)
+        setHabitHistory(migratedHabits.habitHistory)
         if (d.tasks) setTasks(d.tasks)
         if (d.goals) setGoals(d.goals)
         if (d.projects) setProjects(d.projects)
@@ -150,6 +156,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (d.dashboardActive) setDashboardActive(d.dashboardActive)
         if (d.nickname) setNickname(d.nickname)
         localStorage.setItem('dashboard_cols_v', '2')
+      }
+      if (!d) {
+        const migratedHabits = migrateHabits([], {}, undefined)
+        setHabits(migratedHabits.habits)
+        setHabitHistory(migratedHabits.habitHistory)
       }
       setUiScale(d?.uiScale ?? 90)
       setTimeout(() => {
@@ -171,6 +182,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const timer = window.setTimeout(() => setCurrentDate(toLocalDateKey()), nextDay.getTime() - now.getTime() + 1000)
     return () => window.clearTimeout(timer)
   }, [currentDate])
+
+  useEffect(() => {
+    if (!dataLoaded || habits.length === 0) return
+    setHabitHistory(previous => {
+      if (previous[currentDate]) return previous
+      return {
+        ...previous,
+        [currentDate]: Object.fromEntries(habits.map(habit => [habit.id, false])),
+      }
+    })
+  }, [currentDate, dataLoaded, habits])
 
   useEffect(() => {
     if (!dataLoaded) return
@@ -214,7 +236,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [currentDate, dataLoaded, todos, todoHistoryTrash, todoHistoryDeletedDates])
 
   useEffect(() => {
-    if (!user || isLoadingRef.current) return
+    if (!user || !dataLoaded || isLoadingRef.current) return
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     saveTimerRef.current = setTimeout(() => {
       if (currentUidRef.current) {
@@ -226,7 +248,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     habits, habitHistory, tasks, goals, projects, topGoals,
     energy, counters, quickMemo, review, notes, weekTasks,
     timeBlockData, scheduledTasks, journal, chartHistory,
-    dashboardLayout, dashboardActive, uiScale, nickname,
+    dashboardLayout, dashboardActive, uiScale, nickname, dataLoaded,
   ])
 
   const saveWithOverrides = (overrides: Partial<UserData> = {}): Promise<void> => {

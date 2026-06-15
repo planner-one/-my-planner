@@ -38,8 +38,9 @@ export interface DeletedTodoDailyResult extends TodoDailyResult {
 }
 
 export interface Habit {
+  id: string
   name: string
-  done: boolean
+  createdAt: string
 }
 
 export interface Task {
