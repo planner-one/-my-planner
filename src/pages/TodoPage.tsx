@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useApp } from '../store/AppContext'
-import type { Todo, TodoCorrection, TodoDailyResult } from '../types'
+import type { DeletedTodoDailyResult, Todo, TodoCorrection, TodoDailyResult } from '../types'
 import { addLocalDays, toLocalDateKey } from '../utils/date'
 
 type Category = 'work' | 'personal' | 'study'
@@ -39,7 +39,13 @@ function ProgressBar({ pct, color, height = 6 }: { pct: number; color: string; h
 }
 
 export default function TodoPage() {
-  const { todos, setTodos, todoHistory, setTodoHistory, saveWithOverrides } = useApp()
+  const {
+    todos, setTodos,
+    todoHistory, setTodoHistory,
+    todoHistoryTrash, setTodoHistoryTrash,
+    todoHistoryDeletedDates, setTodoHistoryDeletedDates,
+    saveWithOverrides,
+  } = useApp()
   const [input, setInput] = useState('')
   const [newCategory, setNewCategory] = useState<Category>('work')
   const [filterCat, setFilterCat] = useState<FilterType>('all')
@@ -120,9 +126,6 @@ export default function TodoPage() {
 
   const cancelEdit = () => setEditId(null)
 
-  const clearDone = () =>
-    setTodos(prev => prev.filter(t => !t.done || t.date !== today))
-
   const saveTodayResult = async () => {
     const items = todos.filter(t => !t.date || t.date === today).map(t => ({ ...t, date: today }))
     const completed = items.filter(t => t.done).length
@@ -137,9 +140,17 @@ export default function TodoPage() {
     }
     const nextHistory = [result, ...todoHistory.filter(item => item.date !== today)]
       .sort((a, b) => b.date.localeCompare(a.date))
+    const nextTrash = todoHistoryTrash.filter(item => item.date !== today)
+    const nextDeletedDates = todoHistoryDeletedDates.filter(date => date !== today)
 
     setTodoHistory(nextHistory)
-    await saveWithOverrides({ todoHistory: nextHistory })
+    setTodoHistoryTrash(nextTrash)
+    setTodoHistoryDeletedDates(nextDeletedDates)
+    await saveWithOverrides({
+      todoHistory: nextHistory,
+      todoHistoryTrash: nextTrash,
+      todoHistoryDeletedDates: nextDeletedDates,
+    })
     setSaveMessage('오늘 결과를 저장했습니다.')
     window.setTimeout(() => setSaveMessage(''), 2000)
   }
@@ -248,16 +259,102 @@ export default function TodoPage() {
         { correctedAt, note, changes },
       ],
     }
-    const nextHistory = todoHistory.map(item =>
-      item.date === result.date ? corrected : item
-    )
+    const shouldDeleteRecord = correctionItems.length === 0
+    const nextHistory = shouldDeleteRecord
+      ? todoHistory.filter(item => item.date !== result.date)
+      : todoHistory.map(item => item.date === result.date ? corrected : item)
+    const deletedRecord: DeletedTodoDailyResult | null = shouldDeleteRecord
+      ? { ...corrected, deletedAt: correctedAt, deletionReason: 'empty' }
+      : null
+    const nextTrash = deletedRecord
+      ? [deletedRecord, ...todoHistoryTrash.filter(item => item.date !== result.date)]
+      : todoHistoryTrash
+    const nextDeletedDates = deletedRecord
+      ? todoHistoryDeletedDates.filter(date => date !== result.date)
+      : todoHistoryDeletedDates
 
     setCorrectionSaving(true)
     setTodoHistory(nextHistory)
-    await saveWithOverrides({ todoHistory: nextHistory })
+    if (deletedRecord) setTodoHistoryTrash(nextTrash)
+    if (deletedRecord) setTodoHistoryDeletedDates(nextDeletedDates)
+    await saveWithOverrides({
+      todoHistory: nextHistory,
+      ...(deletedRecord ? {
+        todoHistoryTrash: nextTrash,
+        todoHistoryDeletedDates: nextDeletedDates,
+      } : {}),
+    })
     setCorrectionSaving(false)
     cancelCorrection()
-    setSaveMessage('Todo 기록을 보정했습니다.')
+    setSaveMessage(shouldDeleteRecord
+      ? '빈 Todo 기록을 휴지통으로 이동했습니다.'
+      : 'Todo 기록을 보정했습니다.')
+    window.setTimeout(() => setSaveMessage(''), 2000)
+  }
+
+  const moveHistoryToTrash = async (result: TodoDailyResult) => {
+    const confirmed = window.confirm(
+      `${result.date} Todo 기록을 휴지통으로 이동할까요?\n휴지통에서 다시 복원할 수 있습니다.`
+    )
+    if (!confirmed) return
+
+    const deleted: DeletedTodoDailyResult = {
+      ...result,
+      deletedAt: new Date().toISOString(),
+      deletionReason: 'manual',
+    }
+    const nextHistory = todoHistory.filter(item => item.date !== result.date)
+    const nextTrash = [deleted, ...todoHistoryTrash.filter(item => item.date !== result.date)]
+    const nextDeletedDates = todoHistoryDeletedDates.filter(date => date !== result.date)
+    setTodoHistory(nextHistory)
+    setTodoHistoryTrash(nextTrash)
+    setTodoHistoryDeletedDates(nextDeletedDates)
+    await saveWithOverrides({
+      todoHistory: nextHistory,
+      todoHistoryTrash: nextTrash,
+      todoHistoryDeletedDates: nextDeletedDates,
+    })
+    setSaveMessage('Todo 기록을 휴지통으로 이동했습니다.')
+    window.setTimeout(() => setSaveMessage(''), 2000)
+  }
+
+  const restoreHistory = async (deleted: DeletedTodoDailyResult) => {
+    const { deletedAt: _deletedAt, deletionReason: _deletionReason, ...restored } = deleted
+    const nextHistory = [
+      restored,
+      ...todoHistory.filter(item => item.date !== deleted.date),
+    ].sort((a, b) => b.date.localeCompare(a.date))
+    const nextTrash = todoHistoryTrash.filter(item => item.date !== deleted.date)
+    const nextDeletedDates = todoHistoryDeletedDates.filter(date => date !== deleted.date)
+    setTodoHistory(nextHistory)
+    setTodoHistoryTrash(nextTrash)
+    setTodoHistoryDeletedDates(nextDeletedDates)
+    await saveWithOverrides({
+      todoHistory: nextHistory,
+      todoHistoryTrash: nextTrash,
+      todoHistoryDeletedDates: nextDeletedDates,
+    })
+    setSaveMessage('Todo 기록을 복원했습니다.')
+    window.setTimeout(() => setSaveMessage(''), 2000)
+  }
+
+  const permanentlyDeleteHistory = async (deleted: DeletedTodoDailyResult) => {
+    const confirmed = window.confirm(
+      `${deleted.date} Todo 기록을 영구 삭제할까요?\n이 작업은 되돌릴 수 없습니다.`
+    )
+    if (!confirmed) return
+    const nextTrash = todoHistoryTrash.filter(item => item.date !== deleted.date)
+    const nextDeletedDates = [
+      deleted.date,
+      ...todoHistoryDeletedDates.filter(date => date !== deleted.date),
+    ]
+    setTodoHistoryTrash(nextTrash)
+    setTodoHistoryDeletedDates(nextDeletedDates)
+    await saveWithOverrides({
+      todoHistoryTrash: nextTrash,
+      todoHistoryDeletedDates: nextDeletedDates,
+    })
+    setSaveMessage('Todo 기록을 영구 삭제했습니다.')
     window.setTimeout(() => setSaveMessage(''), 2000)
   }
 
@@ -268,9 +365,12 @@ export default function TodoPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.03em' }}>
-            할 일
+            오늘 할 일
           </h1>
           <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>
+            오늘 해야 할 일을 체크하고 날짜별 완료 기록을 남기는 페이지입니다.
+          </p>
+          <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
             {new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' })}
           </p>
         </div>
@@ -281,11 +381,6 @@ export default function TodoPage() {
             border: 'none', background: 'var(--accent)',
             color: '#fff', cursor: 'pointer', fontWeight: 600,
           }}>오늘 결과 저장</button>
-          <button onClick={clearDone} style={{
-            fontSize: 12, padding: '7px 14px', borderRadius: 8,
-            border: '1px solid var(--border)', background: 'var(--bg2)',
-            color: 'var(--muted)', cursor: 'pointer',
-          }}>완료 항목 지우기</button>
         </div>
       </div>
 
@@ -496,7 +591,28 @@ export default function TodoPage() {
             </summary>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7, padding: '12px 0 2px 136px' }}>
               {(correctionDate === result.date ? correctionItems : result.items).length === 0 ? (
-                <span style={{ fontSize: 12, color: 'var(--muted)' }}>저장된 항목이 없습니다.</span>
+                <div style={{
+                  display: 'flex', alignItems: 'center',
+                  justifyContent: 'space-between', gap: 12,
+                }}>
+                  <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+                    저장된 항목이 없습니다.
+                  </span>
+                  {correctionDate !== result.date && (
+                    <button
+                      type="button"
+                      onClick={() => moveHistoryToTrash(result)}
+                      style={{
+                        flexShrink: 0, padding: '6px 10px', borderRadius: 6,
+                        border: '1px solid var(--red)', background: 'transparent',
+                        color: 'var(--red)', fontSize: 11, fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      빈 기록 삭제
+                    </button>
+                  )}
+                </div>
               ) : (correctionDate === result.date ? correctionItems : result.items).map(item => (
                 <label key={item.id} style={{
                   display: 'flex', alignItems: 'center', gap: 8,
@@ -533,15 +649,16 @@ export default function TodoPage() {
                         event.preventDefault()
                         removeCorrectionItem(item.id)
                       }}
-                      title="기록에서 제거"
+                      title="잘못 생성된 Todo를 기록에서 삭제"
                       aria-label={`${item.text} 기록에서 제거`}
                       style={{
-                        flexShrink: 0, border: 'none', background: 'transparent',
-                        color: 'var(--muted)', fontSize: 16, lineHeight: 1,
-                        padding: 1, cursor: 'pointer',
+                        flexShrink: 0, border: '1px solid var(--border)',
+                        borderRadius: 5, background: 'transparent',
+                        color: 'var(--red)', fontSize: 10, lineHeight: 1,
+                        padding: '4px 6px', cursor: 'pointer',
                       }}
                     >
-                      ×
+                      삭제
                     </button>
                   )}
                 </label>
@@ -622,6 +739,12 @@ export default function TodoPage() {
                       추가
                     </button>
                   </div>
+                  <div style={{
+                    marginBottom: 7, color: 'var(--muted)',
+                    fontSize: 10, lineHeight: 1.5,
+                  }}>
+                    잘못 생성된 Todo는 항목 오른쪽의 삭제 버튼으로 기록에서 제거할 수 있습니다.
+                  </div>
                   <textarea
                     value={correctionNote}
                     maxLength={1000}
@@ -668,19 +791,36 @@ export default function TodoPage() {
                 </div>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5 }}>
-                  <button
-                    onClick={() => startCorrection(result)}
-                    disabled={correctionDate !== null}
-                    style={{
-                      padding: '5px 10px', borderRadius: 6,
-                      border: '1px solid var(--border)', background: 'var(--bg2)',
-                      color: 'var(--text)', fontSize: 11,
-                      cursor: correctionDate !== null ? 'default' : 'pointer',
-                      opacity: correctionDate !== null ? 0.45 : 1,
-                    }}
-                  >
-                    기록 보정
-                  </button>
+                  {result.items.length > 0 && (
+                    <>
+                      <button
+                        onClick={() => startCorrection(result)}
+                        disabled={correctionDate !== null}
+                        style={{
+                          padding: '5px 10px', borderRadius: 6,
+                          border: '1px solid var(--border)', background: 'var(--bg2)',
+                          color: 'var(--text)', fontSize: 11,
+                          cursor: correctionDate !== null ? 'default' : 'pointer',
+                          opacity: correctionDate !== null ? 0.45 : 1,
+                        }}
+                      >
+                        기록 보정
+                      </button>
+                      <button
+                        onClick={() => moveHistoryToTrash(result)}
+                        disabled={correctionDate !== null}
+                        style={{
+                          padding: '5px 10px', borderRadius: 6,
+                          border: '1px solid var(--border)', background: 'transparent',
+                          color: 'var(--red)', fontSize: 11,
+                          cursor: correctionDate !== null ? 'default' : 'pointer',
+                          opacity: correctionDate !== null ? 0.45 : 1,
+                        }}
+                      >
+                        기록 삭제
+                      </button>
+                    </>
+                  )}
                   {result.correctedAt && (
                     <span style={{ fontSize: 10, color: 'var(--muted)' }}>
                       최근 보정 {new Date(result.correctedAt).toLocaleString('ko-KR')}
@@ -726,6 +866,68 @@ export default function TodoPage() {
           </details>
         ))}
       </section>
+
+      {todoHistoryTrash.length > 0 && (
+        <section style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 4 }}>
+          <details>
+            <summary style={{
+              cursor: 'pointer', color: 'var(--muted)',
+              fontSize: 12, fontWeight: 600,
+            }}>
+              Todo 기록 휴지통 ({todoHistoryTrash.length})
+            </summary>
+            <div style={{
+              display: 'flex', flexDirection: 'column', gap: 7,
+              marginTop: 9, padding: 10, borderRadius: 8,
+              border: '1px solid var(--border)', background: 'var(--bg2)',
+            }}>
+              <div style={{ color: 'var(--muted)', fontSize: 10 }}>
+                현재는 보관 기간 제한 없이 저장됩니다.
+              </div>
+              {todoHistoryTrash.map(deleted => (
+                <div key={`${deleted.date}-${deleted.deletedAt}`} style={{
+                  display: 'flex', alignItems: 'center',
+                  justifyContent: 'space-between', gap: 12,
+                  padding: '8px 0', borderTop: '1px solid var(--border)',
+                }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ color: 'var(--text)', fontSize: 12, fontWeight: 700 }}>
+                      {deleted.date}
+                    </div>
+                    <div style={{ color: 'var(--muted)', fontSize: 10, marginTop: 2 }}>
+                      {deleted.total}개 항목 · {new Date(deleted.deletedAt).toLocaleString('ko-KR')} 삭제
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                    <button
+                      type="button"
+                      onClick={() => restoreHistory(deleted)}
+                      style={{
+                        padding: '5px 9px', borderRadius: 6,
+                        border: '1px solid var(--border)', background: 'var(--bg3)',
+                        color: 'var(--text)', fontSize: 10, cursor: 'pointer',
+                      }}
+                    >
+                      복원
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => permanentlyDeleteHistory(deleted)}
+                      style={{
+                        padding: '5px 9px', borderRadius: 6,
+                        border: '1px solid var(--border)', background: 'transparent',
+                        color: 'var(--red)', fontSize: 10, cursor: 'pointer',
+                      }}
+                    >
+                      영구 삭제
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </details>
+        </section>
+      )}
       <style>{`
         @media (max-width: 640px) {
           .todo-correction-add-row {

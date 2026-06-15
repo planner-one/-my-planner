@@ -32,11 +32,11 @@ const NAV_ITEMS: NavItem[] = [
     paths: ['M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z', 'M9 22V12h6v10'],
   },
   {
-    id: 'tasks', label: '할일',
+    id: 'tasks', label: '작업 관리',
     paths: ['M9 11l3 3L22 4', 'M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11'],
   },
   {
-    id: 'todos', label: 'Todo',
+    id: 'todos', label: '오늘 할 일',
     paths: ['M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01'],
   },
   {

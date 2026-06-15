@@ -32,6 +32,11 @@ export interface TodoCorrection {
   }[]
 }
 
+export interface DeletedTodoDailyResult extends TodoDailyResult {
+  deletedAt: string
+  deletionReason: 'empty' | 'manual'
+}
+
 export interface Habit {
   name: string
   done: boolean
@@ -136,6 +141,8 @@ export interface LayoutItem {
 export interface UserData {
   todos?: Todo[]
   todoHistory?: TodoDailyResult[]
+  todoHistoryTrash?: DeletedTodoDailyResult[]
+  todoHistoryDeletedDates?: string[]
   habits?: Habit[]
   habitHistory?: Record<string, Record<string, boolean>>
   habitsVersion?: number

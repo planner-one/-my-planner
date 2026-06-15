@@ -5,7 +5,7 @@ import { loadUserData, saveUserData } from '../services/userService'
 import { useAuth } from './AuthContext'
 import { toLocalDateKey } from '../utils/date'
 import type {
-  Todo, TodoDailyResult, Habit, Task, Goal, Project, TopGoal, Counters, Review,
+  Todo, TodoDailyResult, DeletedTodoDailyResult, Habit, Task, Goal, Project, TopGoal, Counters, Review,
   Note, WeekTask, ScheduledTask, JournalEntry, LayoutItem, UserData,
 } from '../types'
 
@@ -14,6 +14,10 @@ interface AppContextValue {
   todos: Todo[];             setTodos: React.Dispatch<React.SetStateAction<Todo[]>>
   todoHistory: TodoDailyResult[]
   setTodoHistory: React.Dispatch<React.SetStateAction<TodoDailyResult[]>>
+  todoHistoryTrash: DeletedTodoDailyResult[]
+  setTodoHistoryTrash: React.Dispatch<React.SetStateAction<DeletedTodoDailyResult[]>>
+  todoHistoryDeletedDates: string[]
+  setTodoHistoryDeletedDates: React.Dispatch<React.SetStateAction<string[]>>
   habits: Habit[];           setHabits: React.Dispatch<React.SetStateAction<Habit[]>>
   habitHistory: Record<string, Record<string, boolean>>
   setHabitHistory: React.Dispatch<React.SetStateAction<Record<string, Record<string, boolean>>>>
@@ -56,6 +60,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const [todos, setTodos] = useState<Todo[]>([])
   const [todoHistory, setTodoHistory] = useState<TodoDailyResult[]>([])
+  const [todoHistoryTrash, setTodoHistoryTrash] = useState<DeletedTodoDailyResult[]>([])
+  const [todoHistoryDeletedDates, setTodoHistoryDeletedDates] = useState<string[]>([])
   const [habits, setHabits] = useState<Habit[]>([])
   const [habitHistory, setHabitHistory] = useState<Record<string, Record<string, boolean>>>({})
   const [tasks, setTasks] = useState<Task[]>([])
@@ -86,7 +92,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     currentDataRef.current = sanitize({
-      todos, todoHistory, habits, habitHistory, habitsVersion: 2,
+      todos, todoHistory, todoHistoryTrash, todoHistoryDeletedDates,
+      habits, habitHistory, habitsVersion: 2,
       tasks, goals, projects, topGoals,
       energy, counters, quickMemo, review,
       notes, weekTasks, timeBlockData, scheduledTasks,
@@ -114,11 +121,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     isLoadingRef.current = true
     setDataLoaded(false)
     setUiScale(90)
+    setTodoHistoryTrash([])
+    setTodoHistoryDeletedDates([])
 
     loadUserData(user.uid).then(d => {
       if (d) {
         if (d.todos) setTodos(d.todos)
         if (d.todoHistory) setTodoHistory(d.todoHistory)
+        setTodoHistoryTrash(d.todoHistoryTrash ?? [])
+        setTodoHistoryDeletedDates(d.todoHistoryDeletedDates ?? [])
         if (d.habits) setHabits(d.habits)
         if (d.habitHistory) setHabitHistory(d.habitHistory)
         if (d.tasks) setTasks(d.tasks)
@@ -174,7 +185,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     setTodoHistory(previous => {
       const recordedDates = new Set(previous.map(result => result.date))
-      const missing = pastDates.filter(date => !recordedDates.has(date))
+      const trashedDates = new Set(todoHistoryTrash.map(result => result.date))
+      const permanentlyDeletedDates = new Set(todoHistoryDeletedDates)
+      const missing = pastDates.filter(date =>
+        !recordedDates.has(date)
+        && !trashedDates.has(date)
+        && !permanentlyDeletedDates.has(date)
+      )
       if (missing.length === 0) return previous
 
       const savedAt = new Date().toISOString()
@@ -194,7 +211,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       return [...automaticResults, ...previous].sort((a, b) => b.date.localeCompare(a.date))
     })
-  }, [currentDate, dataLoaded, todos])
+  }, [currentDate, dataLoaded, todos, todoHistoryTrash, todoHistoryDeletedDates])
 
   useEffect(() => {
     if (!user || isLoadingRef.current) return
@@ -205,7 +222,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     }, 1000)
   }, [
-    todos, todoHistory, habits, habitHistory, tasks, goals, projects, topGoals,
+    todos, todoHistory, todoHistoryTrash, todoHistoryDeletedDates,
+    habits, habitHistory, tasks, goals, projects, topGoals,
     energy, counters, quickMemo, review, notes, weekTasks,
     timeBlockData, scheduledTasks, journal, chartHistory,
     dashboardLayout, dashboardActive, uiScale, nickname,
@@ -233,6 +251,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     dataLoaded,
     todos, setTodos,
     todoHistory, setTodoHistory,
+    todoHistoryTrash, setTodoHistoryTrash,
+    todoHistoryDeletedDates, setTodoHistoryDeletedDates,
     habits, setHabits,
     habitHistory, setHabitHistory,
     tasks, setTasks,
