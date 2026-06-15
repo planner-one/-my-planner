@@ -6,7 +6,7 @@ import { signOut } from '../services/authService'
 
 type PageId =
   | 'dashboard' | 'habits' | 'tasks' | 'todos' | 'goals' | 'projects'
-  | 'weekly' | 'daily' | 'notes' | 'journal' | 'profile' | 'inquiries'
+  | 'weekly' | 'daily' | 'notes' | 'journal' | 'profile' | 'inquiries' | 'print'
 
 interface NavItem {
   id: PageId
@@ -74,6 +74,10 @@ const NAV_ITEMS: NavItem[] = [
   {
     id: 'inquiries', label: '문의',
     paths: ['M21 15a4 4 0 01-4 4H8l-5 3V7a4 4 0 014-4h10a4 4 0 014 4z', 'M8 9h8M8 13h5'],
+  },
+  {
+    id: 'print', label: '플래너 출력',
+    paths: ['M6 9V2h12v7', 'M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2', 'M6 14h12v8H6z'],
   },
 ]
 

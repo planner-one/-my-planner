@@ -2,7 +2,7 @@ import { createContext, useContext, useState, type ReactNode } from 'react'
 
 type PageId =
   | 'dashboard' | 'habits' | 'tasks' | 'todos' | 'goals' | 'projects'
-  | 'weekly' | 'daily' | 'notes' | 'journal' | 'profile' | 'inquiries'
+  | 'weekly' | 'daily' | 'notes' | 'journal' | 'profile' | 'inquiries' | 'print' | 'inquiries'
 
 interface RouterContextValue {
   page: PageId
