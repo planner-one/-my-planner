@@ -1,6 +1,7 @@
 import type { Habit } from '../types'
 
 export const HABITS_VERSION = 3
+export const EVERY_DAY = [0, 1, 2, 3, 4, 5, 6]
 
 const DEFAULT_HABITS = [
   { name: '물 마시기', icon: '💧' },
@@ -15,11 +16,20 @@ export const createDefaultHabits = (createdAt = new Date().toISOString()): Habit
     id: `default-habit-${index + 1}`,
     name,
     icon,
+    repeatDays: [...EVERY_DAY],
     createdAt,
   }))
 
 export const getHabitIcon = (habit: Pick<Habit, 'name' | 'icon'>): string =>
   habit.icon ?? DEFAULT_HABITS.find(item => item.name === habit.name)?.icon ?? '✨'
+
+export const getHabitRepeatDays = (habit: Pick<Habit, 'repeatDays'>): number[] =>
+  habit.repeatDays?.length ? habit.repeatDays : EVERY_DAY
+
+export const isHabitScheduled = (
+  habit: Pick<Habit, 'repeatDays'>,
+  date = new Date(),
+): boolean => getHabitRepeatDays(habit).includes(date.getDay())
 
 export const createHabitId = (): string => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -53,6 +63,7 @@ export const migrateHabits = (
         id: habit.id || legacyHabitId(habit.name, index),
         name: habit.name,
         icon: getHabitIcon(habit),
+        repeatDays: [...getHabitRepeatDays(habit)],
         createdAt: habit.createdAt || createdAt,
       }))
 

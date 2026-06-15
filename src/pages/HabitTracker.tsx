@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react'
 import { useApp } from '../store/AppContext'
 import { addLocalDays, toLocalDateKey } from '../utils/date'
-import { createDefaultHabits, createHabitId, getHabitIcon } from '../utils/habits'
+import {
+  EVERY_DAY, createDefaultHabits, createHabitId, getHabitIcon,
+  getHabitRepeatDays, isHabitScheduled,
+} from '../utils/habits'
 
 const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
 const MONTH_LABELS = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월']
@@ -24,11 +27,12 @@ export default function HabitTracker() {
 
   const today = toLocalDateKey()
   const todayRecord = habitHistory[today] ?? {}
+  const activeHabits = habits.filter(habit => isHabitScheduled(habit))
 
   const updateTodayRecord = (updater: (record: Record<string, boolean>) => Record<string, boolean>) => {
     setHabitHistory(previous => {
       const completeRecord = Object.fromEntries(
-        habits.map(habit => [habit.id, previous[today]?.[habit.id] ?? false])
+        activeHabits.map(habit => [habit.id, previous[today]?.[habit.id] ?? false])
       )
       return { ...previous, [today]: updater(completeRecord) }
     })
@@ -41,7 +45,13 @@ export default function HabitTracker() {
   const addHabit = () => {
     const name = input.trim()
     if (!name || habits.some(habit => habit.name === name)) return
-    const habit = { id: createHabitId(), name, icon: '✨', createdAt: new Date().toISOString() }
+    const habit = {
+      id: createHabitId(),
+      name,
+      icon: '✨',
+      repeatDays: [...EVERY_DAY],
+      createdAt: new Date().toISOString(),
+    }
     setHabits(previous => [...previous, habit])
     setHabitHistory(previous => ({
       ...previous,
@@ -80,6 +90,18 @@ export default function HabitTracker() {
       ;[next[index], next[target]] = [next[target], next[index]]
       return next
     })
+  }
+
+  const toggleRepeatDay = (habitId: string, day: number) => {
+    setHabits(previous => previous.map(habit => {
+      if (habit.id !== habitId) return habit
+      const current = getHabitRepeatDays(habit)
+      if (current.includes(day) && current.length === 1) return habit
+      const repeatDays = current.includes(day)
+        ? current.filter(item => item !== day)
+        : [...current, day].sort((a, b) => a - b)
+      return { ...habit, repeatDays }
+    }))
   }
 
   const restoreDefaults = () => {
@@ -133,7 +155,7 @@ export default function HabitTracker() {
   }
 
   const selectedActivity = dayActivity(selectedDate)
-  const todayDone = habits.filter(habit => todayRecord[habit.id]).length
+  const todayDone = activeHabits.filter(habit => todayRecord[habit.id]).length
 
   return (
     <div className="habit-page">
@@ -144,7 +166,7 @@ export default function HabitTracker() {
         </div>
         <div className="habit-today-summary">
           <strong>{todayDone}</strong>
-          <span>/ {habits.length} 완료</span>
+          <span>/ {activeHabits.length} 완료</span>
         </div>
       </header>
 
@@ -179,11 +201,14 @@ export default function HabitTracker() {
           {habits.map((habit, index) => {
             const done = Boolean(todayRecord[habit.id])
             const editing = editingId === habit.id
+            const scheduledToday = isHabitScheduled(habit)
+            const repeatDays = getHabitRepeatDays(habit)
             return (
-              <div className={`habit-row${done ? ' is-done' : ''}`} key={habit.id}>
+              <div className={`habit-row${done ? ' is-done' : ''}${scheduledToday ? '' : ' is-off-day'}`} key={habit.id}>
                 <button
                   type="button"
                   className="habit-check"
+                  disabled={!scheduledToday}
                   aria-label={`${habit.name} ${done ? '완료 취소' : '완료'}`}
                   onClick={() => toggle(habit.id)}
                 >
@@ -206,8 +231,23 @@ export default function HabitTracker() {
                   <button type="button" className="habit-name" onClick={() => toggle(habit.id)}>
                     <span style={{ marginRight: 8 }}>{getHabitIcon(habit)}</span>
                     {habit.name}
+                    {!scheduledToday && <small>오늘 제외</small>}
                   </button>
                 )}
+                <div className="habit-repeat-days" aria-label={`${habit.name} 반복 요일`}>
+                  {DAY_LABELS.map((label, day) => (
+                    <button
+                      type="button"
+                      key={label}
+                      className={repeatDays.includes(day) ? 'is-active' : ''}
+                      aria-label={`${label}요일 ${repeatDays.includes(day) ? '제외' : '추가'}`}
+                      aria-pressed={repeatDays.includes(day)}
+                      onClick={() => toggleRepeatDay(habit.id, day)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
                 <div className="habit-actions">
                   <button type="button" title="위로 이동" aria-label="위로 이동" onClick={() => moveHabit(index, -1)}>↑</button>
                   <button type="button" title="아래로 이동" aria-label="아래로 이동" onClick={() => moveHabit(index, 1)}>↓</button>
@@ -308,13 +348,19 @@ export default function HabitTracker() {
         .habit-primary-button { min-width: 72px; background: var(--accent); color: #fff; }
         .habit-subtle-button { padding: 8px 11px; background: var(--bg3); color: var(--text); }
         .habit-list { display: flex; flex-direction: column; gap: 7px; }
-        .habit-row { min-height: 48px; display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 6px 9px; background: var(--bg3); border: 1px solid transparent; border-radius: 7px; }
+        .habit-row { min-height: 48px; display: grid; grid-template-columns: 26px minmax(150px, 1fr) auto auto; align-items: center; gap: 10px; padding: 6px 9px; background: var(--bg3); border: 1px solid transparent; border-radius: 7px; }
         .habit-row.is-done { border-color: color-mix(in srgb, var(--accent) 38%, transparent); }
+        .habit-row.is-off-day { opacity: 0.72; }
         .habit-check { width: 24px; height: 24px; padding: 0; border: 1.5px solid var(--border); border-radius: 6px; background: var(--bg); color: #fff; cursor: pointer; font-weight: 800; }
+        .habit-check:disabled { cursor: default; background: var(--bg4); }
         .habit-row.is-done .habit-check { border-color: var(--accent); background: var(--accent); }
         .habit-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: left; border: 0; background: transparent; color: var(--text); cursor: pointer; font-size: 14px; }
+        .habit-name small { margin-left: 8px; color: var(--muted); font-size: 10px; font-weight: 500; white-space: nowrap; }
         .habit-row.is-done .habit-name { color: var(--muted); text-decoration: line-through; }
         .habit-edit-input { width: 100%; min-width: 0; height: 32px; padding: 0 9px; font-size: 14px; }
+        .habit-repeat-days { display: flex; align-items: center; gap: 3px; }
+        .habit-repeat-days button { width: 27px; height: 27px; padding: 0; border: 1px solid var(--border); border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; font-size: 10px; }
+        .habit-repeat-days button.is-active { border-color: var(--accent); background: var(--accent); color: #fff; font-weight: 700; }
         .habit-actions { display: flex; gap: 3px; }
         .habit-actions button { width: 30px; height: 30px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; font-size: 14px; }
         .habit-actions button:hover { background: var(--bg4); color: var(--text); }
@@ -340,6 +386,8 @@ export default function HabitTracker() {
           .habit-header p { max-width: 230px; }
           .habit-section { padding: 15px; }
           .habit-section-title { align-items: flex-start; }
+          .habit-row { grid-template-columns: 26px minmax(0, 1fr) auto; }
+          .habit-repeat-days { grid-column: 2 / -1; grid-row: 2; }
           .habit-actions button { width: 27px; }
           .habit-activity-footer { align-items: flex-start; flex-direction: column; }
         }

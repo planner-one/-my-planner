@@ -4,7 +4,7 @@ import {
 import { loadUserData, saveUserData } from '../services/userService'
 import { useAuth } from './AuthContext'
 import { toLocalDateKey } from '../utils/date'
-import { HABITS_VERSION, migrateHabits } from '../utils/habits'
+import { HABITS_VERSION, isHabitScheduled, migrateHabits } from '../utils/habits'
 import type {
   Todo, TodoDailyResult, DeletedTodoDailyResult, Habit, Task, Goal, Project, TopGoal, Counters, Review,
   Note, WeekTask, ScheduledTask, JournalEntry, LayoutItem, UserData,
@@ -22,6 +22,8 @@ interface AppContextValue {
   habits: Habit[];           setHabits: React.Dispatch<React.SetStateAction<Habit[]>>
   habitHistory: Record<string, Record<string, boolean>>
   setHabitHistory: React.Dispatch<React.SetStateAction<Record<string, Record<string, boolean>>>>
+  habitSavedAt: Record<string, string>
+  setHabitSavedAt: React.Dispatch<React.SetStateAction<Record<string, string>>>
   tasks: Task[];             setTasks: React.Dispatch<React.SetStateAction<Task[]>>
   goals: Goal[];             setGoals: React.Dispatch<React.SetStateAction<Goal[]>>
   projects: Project[];       setProjects: React.Dispatch<React.SetStateAction<Project[]>>
@@ -65,6 +67,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [todoHistoryDeletedDates, setTodoHistoryDeletedDates] = useState<string[]>([])
   const [habits, setHabits] = useState<Habit[]>([])
   const [habitHistory, setHabitHistory] = useState<Record<string, Record<string, boolean>>>({})
+  const [habitSavedAt, setHabitSavedAt] = useState<Record<string, string>>({})
   const [tasks, setTasks] = useState<Task[]>([])
   const [goals, setGoals] = useState<Goal[]>([])
   const [projects, setProjects] = useState<Project[]>([])
@@ -94,7 +97,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     currentDataRef.current = sanitize({
       todos, todoHistory, todoHistoryTrash, todoHistoryDeletedDates,
-      habits, habitHistory, habitsVersion: HABITS_VERSION, habitsInitialized: true,
+      habits, habitHistory, habitSavedAt,
+      habitsVersion: HABITS_VERSION, habitsInitialized: true,
       tasks, goals, projects, topGoals,
       energy, counters, quickMemo, review,
       notes, weekTasks, timeBlockData, scheduledTasks,
@@ -124,6 +128,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setUiScale(90)
     setTodoHistoryTrash([])
     setTodoHistoryDeletedDates([])
+    setHabitSavedAt({})
 
     loadUserData(user.uid).then(d => {
       if (d) {
@@ -138,6 +143,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         )
         setHabits(migratedHabits.habits)
         setHabitHistory(migratedHabits.habitHistory)
+        setHabitSavedAt(d.habitSavedAt ?? {})
         if (d.tasks) setTasks(d.tasks)
         if (d.goals) setGoals(d.goals)
         if (d.projects) setProjects(d.projects)
@@ -184,12 +190,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [currentDate])
 
   useEffect(() => {
-    if (!dataLoaded || habits.length === 0) return
+    if (!dataLoaded) return
     setHabitHistory(previous => {
-      if (previous[currentDate]) return previous
+      const date = new Date(`${currentDate}T12:00:00`)
+      const activeHabits = habits.filter(habit => isHabitScheduled(habit, date))
+      const nextRecord = Object.fromEntries(
+        activeHabits.map(habit => [habit.id, previous[currentDate]?.[habit.id] ?? false])
+      )
+      const currentRecord = previous[currentDate] ?? {}
+      if (JSON.stringify(currentRecord) === JSON.stringify(nextRecord)) return previous
       return {
         ...previous,
-        [currentDate]: Object.fromEntries(habits.map(habit => [habit.id, false])),
+        [currentDate]: nextRecord,
       }
     })
   }, [currentDate, dataLoaded, habits])
@@ -245,7 +257,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }, 1000)
   }, [
     todos, todoHistory, todoHistoryTrash, todoHistoryDeletedDates,
-    habits, habitHistory, tasks, goals, projects, topGoals,
+    habits, habitHistory, habitSavedAt, tasks, goals, projects, topGoals,
     energy, counters, quickMemo, review, notes, weekTasks,
     timeBlockData, scheduledTasks, journal, chartHistory,
     dashboardLayout, dashboardActive, uiScale, nickname, dataLoaded,
@@ -277,6 +289,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     todoHistoryDeletedDates, setTodoHistoryDeletedDates,
     habits, setHabits,
     habitHistory, setHabitHistory,
+    habitSavedAt, setHabitSavedAt,
     tasks, setTasks,
     goals, setGoals,
     projects, setProjects,

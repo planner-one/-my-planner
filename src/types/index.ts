@@ -42,6 +42,7 @@ export interface Habit {
   name: string
   createdAt: string
   icon?: string
+  repeatDays?: number[]
 }
 
 export interface Task {
@@ -147,6 +148,7 @@ export interface UserData {
   todoHistoryDeletedDates?: string[]
   habits?: Habit[]
   habitHistory?: Record<string, Record<string, boolean>>
+  habitSavedAt?: Record<string, string>
   habitsVersion?: number
   habitsInitialized?: boolean
   tasks?: Task[]
