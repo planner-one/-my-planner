@@ -3,6 +3,7 @@ export interface Todo {
   text: string
   done: boolean
   priority: 'high' | 'medium' | 'low'
+  category?: 'work' | 'personal' | 'study'
   date?: string
 }
 
