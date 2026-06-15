@@ -78,22 +78,22 @@ export default function PageShell({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(() =>
     localStorage.getItem('sidebar_open') !== 'false'
   )
-  const [isDark, setIsDark] = useState(() => {
-    const saved = localStorage.getItem('theme')
-    if (saved) return saved === 'dark'
-    return window.matchMedia('(prefers-color-scheme: dark)').matches
+  type Theme = 'light' | 'dark' | 'karrot' | 'toss'
+  const [theme, setThemeState] = useState<Theme>(() => {
+    const saved = localStorage.getItem('theme') as Theme | null
+    if (saved && ['light', 'dark', 'karrot', 'toss'].includes(saved)) return saved
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
   })
 
-  const toggleTheme = () => {
-    const next = !isDark
-    setIsDark(next)
-    localStorage.setItem('theme', next ? 'dark' : 'light')
-    document.documentElement.setAttribute('data-theme', next ? 'dark' : '')
+  const applyTheme = (t: Theme) => {
+    setThemeState(t)
+    localStorage.setItem('theme', t)
+    document.documentElement.setAttribute('data-theme', t === 'light' ? '' : t)
   }
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : '')
-  }, [isDark])
+    document.documentElement.setAttribute('data-theme', theme === 'light' ? '' : theme)
+  }, [theme])
 
   const toggleSidebar = () => {
     const next = !sidebarOpen
@@ -241,34 +241,38 @@ export default function PageShell({ children }: { children: ReactNode }) {
           })}
         </nav>
 
-        {/* 다크모드 토글 */}
+        {/* 테마 선택 */}
         <div style={{ padding: '8px 10px 4px', minWidth: 200, flexShrink: 0 }}>
-          <button onClick={toggleTheme} style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            width: '100%', padding: '8px 12px', borderRadius: 8,
-            border: '1px solid var(--border)', background: 'var(--bg3)',
-            color: 'var(--muted)', cursor: 'pointer', fontSize: 12,
-            fontFamily: 'inherit', transition: 'background 0.12s',
-          }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              {isDark ? '🌙' : '☀️'}
-              <span>{isDark ? '다크 모드' : '라이트 모드'}</span>
-            </span>
-            <span style={{
-              width: 32, height: 18, borderRadius: 9, position: 'relative',
-              background: isDark ? 'var(--accent)' : 'var(--bg4)',
-              display: 'inline-block', flexShrink: 0,
-              transition: 'background 0.2s',
-            }}>
-              <span style={{
-                position: 'absolute', top: 2,
-                left: isDark ? 16 : 2,
-                width: 14, height: 14, borderRadius: '50%',
-                background: '#fff',
-                transition: 'left 0.2s',
-              }} />
-            </span>
-          </button>
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6, paddingLeft: 2 }}>테마</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
+            {([
+              { id: 'light',  label: '라이트', dot: '#eef0ef', accent: '#3a7d50' },
+              { id: 'dark',   label: '다크',   dot: '#181818', accent: '#4ade80' },
+              { id: 'karrot', label: '당근',   dot: '#fff1ea', accent: '#ff6f0f' },
+              { id: 'toss',   label: '토스',   dot: '#f2f4f6', accent: '#3182f6' },
+            ] as const).map(t => {
+              const active = theme === t.id
+              return (
+                <button key={t.id} onClick={() => applyTheme(t.id)} style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '7px 8px', borderRadius: 8, cursor: 'pointer',
+                  border: active ? `1.5px solid ${t.accent}` : '1.5px solid var(--border)',
+                  background: active ? t.dot : 'var(--bg3)',
+                  fontFamily: 'inherit', fontSize: 11,
+                  color: active ? t.accent : 'var(--muted)',
+                  fontWeight: active ? 600 : 400,
+                  transition: 'all 0.15s',
+                }}>
+                  <span style={{
+                    width: 10, height: 10, borderRadius: '50%',
+                    background: t.accent, flexShrink: 0,
+                    boxShadow: active ? `0 0 0 2px ${t.dot}, 0 0 0 3px ${t.accent}` : 'none',
+                  }} />
+                  {t.label}
+                </button>
+              )
+            })}
+          </div>
         </div>
 
         {/* 유저 영역 */}
