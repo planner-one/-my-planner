@@ -7,7 +7,7 @@ import { toLocalDateKey } from '../utils/date'
 import { HABITS_VERSION, isHabitScheduled, migrateHabits } from '../utils/habits'
 import type {
   Todo, TodoDailyResult, DeletedTodoDailyResult, Habit, Task, Goal, Project, TopGoal, Counters, Review,
-  Note, WeekTask, ScheduledTask, JournalEntry, LayoutItem, UserData,
+  Note, QuickMemoEntry, WeekTask, ScheduledTask, JournalEntry, LayoutItem, UserData,
 } from '../types'
 
 interface AppContextValue {
@@ -30,7 +30,8 @@ interface AppContextValue {
   topGoals: TopGoal[];       setTopGoals: React.Dispatch<React.SetStateAction<TopGoal[]>>
   energy: number;            setEnergy: React.Dispatch<React.SetStateAction<number>>
   counters: Counters;        setCounters: React.Dispatch<React.SetStateAction<Counters>>
-  quickMemo: string;         setQuickMemo: React.Dispatch<React.SetStateAction<string>>
+  quickMemos: QuickMemoEntry[]
+  setQuickMemos: React.Dispatch<React.SetStateAction<QuickMemoEntry[]>>
   review: Review;            setReview: React.Dispatch<React.SetStateAction<Review>>
   notes: Note[];             setNotes: React.Dispatch<React.SetStateAction<Note[]>>
   weekTasks: Record<string, WeekTask[]>
@@ -74,7 +75,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [topGoals, setTopGoals] = useState<TopGoal[]>([])
   const [energy, setEnergy] = useState<number>(0)
   const [counters, setCounters] = useState<Counters>({ f: 0, w: 0, fDate: '' })
-  const [quickMemo, setQuickMemo] = useState<string>('')
+  const [quickMemos, setQuickMemos] = useState<QuickMemoEntry[]>([])
   const [review, setReview] = useState<Review>({ r1: '', r2: '', r3: '' })
   const [notes, setNotes] = useState<Note[]>([])
   const [weekTasks, setWeekTasks] = useState<Record<string, WeekTask[]>>({})
@@ -100,7 +101,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       habits, habitHistory, habitSavedAt,
       habitsVersion: HABITS_VERSION, habitsInitialized: true,
       tasks, goals, projects, topGoals,
-      energy, counters, quickMemo, review,
+      energy, counters, quickMemo: '', quickMemos, review,
       notes, weekTasks, timeBlockData, scheduledTasks,
       journal, chartHistory,
       dashboardLayout, dashboardActive,
@@ -129,6 +130,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setTodoHistoryTrash([])
     setTodoHistoryDeletedDates([])
     setHabitSavedAt({})
+    setQuickMemos([])
 
     loadUserData(user.uid).then(d => {
       if (d) {
@@ -150,7 +152,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (d.topGoals) setTopGoals(d.topGoals)
         if (d.energy != null) setEnergy(d.energy)
         if (d.counters) setCounters(d.counters)
-        if (d.quickMemo != null) setQuickMemo(d.quickMemo)
+        if (d.quickMemos) {
+          setQuickMemos(d.quickMemos)
+        } else if (d.quickMemo?.trim()) {
+          const migratedAt = d._lastSaved ?? new Date().toISOString()
+          setQuickMemos([{
+            id: `legacy-memo-${Date.now()}`,
+            content: d.quickMemo.trim(),
+            createdAt: migratedAt,
+            updatedAt: migratedAt,
+          }])
+        }
         if (d.review) setReview(d.review)
         if (d.notes) setNotes(d.notes)
         if (d.weekTasks) setWeekTasks(d.weekTasks)
@@ -258,7 +270,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [
     todos, todoHistory, todoHistoryTrash, todoHistoryDeletedDates,
     habits, habitHistory, habitSavedAt, tasks, goals, projects, topGoals,
-    energy, counters, quickMemo, review, notes, weekTasks,
+    energy, counters, quickMemos, review, notes, weekTasks,
     timeBlockData, scheduledTasks, journal, chartHistory,
     dashboardLayout, dashboardActive, uiScale, nickname, dataLoaded,
   ])
@@ -296,7 +308,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     topGoals, setTopGoals,
     energy, setEnergy,
     counters, setCounters,
-    quickMemo, setQuickMemo,
+    quickMemos, setQuickMemos,
     review, setReview,
     notes, setNotes,
     weekTasks, setWeekTasks,

@@ -98,6 +98,16 @@ export interface Review {
   r3: string
 }
 
+export interface QuickMemoEntry {
+  id: string
+  content: string
+  createdAt: string
+  updatedAt: string
+  archivedAt?: string
+  convertedTo?: 'todo' | 'note'
+  convertedId?: string
+}
+
 export interface Note {
   id: string
   title: string
@@ -105,6 +115,9 @@ export interface Note {
   content: string
   fav: boolean
   review?: string
+  createdAt?: string
+  updatedAt?: string
+  sourceMemoId?: string
 }
 
 export interface WeekTask {
@@ -158,6 +171,7 @@ export interface UserData {
   energy?: number
   counters?: Counters
   quickMemo?: string
+  quickMemos?: QuickMemoEntry[]
   review?: Review
   notes?: Note[]
   weekTasks?: Record<string, WeekTask[]>
