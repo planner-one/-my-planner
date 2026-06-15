@@ -1,23 +1,68 @@
+import { useState } from 'react'
 import { useApp } from '../store/AppContext'
 import { useRouter } from '../store/RouterContext'
 import { toLocalDateKey } from '../utils/date'
 import { getHabitIcon, isHabitScheduled } from '../utils/habits'
 
-function HabitProgress() {
-  const { habits, habitHistory } = useApp()
-  const todayRecord = habitHistory[toLocalDateKey()] ?? {}
+function HabitActions() {
+  const {
+    habits, habitHistory, setHabitHistory,
+    habitSavedAt, setHabitSavedAt, saveWithOverrides,
+  } = useApp()
+  const [saving, setSaving] = useState(false)
+  const today = toLocalDateKey()
+  const todayRecord = habitHistory[today] ?? {}
   const activeHabits = habits.filter(habit => isHabitScheduled(habit))
   const done = activeHabits.filter(habit => todayRecord[habit.id]).length
   const percentage = activeHabits.length === 0 ? 0 : Math.round((done / activeHabits.length) * 100)
+  const saved = Boolean(habitSavedAt[today])
+
+  const saveToday = async () => {
+    if (saving || activeHabits.length === 0) return
+    const savedAt = new Date().toISOString()
+    const nextRecord = Object.fromEntries(
+      activeHabits.map(habit => [habit.id, todayRecord[habit.id] ?? false])
+    )
+    const nextHistory = { ...habitHistory, [today]: nextRecord }
+    const nextSavedAt = { ...habitSavedAt, [today]: savedAt }
+    setSaving(true)
+    setHabitHistory(nextHistory)
+    setHabitSavedAt(nextSavedAt)
+    await saveWithOverrides({
+      habits,
+      habitHistory: nextHistory,
+      habitSavedAt: nextSavedAt,
+    })
+    setSaving(false)
+  }
 
   return (
-    <span style={{
-      minWidth: 40, padding: '3px 8px', borderRadius: 999,
-      background: 'var(--bg3)', color: 'var(--accent)',
-      fontSize: 12, fontWeight: 700, textAlign: 'center',
-    }}>
-      {percentage}%
-    </span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      {activeHabits.length > 0 && (
+        <button
+          type="button"
+          onClick={saveToday}
+          disabled={saving}
+          title={saved ? '오늘 기록 다시 저장' : '오늘 기록 저장'}
+          style={{
+            height: 24, padding: '0 8px',
+            border: '1px solid var(--border)', borderRadius: 6,
+            background: 'transparent', color: saved ? 'var(--accent)' : 'var(--muted)',
+            fontSize: 10, fontWeight: 700, cursor: saving ? 'default' : 'pointer',
+            opacity: saving ? 0.55 : 1,
+          }}
+        >
+          {saving ? '저장 중' : saved ? '✓ 저장' : '저장'}
+        </button>
+      )}
+      <span style={{
+        minWidth: 40, padding: '3px 8px', borderRadius: 999,
+        background: 'var(--bg3)', color: 'var(--accent)',
+        fontSize: 12, fontWeight: 700, textAlign: 'center',
+      }}>
+        {percentage}%
+      </span>
+    </div>
   )
 }
 
@@ -30,14 +75,11 @@ export const meta = {
   minW: 4,
   minH: 3,
   order: 4,
-  Actions: HabitProgress,
+  Actions: HabitActions,
 }
 
 export default function HabitWidget() {
-  const {
-    habits, habitHistory, setHabitHistory,
-    habitSavedAt, setHabitSavedAt, saveWithOverrides,
-  } = useApp()
+  const { habits, habitHistory, setHabitHistory } = useApp()
   const { setPage } = useRouter()
   const today = toLocalDateKey()
   const todayRecord = habitHistory[today] ?? {}
@@ -53,25 +95,8 @@ export default function HabitWidget() {
     }))
   }
 
-  const saveToday = async () => {
-    const savedAt = new Date().toISOString()
-    const nextRecord = Object.fromEntries(
-      activeHabits.map(habit => [habit.id, todayRecord[habit.id] ?? false])
-    )
-    const nextHistory = { ...habitHistory, [today]: nextRecord }
-    const nextSavedAt = { ...habitSavedAt, [today]: savedAt }
-    setHabitHistory(nextHistory)
-    setHabitSavedAt(nextSavedAt)
-    await saveWithOverrides({
-      habits,
-      habitHistory: nextHistory,
-      habitSavedAt: nextSavedAt,
-    })
-  }
-
   const doneCnt = activeHabits.filter(h => todayRecord[h.id]).length
   const percentage = activeHabits.length === 0 ? 0 : Math.round((doneCnt / activeHabits.length) * 100)
-  const savedTime = habitSavedAt[today]
 
   return (
     <div style={{
@@ -158,33 +183,6 @@ export default function HabitWidget() {
           )
         })}
       </div>
-      {activeHabits.length > 0 && (
-        <div style={{
-          display: 'flex', alignItems: 'center',
-          justifyContent: 'space-between', gap: 10, flexShrink: 0,
-        }}>
-          <span style={{
-            minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap', color: 'var(--muted)', fontSize: 10,
-          }}>
-            {savedTime
-              ? `저장됨 ${new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit' }).format(new Date(savedTime))} · 변경 자동 반영`
-              : '아직 저장하지 않았습니다.'}
-          </span>
-          <button
-            type="button"
-            onClick={saveToday}
-            style={{
-              border: '1px solid var(--border)', borderRadius: 7,
-              padding: '6px 10px', background: 'var(--bg3)',
-              color: 'var(--text)', fontSize: 11, fontWeight: 700,
-              cursor: 'pointer', whiteSpace: 'nowrap',
-            }}
-          >
-            오늘 기록 저장
-          </button>
-        </div>
-      )}
     </div>
   )
 }
