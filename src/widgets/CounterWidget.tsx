@@ -1,4 +1,6 @@
 import { useApp } from '../store/AppContext'
+import { useWidgetSize } from '../hooks/useWidgetSize'
+import { toLocalDateKey } from '../utils/date'
 
 export const meta = {
   id: 'counter',
@@ -12,9 +14,19 @@ export const meta = {
 }
 
 export default function CounterWidget() {
+  const { ref, w, h } = useWidgetSize()
   const { counters, setCounters } = useApp()
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = toLocalDateKey()
+  const compact = w > 0 && w < 320
+  const short = h > 0 && h < 210
+  const split = short && w >= 360
+  const padding = compact || short ? 10 : 14
+  const cardPadding = compact || short ? 10 : 14
+  const gap = compact || short ? 7 : 10
+  const valueSize = short ? 26 : compact ? 30 : 36
+  const labelSize = compact || short ? 11 : 12
+  const buttonHeight = short ? 27 : 31
 
   const incFocus = () => {
     setCounters(prev => {
@@ -23,39 +35,90 @@ export default function CounterWidget() {
     })
   }
 
+  const decFocus = () => {
+    setCounters(prev => {
+      const current = prev.fDate === today ? prev.f : 0
+      return { ...prev, f: Math.max(0, current - 1), fDate: today }
+    })
+  }
+
   const incWeekly = () => setCounters(prev => ({ ...prev, w: prev.w + 1 }))
+  const decWeekly = () => setCounters(prev => ({ ...prev, w: Math.max(0, prev.w - 1) }))
   const resetWeekly = () => setCounters(prev => ({ ...prev, w: 0 }))
 
   const todayF = counters.fDate === today ? counters.f : 0
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '10px 14px', boxSizing: 'border-box', gap: 10 }}>
+    <div ref={ref} style={{
+      display: 'grid',
+      gridTemplateColumns: split ? '1fr 1fr' : '1fr',
+      height: '100%', padding, boxSizing: 'border-box', gap,
+      overflow: 'hidden',
+    }}>
       {/* 집중 세션 */}
-      <div style={{ flex: 1, background: 'var(--bg3)', borderRadius: 10, padding: '10px 14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-        <div style={{ fontSize: 12, color: 'var(--muted)' }}>오늘 집중 세션</div>
-        <div style={{ fontSize: 36, fontWeight: 700, color: 'var(--accent)', textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>
+      <div style={{
+        minHeight: 0, background: 'var(--bg3)', borderRadius: 10,
+        padding: cardPadding, display: 'flex', flexDirection: 'column',
+        justifyContent: 'space-between', gap: 6,
+      }}>
+        <div>
+          <div style={{ fontSize: labelSize, color: 'var(--muted)', fontWeight: 600 }}>오늘 집중 세션</div>
+          <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2 }}>
+            타이머 완료 시 자동 기록
+          </div>
+        </div>
+        <div style={{
+          fontSize: valueSize, fontWeight: 800, color: 'var(--accent)',
+          textAlign: 'center', fontVariantNumeric: 'tabular-nums', lineHeight: 1,
+        }}>
           {todayF}
         </div>
-        <button onClick={incFocus} style={{
-          border: 'none', borderRadius: 6, background: 'var(--accent)',
-          color: '#fff', fontSize: 13, padding: '5px 0', cursor: 'pointer', fontWeight: 600,
-        }}>+ 세션 기록</button>
+        <div style={{ display: 'grid', gridTemplateColumns: '34px minmax(0, 1fr)', gap: 6 }}>
+          <button onClick={decFocus} aria-label="집중 세션 하나 빼기" style={{
+            height: buttonHeight, border: '1px solid var(--border)', borderRadius: 6,
+            background: 'var(--bg4)', color: 'var(--muted)',
+            fontSize: 14, cursor: 'pointer',
+          }}>−</button>
+          <button onClick={incFocus} style={{
+            height: buttonHeight, border: 'none', borderRadius: 6, background: 'var(--accent)',
+            color: '#fff', fontSize: compact || short ? 11 : 12,
+            cursor: 'pointer', fontWeight: 700,
+          }}>수동 추가</button>
+        </div>
       </div>
 
       {/* 주간 성과 */}
-      <div style={{ flex: 1, background: 'var(--bg3)', borderRadius: 10, padding: '10px 14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-        <div style={{ fontSize: 12, color: 'var(--muted)' }}>주간 성과</div>
-        <div style={{ fontSize: 36, fontWeight: 700, color: 'var(--text)', textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>
+      <div style={{
+        minHeight: 0, background: 'var(--bg3)', borderRadius: 10,
+        padding: cardPadding, display: 'flex', flexDirection: 'column',
+        justifyContent: 'space-between', gap: 6,
+      }}>
+        <div>
+          <div style={{ fontSize: labelSize, color: 'var(--muted)', fontWeight: 600 }}>주간 성과</div>
+          <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2 }}>
+            직접 기록하는 성과
+          </div>
+        </div>
+        <div style={{
+          fontSize: valueSize, fontWeight: 800, color: 'var(--text)',
+          textAlign: 'center', fontVariantNumeric: 'tabular-nums', lineHeight: 1,
+        }}>
           {counters.w}
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.4fr', gap: 6 }}>
+          <button onClick={decWeekly} aria-label="주간 성과 하나 빼기" style={{
+            border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg4)',
+            color: 'var(--muted)', fontSize: 13, cursor: 'pointer', height: buttonHeight,
+          }}>−</button>
           <button onClick={incWeekly} style={{
-            flex: 1, border: 'none', borderRadius: 6, background: 'var(--accent)',
-            color: '#fff', fontSize: 13, padding: '5px 0', cursor: 'pointer', fontWeight: 600,
+            border: 'none', borderRadius: 6, background: 'var(--accent)',
+            color: '#fff', fontSize: 13, cursor: 'pointer', fontWeight: 700,
+            height: buttonHeight,
           }}>+</button>
           <button onClick={resetWeekly} style={{
-            flex: 1, border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg4)',
-            color: 'var(--muted)', fontSize: 13, padding: '5px 0', cursor: 'pointer',
+            border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg4)',
+            color: 'var(--muted)', fontSize: compact || short ? 10 : 11,
+            cursor: 'pointer', height: buttonHeight,
           }}>초기화</button>
         </div>
       </div>
