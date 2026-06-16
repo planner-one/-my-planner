@@ -6,7 +6,7 @@ import {
   PointElement, LineElement, Tooltip, Filler,
 } from 'chart.js'
 import { Line } from 'react-chartjs-2'
-import { toLocalDateKey } from '../utils/date'
+import { calculateProductivityScore, getRecentDateKeys } from '../utils/productivity'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler)
 
@@ -32,7 +32,10 @@ export const meta = {
 }
 
 export default function ChartWidget() {
-  const { todos, todoHistory, chartHistory } = useApp()
+  const {
+    todos, todoHistory, chartHistory,
+    habits, habitHistory, scheduledTasks, counters,
+  } = useApp()
   const { ref } = useWidgetSize()
   const [accent, setAccent] = useState(getThemeAccent)
 
@@ -46,25 +49,25 @@ export default function ChartWidget() {
     return () => observer.disconnect()
   }, [])
 
-  const today = toLocalDateKey()
-  const todayTodos = todos.filter(todo => !todo.date || todo.date === today)
-  const todayDone = todayTodos.filter(todo => todo.done).length
-  const todayRate = todayTodos.length === 0
-    ? null
-    : Math.round((todayDone / todayTodos.length) * 100)
+  const productivityPoints = getRecentDateKeys(30)
+    .map(date => calculateProductivityScore({
+      date,
+      todos,
+      todoHistory,
+      habits,
+      habitHistory,
+      scheduledTasks,
+      counters,
+    }))
+    .filter((point): point is NonNullable<typeof point> => Boolean(point))
 
-  const datedRates = new Map(todoHistory.map(result => [result.date, result.completionRate]))
-  if (todayRate !== null) datedRates.set(today, todayRate)
-
-  const todoPoints = [...datedRates.entries()]
-    .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
-    .slice(-30)
-
-  const hasTodoData = todoPoints.length > 0
-  const values = hasTodoData ? todoPoints.map(([, rate]) => rate) : chartHistory.slice(-30)
-  const labels = hasTodoData
-    ? todoPoints.map(([date]) => {
-        const [, month, day] = date.split('-')
+  const hasProductivityData = productivityPoints.length > 0
+  const values = hasProductivityData
+    ? productivityPoints.map(point => point.score)
+    : chartHistory.slice(-30)
+  const labels = hasProductivityData
+    ? productivityPoints.map(point => {
+        const [, month, day] = point.date.split('-')
         return `${Number(month)}/${Number(day)}`
       })
     : values.map((_, i) => {
@@ -72,6 +75,7 @@ export default function ChartWidget() {
         date.setDate(date.getDate() - (values.length - 1 - i))
         return `${date.getMonth() + 1}/${date.getDate()}`
       })
+  const latestScore = hasProductivityData ? productivityPoints[productivityPoints.length - 1] : null
 
   const data = {
     labels,
@@ -93,7 +97,25 @@ export default function ChartWidget() {
   const options = {
     responsive: true,
     maintainAspectRatio: false,
-    plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx: any) => `${ctx.raw}%` } } },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: (ctx: any) => `하루 점수 ${ctx.raw}%`,
+          afterLabel: (ctx: any) => {
+            const point = productivityPoints[ctx.dataIndex]
+            if (!point) return ''
+            const parts = [
+              point.parts.todo !== null ? `Todo ${point.parts.todo}%` : null,
+              point.parts.habit !== null ? `루틴 ${point.parts.habit}%` : null,
+              point.parts.scheduled !== null ? `예정 ${point.parts.scheduled}%` : null,
+              point.parts.focus !== null ? `집중 ${point.parts.focus}%` : null,
+            ].filter(Boolean)
+            return parts.join(' · ')
+          },
+        },
+      },
+    },
     scales: {
       x: { grid: { color: 'var(--border)' }, ticks: { color: 'var(--muted)', font: { size: 10 } } },
       y: { min: 0, max: 100, grid: { color: 'var(--border)' }, ticks: { color: 'var(--muted)', font: { size: 10 }, callback: (v: any) => `${v}%` } },
@@ -101,13 +123,25 @@ export default function ChartWidget() {
   }
 
   return (
-    <div ref={ref} style={{ height: '100%', padding: '8px 12px', boxSizing: 'border-box' }}>
+    <div ref={ref} style={{ height: '100%', padding: '8px 12px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 6 }}>
       {values.length === 0 ? (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--muted)', fontSize: 12 }}>
           데이터가 쌓이면 차트가 표시됩니다
         </div>
       ) : (
-        <Line data={data} options={options as any} />
+        <>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, flexShrink: 0 }}>
+            <span style={{ color: 'var(--muted)', fontSize: 11, fontWeight: 700 }}>하루 생산성 점수</span>
+            {latestScore && (
+              <span style={{ color: 'var(--accent)', fontSize: 16, fontWeight: 800 }}>
+                {latestScore.score}%
+              </span>
+            )}
+          </div>
+          <div style={{ flex: 1, minHeight: 0 }}>
+            <Line data={data} options={options as any} />
+          </div>
+        </>
       )}
     </div>
   )
