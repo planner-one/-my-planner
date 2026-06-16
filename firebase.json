@@ -3,6 +3,7 @@
     "rules": "firestore.rules"
   },
   "hosting": {
+    "site": "my-planner-487bd",
     "public": "dist",
     "ignore": [
       "firebase.json",
