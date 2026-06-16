@@ -99,6 +99,15 @@ export default function PomodoroWidget() {
   const center = circleSize / 2
   const C = 2 * Math.PI * R
   const dash = C * pct
+  const innerDiameter = Math.max(20, R * 2 - stroke - 8)
+  const timeFontSize = Math.max(
+    13,
+    Math.min(
+      veryShort ? 20 : compact ? 30 : 38,
+      Math.floor(innerDiameter / 3.15),
+      Math.floor(circleSize * (veryShort ? 0.34 : compact ? 0.31 : 0.3))
+    )
+  )
 
   return (
     <div ref={ref} style={{
@@ -138,9 +147,9 @@ export default function PomodoroWidget() {
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         }}>
           <span style={{
-            fontSize: Math.max(veryShort ? 18 : 29, Math.round(circleSize * (veryShort ? 0.39 : compact ? 0.34 : 0.32))),
+            fontSize: timeFontSize,
             fontWeight: 800, color: 'var(--text)', fontVariantNumeric: 'tabular-nums',
-            lineHeight: 1,
+            lineHeight: 1, whiteSpace: 'nowrap', maxWidth: innerDiameter,
           }}>
             {mm}:{ss}
           </span>
