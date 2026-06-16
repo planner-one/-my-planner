@@ -8,8 +8,8 @@ export const meta = {
   icon: '🔢',
   defaultW: 6,
   defaultH: 5,
-  minW: 4,
-  minH: 3,
+  minW: 5,
+  minH: 4,
   order: 6,
 }
 
@@ -20,13 +20,14 @@ export default function CounterWidget() {
   const today = toLocalDateKey()
   const compact = w > 0 && w < 320
   const short = h > 0 && h < 210
+  const tight = h > 0 && h < 175
   const split = short && w >= 360
-  const padding = compact || short ? 10 : 14
-  const cardPadding = compact || short ? 10 : 14
-  const gap = compact || short ? 7 : 10
-  const valueSize = short ? 26 : compact ? 30 : 36
+  const padding = tight ? 8 : compact || short ? 10 : 14
+  const cardPadding = tight ? 8 : compact || short ? 10 : 14
+  const gap = tight ? 6 : compact || short ? 7 : 10
+  const valueSize = tight ? 23 : short ? 26 : compact ? 30 : 36
   const labelSize = compact || short ? 11 : 12
-  const buttonHeight = short ? 27 : 31
+  const buttonHeight = tight ? 24 : short ? 27 : 31
 
   const incFocus = () => {
     setCounters(prev => {
@@ -63,9 +64,11 @@ export default function CounterWidget() {
       }}>
         <div>
           <div style={{ fontSize: labelSize, color: 'var(--muted)', fontWeight: 600 }}>오늘 집중 세션</div>
-          <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2 }}>
-            타이머 완료 시 자동 기록
-          </div>
+          {!tight && (
+            <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2 }}>
+              타이머 완료 시 자동 기록
+            </div>
+          )}
         </div>
         <div style={{
           fontSize: valueSize, fontWeight: 800, color: 'var(--accent)',
@@ -81,9 +84,9 @@ export default function CounterWidget() {
           }}>−</button>
           <button onClick={incFocus} style={{
             height: buttonHeight, border: 'none', borderRadius: 6, background: 'var(--accent)',
-            color: '#fff', fontSize: compact || short ? 11 : 12,
+            color: '#fff', fontSize: tight ? 10 : compact || short ? 11 : 12,
             cursor: 'pointer', fontWeight: 700,
-          }}>수동 추가</button>
+          }}>{tight ? '추가' : '수동 추가'}</button>
         </div>
       </div>
 
@@ -95,9 +98,11 @@ export default function CounterWidget() {
       }}>
         <div>
           <div style={{ fontSize: labelSize, color: 'var(--muted)', fontWeight: 600 }}>주간 성과</div>
-          <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2 }}>
-            직접 기록하는 성과
-          </div>
+          {!tight && (
+            <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2 }}>
+              직접 기록하는 성과
+            </div>
+          )}
         </div>
         <div style={{
           fontSize: valueSize, fontWeight: 800, color: 'var(--text)',
@@ -117,7 +122,7 @@ export default function CounterWidget() {
           }}>+</button>
           <button onClick={resetWeekly} style={{
             border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg4)',
-            color: 'var(--muted)', fontSize: compact || short ? 10 : 11,
+            color: 'var(--muted)', fontSize: tight ? 9 : compact || short ? 10 : 11,
             cursor: 'pointer', height: buttonHeight,
           }}>초기화</button>
         </div>
