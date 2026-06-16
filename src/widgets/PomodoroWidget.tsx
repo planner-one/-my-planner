@@ -17,6 +17,7 @@ export const meta = {
 type Mode = 'focus' | 'short' | 'long'
 const DURATIONS: Record<Mode, number> = { focus: 25 * 60, short: 5 * 60, long: 15 * 60 }
 const LABELS: Record<Mode, string> = { focus: '집중', short: '짧은 휴식', long: '긴 휴식' }
+const SHORT_LABELS: Record<Mode, string> = { focus: '집중', short: '짧휴', long: '긴휴' }
 
 export default function PomodoroWidget() {
   const { ref, w, h } = useWidgetSize()
@@ -80,17 +81,20 @@ export default function PomodoroWidget() {
   const ss = String(remaining % 60).padStart(2, '0')
 
   const compact = w > 0 && w < 340
+  const veryShort = h > 0 && h < 170
   const short = h > 0 && h < 235
-  const shellPadding = short ? 8 : compact ? 10 : 12
-  const gap = short ? 6 : compact ? 9 : 12
-  const modeHeight = short ? 26 : 30
-  const actionHeight = short ? 34 : 40
+  const shellPadding = veryShort ? 5 : short ? 7 : compact ? 10 : 12
+  const gap = veryShort ? 4 : short ? 5 : compact ? 9 : 12
+  const modeHeight = veryShort ? 21 : short ? 24 : 30
+  const actionHeight = veryShort ? 26 : short ? 30 : 40
   const reservedHeight = shellPadding * 2 + modeHeight + actionHeight + gap * 2
+  const availableCircleHeight = Math.max(42, (h || 280) - reservedHeight)
+  const availableCircleWidth = Math.max(70, (w || 320) - shellPadding * 2)
   const circleSize = Math.max(
-    92,
-    Math.min(compact ? 132 : 158, (h || 280) - reservedHeight, (w || 320) - shellPadding * 2)
+    veryShort ? 42 : short ? 66 : 92,
+    Math.min(compact ? 132 : 158, availableCircleHeight, availableCircleWidth)
   )
-  const stroke = Math.max(6, Math.round(circleSize * 0.065))
+  const stroke = Math.max(4, Math.round(circleSize * 0.065))
   const R = (circleSize - stroke) / 2 - 2
   const center = circleSize / 2
   const C = 2 * Math.PI * R
@@ -99,7 +103,7 @@ export default function PomodoroWidget() {
   return (
     <div ref={ref} style={{
       display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center',
+      alignItems: 'center', justifyContent: veryShort ? 'space-between' : 'center',
       height: '100%', gap, padding: shellPadding, boxSizing: 'border-box',
       overflow: 'hidden',
     }}>
@@ -107,13 +111,13 @@ export default function PomodoroWidget() {
       <div style={{ display: 'flex', gap: compact ? 4 : 6, flexShrink: 0, maxWidth: '100%' }}>
         {(['focus', 'short', 'long'] as Mode[]).map(m => (
           <button key={m} onClick={() => switchMode(m)} style={{
-            height: modeHeight, fontSize: compact ? 11 : 12,
-            padding: compact ? '0 9px' : '0 12px', borderRadius: 999,
+            height: modeHeight, fontSize: veryShort ? 10 : compact ? 11 : 12,
+            padding: veryShort ? '0 7px' : compact ? '0 9px' : '0 12px', borderRadius: 999,
             border: '1px solid var(--border)', cursor: 'pointer',
             background: mode === m ? 'var(--accent)' : 'var(--bg3)',
             color: mode === m ? '#fff' : 'var(--muted)',
             whiteSpace: 'nowrap', lineHeight: 1,
-          }}>{LABELS[m]}</button>
+          }}>{veryShort || compact ? SHORT_LABELS[m] : LABELS[m]}</button>
         ))}
       </div>
 
@@ -134,13 +138,16 @@ export default function PomodoroWidget() {
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         }}>
           <span style={{
-            fontSize: Math.max(27, Math.round(circleSize * 0.28)),
+            fontSize: Math.max(veryShort ? 16 : 24, Math.round(circleSize * (veryShort ? 0.31 : 0.28))),
             fontWeight: 800, color: 'var(--text)', fontVariantNumeric: 'tabular-nums',
             lineHeight: 1.05,
           }}>
             {mm}:{ss}
           </span>
-          <span style={{ fontSize: compact ? 11 : 12, color: 'var(--muted)', marginTop: 5 }}>
+          <span style={{
+            fontSize: veryShort ? 9 : compact ? 11 : 12,
+            color: 'var(--muted)', marginTop: veryShort ? 2 : 5,
+          }}>
             {remaining === 0 ? '완료' : LABELS[mode]}
           </span>
         </div>
@@ -149,18 +156,18 @@ export default function PomodoroWidget() {
       {/* 버튼 */}
       <div style={{ display: 'flex', gap: compact ? 6 : 8, flexShrink: 0 }}>
         <button onClick={toggleRunning} style={{
-          height: actionHeight, minWidth: compact ? 92 : 108,
-          padding: compact ? '0 16px' : '0 22px',
+          height: actionHeight, minWidth: veryShort ? 70 : compact ? 92 : 108,
+          padding: veryShort ? '0 10px' : compact ? '0 16px' : '0 22px',
           borderRadius: 8, border: 'none',
-          background: 'var(--accent)', color: '#fff', fontSize: compact ? 13 : 14,
+          background: 'var(--accent)', color: '#fff', fontSize: veryShort ? 11 : compact ? 13 : 14,
           fontWeight: 700, cursor: 'pointer',
-        }}>{remaining === 0 ? '다시 시작' : running ? '일시정지' : '시작'}</button>
+        }}>{veryShort ? (running ? '정지' : '시작') : remaining === 0 ? '다시 시작' : running ? '일시정지' : '시작'}</button>
         <button onClick={reset} style={{
-          height: actionHeight, minWidth: compact ? 80 : 92,
-          padding: compact ? '0 13px' : '0 16px',
+          height: actionHeight, minWidth: veryShort ? 62 : compact ? 80 : 92,
+          padding: veryShort ? '0 9px' : compact ? '0 13px' : '0 16px',
           borderRadius: 8,
           border: '1px solid var(--border)', background: 'var(--bg3)',
-          color: 'var(--muted)', fontSize: compact ? 13 : 14, cursor: 'pointer',
+          color: 'var(--muted)', fontSize: veryShort ? 11 : compact ? 13 : 14, cursor: 'pointer',
         }}>초기화</button>
       </div>
     </div>
