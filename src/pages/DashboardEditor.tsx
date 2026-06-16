@@ -124,29 +124,29 @@ export default function DashboardEditor({ onDone }: Props) {
   const HANDLE_H = 36
 
   return (
-    <div style={{ position: 'relative', padding: '0 24px 24px' }}>
+    <div className="dashboard-editor" style={{ position: 'relative', padding: '0 24px 24px' }}>
       {/* 헤더 */}
-      <div style={{
+      <div className="editor-header" style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         marginBottom: 16,
       }}>
         <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.02em' }}>나만의 플래너 편집</h2>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => setSidebarVisible(open => !open)} style={{
+        <div className="editor-actions" style={{ display: 'flex', gap: 8 }}>
+          <button type="button" onClick={() => setSidebarVisible(open => !open)} style={{
             padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)',
             background: sidebarVisible ? 'var(--accent-soft)' : 'var(--bg2)',
             color: sidebarVisible ? 'var(--accent)' : 'var(--muted)',
             cursor: 'pointer', fontSize: 13, fontWeight: 600,
           }}>
-            위젯 추가
+            {sidebarVisible ? '위젯 목록 숨기기' : '위젯 추가'}
           </button>
-          <button onClick={cancel} style={{
+          <button type="button" onClick={cancel} style={{
             padding: '6px 16px', borderRadius: 8, border: '1px solid var(--border)',
             background: 'var(--bg2)', color: 'var(--muted)', cursor: 'pointer', fontSize: 13,
           }}>
             취소
           </button>
-          <button onClick={save} style={{
+          <button type="button" onClick={save} style={{
             padding: '6px 16px', borderRadius: 8, border: 'none',
             background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600,
           }}>
@@ -199,12 +199,21 @@ export default function DashboardEditor({ onDone }: Props) {
                         <span>{meta.icon} {meta.name}</span>
                       </span>
                       <button
+                        type="button"
+                        aria-label={`${meta.name} 위젯 삭제`}
+                        title="위젯 삭제"
+                        onPointerDown={e => e.stopPropagation()}
+                        onTouchStart={e => e.stopPropagation()}
                         onMouseDown={e => e.stopPropagation()}
-                        onClick={() => removeWidget(item.i)}
+                        onClick={e => {
+                          e.stopPropagation()
+                          removeWidget(item.i)
+                        }}
                         style={{
                           border: 'none', background: 'transparent', cursor: 'pointer',
                           color: 'var(--muted)', fontSize: 16, lineHeight: 1,
-                          padding: '0 4px',
+                          padding: '0 4px', minWidth: 28, height: 28,
+                          touchAction: 'manipulation',
                         }}
                       >
                         ✕
@@ -230,8 +239,8 @@ export default function DashboardEditor({ onDone }: Props) {
               border: '2px dashed var(--border)', borderRadius: 12,
             }}>
               <span style={{ fontSize: 32 }}>➕</span>
-              <p>오른쪽에서 위젯을 추가해보세요.</p>
-              <button onClick={() => setSidebarVisible(true)} style={{
+              <p>위젯 추가 패널에서 위젯을 추가해보세요.</p>
+              <button type="button" onClick={() => setSidebarVisible(true)} style={{
                 padding: '7px 12px', borderRadius: 8, border: 'none',
                 background: 'var(--accent)', color: '#fff',
                 cursor: 'pointer', fontSize: 12, fontWeight: 700,
@@ -259,7 +268,7 @@ export default function DashboardEditor({ onDone }: Props) {
               위젯 추가
             </p>
             {WIDGETS.map(w => (
-              <button key={w.id} onClick={() => addWidget(w.id)} style={{
+              <button key={w.id} type="button" onClick={() => addWidget(w.id)} style={{
                 display: 'flex', alignItems: 'center', gap: 8,
                 width: '100%', padding: '8px 10px', borderRadius: 8,
                 border: '1px solid var(--border)', background: 'var(--bg3)',
@@ -275,10 +284,26 @@ export default function DashboardEditor({ onDone }: Props) {
       </div>
       <style>{`
         @media (max-width: 900px) {
+          .dashboard-editor {
+            padding: 0 12px 16px !important;
+          }
+          .editor-header {
+            align-items: flex-start !important;
+            gap: 10px;
+            flex-wrap: wrap;
+          }
+          .editor-header h2 {
+            font-size: 18px !important;
+          }
+          .editor-actions {
+            flex-wrap: wrap;
+            justify-content: flex-end;
+          }
           .editor-layout {
             flex-direction: column;
           }
           .widget-add-panel {
+            order: -1;
             width: 100% !important;
             max-height: ${sidebarVisible ? '260px' : '0'};
             transition: max-height 0.2s ease;
@@ -287,8 +312,36 @@ export default function DashboardEditor({ onDone }: Props) {
             width: 100% !important;
             max-height: 240px !important;
           }
+          .widget-add-panel > div > p {
+            margin-bottom: 10px !important;
+          }
           .widget-add-panel button {
             min-height: 38px;
+          }
+        }
+        @media (min-width: 560px) and (max-width: 900px) {
+          .widget-add-panel > div {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 6px;
+          }
+          .widget-add-panel > div > p {
+            grid-column: 1 / -1;
+          }
+          .widget-add-panel button {
+            margin-bottom: 0 !important;
+          }
+        }
+        @media (max-width: 560px) {
+          .editor-header {
+            display: block !important;
+          }
+          .editor-actions {
+            margin-top: 10px;
+            justify-content: flex-start;
+          }
+          .editor-actions button {
+            flex: 1 1 auto;
           }
         }
       `}</style>
