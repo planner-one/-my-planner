@@ -5,6 +5,7 @@ import { loadUserData, saveUserData } from '../services/userService'
 import { useAuth } from './AuthContext'
 import { toLocalDateKey } from '../utils/date'
 import { HABITS_VERSION, isHabitScheduled, migrateHabits } from '../utils/habits'
+import { createDefaultCounters, migrateCounters } from '../utils/counters'
 import type {
   Todo, TodoDailyResult, DeletedTodoDailyResult, Habit, Task, Goal, Project, TopGoal, Counters, Review,
   Note, QuickMemoEntry, WeekTask, ScheduledTask, JournalEntry, LayoutItem, UserData,
@@ -74,7 +75,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<Project[]>([])
   const [topGoals, setTopGoals] = useState<TopGoal[]>([])
   const [energy, setEnergy] = useState<number>(0)
-  const [counters, setCounters] = useState<Counters>({ f: 0, w: 0, fDate: '' })
+  const [counters, setCounters] = useState<Counters>(() => createDefaultCounters())
   const [quickMemos, setQuickMemos] = useState<QuickMemoEntry[]>([])
   const [review, setReview] = useState<Review>({ r1: '', r2: '', r3: '' })
   const [notes, setNotes] = useState<Note[]>([])
@@ -151,7 +152,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (d.projects) setProjects(d.projects)
         if (d.topGoals) setTopGoals(d.topGoals)
         if (d.energy != null) setEnergy(d.energy)
-        if (d.counters) setCounters(d.counters)
+        setCounters(migrateCounters(d.counters))
         if (d.quickMemos) {
           setQuickMemos(d.quickMemos)
         } else if (d.quickMemo?.trim()) {
@@ -179,6 +180,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const migratedHabits = migrateHabits([], {}, undefined)
         setHabits(migratedHabits.habits)
         setHabitHistory(migratedHabits.habitHistory)
+        setCounters(createDefaultCounters())
       }
       setUiScale(d?.uiScale ?? 90)
       setTimeout(() => {

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useWidgetSize } from '../hooks/useWidgetSize'
 import { useApp } from '../store/AppContext'
-import { toLocalDateKey } from '../utils/date'
+import { createDefaultCounters, updateCounterValue } from '../utils/counters'
 
 export const meta = {
   id: 'pomodoro',
@@ -35,12 +35,17 @@ export default function PomodoroWidget() {
           if (prev <= 1) {
             setRunning(false)
             if (mode === 'focus' && !completedRef.current) {
-              const today = toLocalDateKey()
-              setCounters(current => ({
-                ...current,
-                f: current.fDate === today ? current.f + 1 : 1,
-                fDate: today,
-              }))
+              setCounters(current => {
+                const hasFocusCounter = current.some(counter => counter.autoKey === 'pomodoro-focus')
+                const source = hasFocusCounter
+                  ? current
+                  : [...createDefaultCounters().filter(counter => counter.autoKey === 'pomodoro-focus'), ...current]
+                return source.map(counter => (
+                  counter.autoKey === 'pomodoro-focus'
+                    ? updateCounterValue(counter, 1)
+                    : counter
+                ))
+              })
               completedRef.current = true
             }
             return 0

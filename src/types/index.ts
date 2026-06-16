@@ -86,11 +86,20 @@ export interface TopGoal {
   done: boolean
 }
 
-export interface Counters {
-  f: number
-  w: number
-  fDate: string
+export type CounterPeriod = 'daily' | 'weekly' | 'total'
+
+export interface CounterItem {
+  id: string
+  name: string
+  unit: string
+  period: CounterPeriod
+  value: number
+  dateKey?: string
+  weekKey?: string
+  autoKey?: 'pomodoro-focus'
 }
+
+export type Counters = CounterItem[]
 
 export interface Review {
   r1: string
