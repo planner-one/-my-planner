@@ -138,17 +138,11 @@ export default function PomodoroWidget() {
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         }}>
           <span style={{
-            fontSize: Math.max(veryShort ? 16 : 24, Math.round(circleSize * (veryShort ? 0.31 : 0.28))),
+            fontSize: Math.max(veryShort ? 18 : 29, Math.round(circleSize * (veryShort ? 0.39 : compact ? 0.34 : 0.32))),
             fontWeight: 800, color: 'var(--text)', fontVariantNumeric: 'tabular-nums',
-            lineHeight: 1.05,
+            lineHeight: 1,
           }}>
             {mm}:{ss}
-          </span>
-          <span style={{
-            fontSize: veryShort ? 9 : compact ? 11 : 12,
-            color: 'var(--muted)', marginTop: veryShort ? 2 : 5,
-          }}>
-            {remaining === 0 ? '완료' : LABELS[mode]}
           </span>
         </div>
       </div>
@@ -159,7 +153,9 @@ export default function PomodoroWidget() {
           height: actionHeight, minWidth: veryShort ? 70 : compact ? 92 : 108,
           padding: veryShort ? '0 10px' : compact ? '0 16px' : '0 22px',
           borderRadius: 8, border: 'none',
-          background: 'var(--accent)', color: '#fff', fontSize: veryShort ? 11 : compact ? 13 : 14,
+          background: remaining === 0 ? 'var(--bg3)' : 'var(--accent)',
+          color: remaining === 0 ? 'var(--accent)' : '#fff',
+          fontSize: veryShort ? 11 : compact ? 13 : 14,
           fontWeight: 700, cursor: 'pointer',
         }}>{veryShort ? (running ? '정지' : '시작') : remaining === 0 ? '다시 시작' : running ? '일시정지' : '시작'}</button>
         <button onClick={reset} style={{
