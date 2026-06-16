@@ -1,60 +1,114 @@
 import { useApp } from '../store/AppContext'
+import { useRouter } from '../store/RouterContext'
+import { useWidgetSize } from '../hooks/useWidgetSize'
+import { getGoalDueText, getRemainingSteps, sortPriorityGoals } from '../utils/goals'
 
 export const meta = {
   id: 'goal',
   name: '우선 목표',
   icon: '🎯',
   defaultW: 8,
-  defaultH: 7,
-  minW: 4,
+  defaultH: 6,
+  minW: 5,
   minH: 4,
   order: 8,
 }
 
 export default function GoalWidget() {
-  const { goals, setGoals } = useApp()
+  const { goals } = useApp()
+  const { setPage } = useRouter()
+  const { ref, w, h } = useWidgetSize()
 
-  const toggleStep = (goalId: string, stepIdx: number) => {
-    setGoals(prev => prev.map(g => {
-      if (g.id !== goalId) return g
-      const steps = g.steps.map((s, i) => i === stepIdx ? { ...s, done: !s.done } : s)
-      const pct = steps.length ? Math.round(steps.filter(s => s.done).length / steps.length * 100) : 0
-      return { ...g, steps, pct }
-    }))
-  }
+  const compact = w > 0 && w < 340
+  const tight = h > 0 && h < 230
+  const visibleCount = tight ? 2 : 3
+  const priorityGoals = sortPriorityGoals(goals).slice(0, visibleCount)
+  const hiddenCount = Math.max(0, goals.length - priorityGoals.length)
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '8px 12px', boxSizing: 'border-box', gap: 8, overflowY: 'auto' }}>
-      {goals.length === 0 && (
-        <p style={{ color: 'var(--muted)', fontSize: 12, textAlign: 'center', marginTop: 16 }}>
-          목표 관리 페이지에서 목표를 추가하세요
-        </p>
-      )}
-      {goals.map(g => (
-        <div key={g.id} style={{ background: 'var(--bg3)', borderRadius: 10, padding: '10px 12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{g.name}</span>
-            <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 700 }}>{g.pct}%</span>
+    <div ref={ref} style={{
+      display: 'flex', flexDirection: 'column',
+      height: '100%', padding: compact ? 10 : 12,
+      boxSizing: 'border-box', gap: 8, overflow: 'hidden',
+    }}>
+      {goals.length === 0 ? (
+        <button
+          type="button"
+          onClick={() => setPage('goals')}
+          style={{
+            flex: 1, border: '1px dashed var(--border)', borderRadius: 10,
+            background: 'var(--bg3)', color: 'var(--muted)',
+            cursor: 'pointer', fontSize: 12, lineHeight: 1.5,
+          }}
+        >
+          장기 목표를 추가하세요
+        </button>
+      ) : (
+        <>
+          <div style={{ color: 'var(--muted)', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+            관리가 필요한 목표
           </div>
-          {/* 진행바 */}
-          <div style={{ height: 4, background: 'var(--bg4)', borderRadius: 2, marginBottom: 8 }}>
-            <div style={{ height: '100%', width: `${g.pct}%`, background: 'var(--accent)', borderRadius: 2, transition: 'width 0.3s' }} />
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
+            {priorityGoals.map(goal => {
+              const remaining = getRemainingSteps(goal)
+              return (
+                <button
+                  key={goal.id}
+                  type="button"
+                  onClick={() => setPage('goals')}
+                  style={{
+                    minHeight: 0, flex: 1,
+                    border: 'none', borderRadius: 10,
+                    background: 'var(--bg3)', padding: compact ? '8px 9px' : '9px 10px',
+                    cursor: 'pointer', textAlign: 'left',
+                    display: 'flex', flexDirection: 'column', gap: 6,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{
+                      minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap', color: 'var(--text)', fontSize: compact ? 12 : 13,
+                      fontWeight: 800,
+                    }}>
+                      {goal.name}
+                    </span>
+                    <span style={{ color: 'var(--accent)', fontSize: 12, fontWeight: 800, flexShrink: 0 }}>
+                      {goal.pct}%
+                    </span>
+                  </div>
+                  <div style={{ height: 5, borderRadius: 999, background: 'var(--bg4)', overflow: 'hidden' }}>
+                    <span style={{
+                      display: 'block', width: `${goal.pct}%`, height: '100%',
+                      borderRadius: 'inherit', background: 'var(--accent)',
+                    }} />
+                  </div>
+                  {!tight && (
+                    <div style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      gap: 8, color: 'var(--muted)', fontSize: 10,
+                    }}>
+                      <span>{goal.area || goal.status || '장기 목표'}</span>
+                      <span>{getGoalDueText(goal.due)} · 남은 단계 {remaining}개</span>
+                    </div>
+                  )}
+                </button>
+              )
+            })}
           </div>
-          {/* 단계 */}
-          {g.steps.slice(0, 4).map((s, i) => (
-            <div key={i} onClick={() => toggleStep(g.id, i)} style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '3px 0', cursor: 'pointer',
-            }}>
-              <span style={{ fontSize: 13 }}>{s.done ? '✅' : '⬜'}</span>
-              <span style={{ fontSize: 12, color: s.done ? 'var(--muted)' : 'var(--text)', textDecoration: s.done ? 'line-through' : 'none' }}>{s.text}</span>
-            </div>
-          ))}
-          {g.steps.length > 4 && (
-            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>+{g.steps.length - 4}개 더</div>
+          {hiddenCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setPage('goals')}
+              style={{
+                border: 'none', background: 'transparent', color: 'var(--muted)',
+                cursor: 'pointer', fontSize: 10, flexShrink: 0,
+              }}
+            >
+              +{hiddenCount}개 더 보기
+            </button>
           )}
-        </div>
-      ))}
+        </>
+      )}
     </div>
   )
 }
