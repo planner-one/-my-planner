@@ -44,7 +44,7 @@ export default function DashboardEditor({ onDone }: Props) {
     )
   )
   const [active, setActive] = useState<string[]>(dashboardActive)
-  const [sidebarVisible, setSidebarVisible] = useState(false)
+  const [sidebarVisible, setSidebarVisible] = useState(true)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const [containerW, setContainerW] = useState(0)
@@ -124,11 +124,7 @@ export default function DashboardEditor({ onDone }: Props) {
   const HANDLE_H = 36
 
   return (
-    <div
-      style={{ position: 'relative', padding: '0 24px 24px' }}
-      onMouseEnter={() => setSidebarVisible(true)}
-      onMouseLeave={() => setSidebarVisible(false)}
-    >
+    <div style={{ position: 'relative', padding: '0 24px 24px' }}>
       {/* 헤더 */}
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -136,6 +132,14 @@ export default function DashboardEditor({ onDone }: Props) {
       }}>
         <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.02em' }}>나만의 플래너 편집</h2>
         <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => setSidebarVisible(open => !open)} style={{
+            padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)',
+            background: sidebarVisible ? 'var(--accent-soft)' : 'var(--bg2)',
+            color: sidebarVisible ? 'var(--accent)' : 'var(--muted)',
+            cursor: 'pointer', fontSize: 13, fontWeight: 600,
+          }}>
+            위젯 추가
+          </button>
           <button onClick={cancel} style={{
             padding: '6px 16px', borderRadius: 8, border: '1px solid var(--border)',
             background: 'var(--bg2)', color: 'var(--muted)', cursor: 'pointer', fontSize: 13,
@@ -151,7 +155,7 @@ export default function DashboardEditor({ onDone }: Props) {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 12 }}>
+      <div className="editor-layout" style={{ display: 'flex', gap: 12 }}>
         {/* 캔버스 */}
         <div ref={containerRef} style={{ flex: 1, minWidth: 0 }}>
           {containerW > 0 && (
@@ -227,12 +231,19 @@ export default function DashboardEditor({ onDone }: Props) {
             }}>
               <span style={{ fontSize: 32 }}>➕</span>
               <p>오른쪽에서 위젯을 추가해보세요.</p>
+              <button onClick={() => setSidebarVisible(true)} style={{
+                padding: '7px 12px', borderRadius: 8, border: 'none',
+                background: 'var(--accent)', color: '#fff',
+                cursor: 'pointer', fontSize: 12, fontWeight: 700,
+              }}>
+                위젯 추가 열기
+              </button>
             </div>
           )}
         </div>
 
         {/* 위젯 추가 사이드바 */}
-        <div style={{
+        <div className="widget-add-panel" style={{
           width: sidebarVisible ? 160 : 0,
           overflow: 'hidden',
           transition: 'width 0.2s ease',
@@ -241,7 +252,8 @@ export default function DashboardEditor({ onDone }: Props) {
           <div style={{
             width: 160, background: 'var(--bg2)',
             border: '1px solid var(--border)', borderRadius: 12,
-            padding: 12,
+            padding: 12, maxHeight: 'calc(var(--app-viewport-height) - 150px)',
+            overflowY: 'auto', boxSizing: 'border-box',
           }}>
             <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', marginBottom: 8 }}>
               위젯 추가
@@ -261,6 +273,25 @@ export default function DashboardEditor({ onDone }: Props) {
           </div>
         </div>
       </div>
+      <style>{`
+        @media (max-width: 900px) {
+          .editor-layout {
+            flex-direction: column;
+          }
+          .widget-add-panel {
+            width: 100% !important;
+            max-height: ${sidebarVisible ? '260px' : '0'};
+            transition: max-height 0.2s ease;
+          }
+          .widget-add-panel > div {
+            width: 100% !important;
+            max-height: 240px !important;
+          }
+          .widget-add-panel button {
+            min-height: 38px;
+          }
+        }
+      `}</style>
     </div>
   )
 }

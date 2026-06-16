@@ -42,6 +42,7 @@ _마지막 업데이트: 2026-05-20_
 | R-026 | onLayoutChange 사용 금지 → onDragStop / onResizeStop 사용 |
 | R-027 | layout 저장 전 normalizeLayout으로 x+w > cols 클램프 |
 | R-028 | 대시보드 외 페이지에서 사이드바를 열지 않고 홈으로 즉시 이동 가능한 상단 버튼 제공 |
+| R-029 | 편집 화면의 위젯 추가 패널은 iPad/터치 환경에서도 버튼으로 열고 닫을 수 있어야 함 |
 
 ---
 
