@@ -77,21 +77,21 @@ export default function Goals() {
       <section className="goals-heading">
         <div>
           <h2>목표 관리</h2>
-          <p>Todo는 실행 작업, 최우선 목표는 오늘의 방향, 우선 목표는 장기 목표 진행 관리로 나눠서 씁니다.</p>
+          <p>Todo는 실행 작업, 목표는 오늘 집중과 장기 목표 진행 관리로 나눠서 씁니다.</p>
         </div>
       </section>
 
       <section className="goal-guide">
         <GuideCard title="Todo" text="오늘 끝낼 수 있는 구체적인 작업" example="강의 1개 듣기" />
-        <GuideCard title="최우선 목표" text="오늘 흐트러지지 않게 잡는 핵심 방향" example="시험 준비 흐름 만들기" />
-        <GuideCard title="우선 목표" text="마감일과 단계가 있는 장기 목표" example="자격증 합격 45%" />
+        <GuideCard title="오늘 집중" text="오늘 흐트러지지 않게 잡는 핵심 방향" example="시험 준비 흐름 만들기" />
+        <GuideCard title="장기 목표" text="마감일과 단계가 있는 진행 목표" example="자격증 합격 45%" />
       </section>
 
       <section className="goals-grid">
         <div className="goal-panel">
           <div className="panel-heading">
             <div>
-              <h3>오늘의 최우선 목표</h3>
+              <h3>오늘 집중</h3>
               <p>Todo가 아니라 오늘의 방향 1~3개를 적습니다.</p>
             </div>
           </div>
@@ -132,7 +132,7 @@ export default function Goals() {
         <div className="goal-panel">
           <div className="panel-heading">
             <div>
-              <h3>우선 목표</h3>
+              <h3>장기 목표</h3>
               <p>마감과 진행률을 보고 놓치면 안 되는 장기 목표를 관리합니다.</p>
             </div>
           </div>

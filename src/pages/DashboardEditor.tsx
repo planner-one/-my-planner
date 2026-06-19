@@ -23,11 +23,11 @@ interface Props {
 
 export default function DashboardEditor({ onDone }: Props) {
   const { dashboardLayout, dashboardActive, setDashboardLayout, setDashboardActive, saveWithOverrides } = useApp()
+  const validActive = dashboardActive.filter(id => WIDGET_MAP[id.split('-')[0]])
 
   const [layout, setLayout] = useState<LayoutItem[]>(() =>
     normalizeLayout(
-      dashboardActive
-        .filter(id => WIDGET_MAP[id.split('-')[0]])
+      validActive
         .map(id => {
           const saved = dashboardLayout.find(l => l.i === id)
           const meta = WIDGET_MAP[id.split('-')[0]]
@@ -43,7 +43,7 @@ export default function DashboardEditor({ onDone }: Props) {
         })
     )
   )
-  const [active, setActive] = useState<string[]>(dashboardActive)
+  const [active, setActive] = useState<string[]>(validActive)
   const [sidebarVisible, setSidebarVisible] = useState(true)
 
   const containerRef = useRef<HTMLDivElement>(null)

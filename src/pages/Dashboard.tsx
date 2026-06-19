@@ -24,7 +24,6 @@ const MOBILE_WIDGET_HEIGHTS: Record<string, number> = {
   calendar: 380,
   chart: 240,
   goal: 260,
-  topGoal: 210,
   menu: 240,
   review: 270,
   quickadd: 150,

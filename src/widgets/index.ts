@@ -8,7 +8,6 @@ import PomodoroWidget, { meta as pomodoroMeta } from './PomodoroWidget'
 import CounterWidget, { meta as counterMeta } from './CounterWidget'
 import ChartWidget, { meta as chartMeta } from './ChartWidget'
 import GoalWidget, { meta as goalMeta } from './GoalWidget'
-import TopGoalWidget, { meta as topGoalMeta } from './TopGoalWidget'
 import MenuWidget, { meta as menuMeta } from './MenuWidget'
 import ReviewWidget, { meta as reviewMeta } from './ReviewWidget'
 import QuickAddWidget, { meta as quickAddMeta } from './QuickAddWidget'
@@ -38,7 +37,6 @@ export const WIDGETS: WidgetMeta[] = [
   { ...counterMeta,  component: CounterWidget },
   { ...chartMeta,    component: ChartWidget },
   { ...goalMeta,     component: GoalWidget },
-  { ...topGoalMeta,  component: TopGoalWidget },
   { ...menuMeta,     component: MenuWidget },
   { ...reviewMeta,   component: ReviewWidget },
   { ...quickAddMeta, component: QuickAddWidget },
