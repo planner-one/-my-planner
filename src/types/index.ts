@@ -141,7 +141,10 @@ export interface ScheduledTask {
   title: string
   date: string
   time?: string
+  endTime?: string
+  mode?: 'offline' | 'online' | 'hybrid'
   location?: string
+  address?: string
   note?: string
   done: boolean
 }

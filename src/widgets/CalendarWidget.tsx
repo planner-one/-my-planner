@@ -144,7 +144,10 @@ interface FormState {
   title: string
   date: string
   time: string
+  endTime: string
+  scheduleMode: '' | 'offline' | 'online' | 'hybrid'
   location: string
+  address: string
   note: string
   priority: Todo['priority']
   done: boolean
@@ -196,13 +199,21 @@ function ItemForm({
 
       {form.type === 'scheduled' && (
         <>
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div style={{
+            display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6,
+            color: 'var(--muted)', fontSize: 10, padding: '0 2px',
+          }}>
+            <span>날짜</span>
+            <span>시작</span>
+            <span>종료(선택)</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
             <input
               type="date"
               value={form.date}
               onChange={e => set('date', e.target.value)}
               style={{
-                flex: 1, padding: '7px 10px', borderRadius: 7,
+                minWidth: 0, padding: '7px 6px', borderRadius: 7,
                 border: '1px solid var(--border)', background: 'var(--bg2)',
                 color: 'var(--text)', fontSize: 13, fontFamily: 'inherit',
                 boxSizing: 'border-box', outline: 'none',
@@ -212,18 +223,62 @@ function ItemForm({
               type="time"
               value={form.time}
               onChange={e => set('time', e.target.value)}
+              aria-label="시작 시간"
+              title="시작 시간"
               style={{
-                flex: 1, padding: '7px 10px', borderRadius: 7,
+                minWidth: 0, padding: '7px 6px', borderRadius: 7,
+                border: '1px solid var(--border)', background: 'var(--bg2)',
+                color: 'var(--text)', fontSize: 13, fontFamily: 'inherit',
+                boxSizing: 'border-box', outline: 'none',
+              }}
+            />
+            <input
+              type="time"
+              value={form.endTime}
+              onChange={e => set('endTime', e.target.value)}
+              aria-label="종료 시간"
+              title="종료 시간"
+              style={{
+                minWidth: 0, padding: '7px 6px', borderRadius: 7,
                 border: '1px solid var(--border)', background: 'var(--bg2)',
                 color: 'var(--text)', fontSize: 13, fontFamily: 'inherit',
                 boxSizing: 'border-box', outline: 'none',
               }}
             />
           </div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {([
+              ['', '미지정'],
+              ['offline', '오프라인'],
+              ['online', '온라인'],
+              ['hybrid', '온·오프라인'],
+            ] as const).map(([value, label]) => (
+              <button key={value || 'none'} type="button" onClick={() => set('scheduleMode', value)} style={{
+                flex: 1, minWidth: 0, padding: '6px 4px', borderRadius: 6,
+                border: '1px solid var(--border)', cursor: 'pointer',
+                background: form.scheduleMode === value ? 'var(--accent)' : 'var(--bg2)',
+                color: form.scheduleMode === value ? '#fff' : 'var(--muted)',
+                fontSize: 10, fontWeight: form.scheduleMode === value ? 700 : 400,
+              }}>
+                {label}
+              </button>
+            ))}
+          </div>
           <input
             value={form.location}
             onChange={e => set('location', e.target.value)}
             placeholder="장소"
+            style={{
+              width: '100%', padding: '7px 10px', borderRadius: 7,
+              border: '1px solid var(--border)', background: 'var(--bg2)',
+              color: 'var(--text)', fontSize: 13, fontFamily: 'inherit',
+              boxSizing: 'border-box', outline: 'none',
+            }}
+          />
+          <input
+            value={form.address}
+            onChange={e => set('address', e.target.value)}
+            placeholder="주소"
             style={{
               width: '100%', padding: '7px 10px', borderRadius: 7,
               border: '1px solid var(--border)', background: 'var(--bg2)',
@@ -300,7 +355,7 @@ interface ModalProps {
   projects: Project[]
   onClose: () => void
   onAddTodo: (text: string, priority: Todo['priority']) => void
-  onAddScheduled: (title: string, date: string, time: string, location: string, note: string) => void
+  onAddScheduled: (task: Omit<ScheduledTask, 'id' | 'done'>) => void
   onUpdateTodo: (id: string, patch: Partial<Todo>) => void
   onUpdateScheduled: (id: string, patch: Partial<ScheduledTask>) => void
   onDeleteTodo: (id: string) => void
@@ -320,14 +375,26 @@ function DayModal(props: ModalProps) {
   const handleSave = (f: FormState) => {
     if (f.mode === 'add') {
       if (f.type === 'todo') props.onAddTodo(f.title, f.priority)
-      else props.onAddScheduled(f.title, f.date, f.time, f.location, f.note)
+      else props.onAddScheduled({
+        title: f.title.trim(),
+        date: f.date,
+        time: f.time || undefined,
+        endTime: f.endTime || undefined,
+        mode: f.scheduleMode || undefined,
+        location: f.location.trim() || undefined,
+        address: f.address.trim() || undefined,
+        note: f.note.trim() || undefined,
+      })
     } else {
       if (f.type === 'todo') props.onUpdateTodo(f.id!, { text: f.title, priority: f.priority, done: f.done })
       else props.onUpdateScheduled(f.id!, {
         title: f.title,
         date: f.date,
         time: f.time || undefined,
+        endTime: f.endTime || undefined,
+        mode: f.scheduleMode || undefined,
         location: f.location.trim() || undefined,
+        address: f.address.trim() || undefined,
         note: f.note.trim() || undefined,
         done: f.done,
       })
@@ -337,17 +404,18 @@ function DayModal(props: ModalProps) {
 
   const startAdd = () => setForm({
     mode:'add', type:'scheduled', title:'', date:dateStr, time:'',
-    location:'', note:'', priority:'medium', done:false,
+    endTime:'', scheduleMode:'', location:'', address:'', note:'', priority:'medium', done:false,
   })
   const startEditTodo = (t: Todo) =>
     setForm({
       mode:'edit', type:'todo', id:t.id, title:t.text, date:t.date||dateStr,
-      time:'', location:'', note:'', priority:t.priority, done:t.done,
+      time:'', endTime:'', scheduleMode:'', location:'', address:'', note:'', priority:t.priority, done:t.done,
     })
   const startEditScheduled = (s: ScheduledTask) =>
     setForm({
       mode:'edit', type:'scheduled', id:s.id, title:s.title, date:s.date,
-      time:s.time||'', location:s.location||'', note:s.note||'',
+      time:s.time||'', endTime:s.endTime||'', scheduleMode:s.mode||'',
+      location:s.location||'', address:s.address||'', note:s.note||'',
       priority:'medium', done:s.done,
     })
 
@@ -467,8 +535,11 @@ function DayModal(props: ModalProps) {
                   key={s.id}
                   text={s.title}
                   done={s.done}
-                  tag={[s.time, s.location].filter(Boolean).join(' · ') || undefined}
-                  detail={s.note}
+                  tag={[
+                    s.time ? `${s.time}${s.endTime ? `~${s.endTime}` : ''}` : undefined,
+                    s.mode === 'offline' ? '오프라인' : s.mode === 'online' ? '온라인' : s.mode === 'hybrid' ? '온·오프라인' : undefined,
+                  ].filter(Boolean).join(' · ') || undefined}
+                  detail={[s.location, s.address, s.note].filter(Boolean).join(' · ') || undefined}
                   onEdit={() => startEditScheduled(s)}
                   onToggle={() => props.onUpdateScheduled(s.id, { done: !s.done })}
                 />
@@ -590,14 +661,10 @@ export default function CalendarWidget() {
     const newTodo: Todo = { id: Date.now().toString(), text, done: false, priority, date: toDateStr(selected!) }
     setTodos(prev => [...prev, newTodo])
   }
-  const handleAddScheduled = (title: string, date: string, time: string, location: string, note: string) => {
+  const handleAddScheduled = (task: Omit<ScheduledTask, 'id' | 'done'>) => {
     const newTask: ScheduledTask = {
       id: Date.now().toString(),
-      title,
-      date,
-      time: time || undefined,
-      location: location.trim() || undefined,
-      note: note.trim() || undefined,
+      ...task,
       done: false,
     }
     setScheduledTasks(prev => [...prev, newTask])
@@ -700,7 +767,11 @@ export default function CalendarWidget() {
               const dayScheduled = isCurMonth ? scheduledTasks.filter(s => s.date === dateStr) : []
 
               const allEvents = [
-                ...dayScheduled.map(s => ({ key: s.id, label: s.time ? `${s.time} ${s.title}` : s.title, color: '#3b82f6', bg: 'rgba(59,130,246,0.15)', done: s.done })),
+                ...dayScheduled.map(s => ({
+                  key: s.id,
+                  label: s.time ? `${s.time}${s.endTime ? `~${s.endTime}` : ''} ${s.title}` : s.title,
+                  color: '#3b82f6', bg: 'rgba(59,130,246,0.15)', done: s.done,
+                })),
                 ...dayTodos.map(t => ({ key: t.id, label: t.text, color: '#f59e0b', bg: 'rgba(245,158,11,0.15)', done: t.done })),
               ]
               const eventRowH = compact ? 15 : 19
