@@ -59,6 +59,14 @@ export default function ScheduledTaskWidget() {
               textDecoration: t.done ? 'line-through' : 'none',
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>{t.title}</div>
+            {(t.location || t.note) && (
+              <div style={{
+                marginTop: 2, fontSize: 10, color: 'var(--muted)',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {[t.location, t.note].filter(Boolean).join(' · ')}
+              </div>
+            )}
           </div>
           <div style={{ textAlign: 'right', flexShrink: 0 }}>
             <div style={{ fontSize: 11, color: t.date === today ? 'var(--accent)' : 'var(--muted)', fontWeight: t.date === today ? 700 : 400 }}>

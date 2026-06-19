@@ -141,6 +141,8 @@ export interface ScheduledTask {
   title: string
   date: string
   time?: string
+  location?: string
+  note?: string
   done: boolean
 }
 

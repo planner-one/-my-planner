@@ -144,6 +144,8 @@ interface FormState {
   title: string
   date: string
   time: string
+  location: string
+  note: string
   priority: Todo['priority']
   done: boolean
 }
@@ -218,6 +220,30 @@ function ItemForm({
               }}
             />
           </div>
+          <input
+            value={form.location}
+            onChange={e => set('location', e.target.value)}
+            placeholder="장소"
+            style={{
+              width: '100%', padding: '7px 10px', borderRadius: 7,
+              border: '1px solid var(--border)', background: 'var(--bg2)',
+              color: 'var(--text)', fontSize: 13, fontFamily: 'inherit',
+              boxSizing: 'border-box', outline: 'none',
+            }}
+          />
+          <textarea
+            value={form.note}
+            onChange={e => set('note', e.target.value)}
+            placeholder="무엇을 하는 일정인지 적어주세요"
+            rows={3}
+            style={{
+              width: '100%', padding: '8px 10px', borderRadius: 7,
+              border: '1px solid var(--border)', background: 'var(--bg2)',
+              color: 'var(--text)', fontSize: 13, fontFamily: 'inherit',
+              boxSizing: 'border-box', outline: 'none', resize: 'vertical',
+              minHeight: 74,
+            }}
+          />
         </>
       )}
 
@@ -274,7 +300,7 @@ interface ModalProps {
   projects: Project[]
   onClose: () => void
   onAddTodo: (text: string, priority: Todo['priority']) => void
-  onAddScheduled: (title: string, date: string, time: string) => void
+  onAddScheduled: (title: string, date: string, time: string, location: string, note: string) => void
   onUpdateTodo: (id: string, patch: Partial<Todo>) => void
   onUpdateScheduled: (id: string, patch: Partial<ScheduledTask>) => void
   onDeleteTodo: (id: string) => void
@@ -294,19 +320,36 @@ function DayModal(props: ModalProps) {
   const handleSave = (f: FormState) => {
     if (f.mode === 'add') {
       if (f.type === 'todo') props.onAddTodo(f.title, f.priority)
-      else props.onAddScheduled(f.title, f.date, f.time)
+      else props.onAddScheduled(f.title, f.date, f.time, f.location, f.note)
     } else {
       if (f.type === 'todo') props.onUpdateTodo(f.id!, { text: f.title, priority: f.priority, done: f.done })
-      else props.onUpdateScheduled(f.id!, { title: f.title, date: f.date, time: f.time || undefined, done: f.done })
+      else props.onUpdateScheduled(f.id!, {
+        title: f.title,
+        date: f.date,
+        time: f.time || undefined,
+        location: f.location.trim() || undefined,
+        note: f.note.trim() || undefined,
+        done: f.done,
+      })
     }
     setForm(null)
   }
 
-  const startAdd = () => setForm({ mode:'add', type:'scheduled', title:'', date:dateStr, time:'', priority:'medium', done:false })
+  const startAdd = () => setForm({
+    mode:'add', type:'scheduled', title:'', date:dateStr, time:'',
+    location:'', note:'', priority:'medium', done:false,
+  })
   const startEditTodo = (t: Todo) =>
-    setForm({ mode:'edit', type:'todo', id:t.id, title:t.text, date:t.date||dateStr, time:'', priority:t.priority, done:t.done })
+    setForm({
+      mode:'edit', type:'todo', id:t.id, title:t.text, date:t.date||dateStr,
+      time:'', location:'', note:'', priority:t.priority, done:t.done,
+    })
   const startEditScheduled = (s: ScheduledTask) =>
-    setForm({ mode:'edit', type:'scheduled', id:s.id, title:s.title, date:s.date, time:s.time||'', priority:'medium', done:s.done })
+    setForm({
+      mode:'edit', type:'scheduled', id:s.id, title:s.title, date:s.date,
+      time:s.time||'', location:s.location||'', note:s.note||'',
+      priority:'medium', done:s.done,
+    })
 
   const Section = ({ title, color, children }: { title: string; color: string; children: ReactNode }) => (
     <div style={{ marginBottom: 12 }}>
@@ -316,9 +359,9 @@ function DayModal(props: ModalProps) {
   )
 
   const ItemRow = ({
-    text, done, tag, onEdit, onToggle,
+    text, done, tag, detail, onEdit, onToggle,
   }: {
-    text: string; done?: boolean; tag?: string
+    text: string; done?: boolean; tag?: string; detail?: string
     onEdit?: () => void; onToggle?: () => void
   }) => (
     <div style={{
@@ -335,13 +378,25 @@ function DayModal(props: ModalProps) {
           {done ? '✓' : '○'}
         </button>
       )}
-      <span style={{
-        flex:1, fontSize:13, lineHeight:1.4,
-        color: done ? 'var(--muted)' : 'var(--text)',
-        textDecoration: done ? 'line-through' : 'none',
-      }}>
-        {text}
-      </span>
+      <div style={{ flex:1, minWidth:0 }}>
+        <span style={{
+          display:'block', fontSize:13, lineHeight:1.4,
+          color: done ? 'var(--muted)' : 'var(--text)',
+          textDecoration: done ? 'line-through' : 'none',
+          overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
+        }}>
+          {text}
+        </span>
+        {detail && (
+          <span style={{
+            display:'block', marginTop:2, fontSize:11, lineHeight:1.35,
+            color:'var(--muted)', overflow:'hidden',
+            textOverflow:'ellipsis', whiteSpace:'nowrap',
+          }}>
+            {detail}
+          </span>
+        )}
+      </div>
       {tag && (
         <span style={{ fontSize:11, padding:'2px 7px', borderRadius:4,
           background:'var(--bg4)', color:'var(--muted)', flexShrink:0 }}>
@@ -408,7 +463,12 @@ function DayModal(props: ModalProps) {
           {scheduled.length > 0 && (
             <Section title="📌 예정 작업" color="var(--text)">
               {scheduled.map(s => (
-                <ItemRow key={s.id} text={s.title} done={s.done} tag={s.time}
+                <ItemRow
+                  key={s.id}
+                  text={s.title}
+                  done={s.done}
+                  tag={[s.time, s.location].filter(Boolean).join(' · ') || undefined}
+                  detail={s.note}
                   onEdit={() => startEditScheduled(s)}
                   onToggle={() => props.onUpdateScheduled(s.id, { done: !s.done })}
                 />
@@ -530,8 +590,16 @@ export default function CalendarWidget() {
     const newTodo: Todo = { id: Date.now().toString(), text, done: false, priority, date: toDateStr(selected!) }
     setTodos(prev => [...prev, newTodo])
   }
-  const handleAddScheduled = (title: string, date: string, time: string) => {
-    const newTask: ScheduledTask = { id: Date.now().toString(), title, date, time: time||undefined, done: false }
+  const handleAddScheduled = (title: string, date: string, time: string, location: string, note: string) => {
+    const newTask: ScheduledTask = {
+      id: Date.now().toString(),
+      title,
+      date,
+      time: time || undefined,
+      location: location.trim() || undefined,
+      note: note.trim() || undefined,
+      done: false,
+    }
     setScheduledTasks(prev => [...prev, newTask])
   }
   const handleUpdateTodo = (id: string, patch: Partial<Todo>) =>
