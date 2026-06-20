@@ -58,6 +58,19 @@ export default function CareerEvents() {
   const [form, setForm] = useState(emptyForm)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | CareerEventStatus>('all')
+  const [editorOpen, setEditorOpen] = useState(false)
+
+  const closeEditor = () => {
+    setEditorOpen(false)
+    setEditingId(null)
+    setForm(emptyForm())
+  }
+
+  const openNewEditor = () => {
+    setEditingId(null)
+    setForm(emptyForm())
+    setEditorOpen(true)
+  }
 
   const updateForm = <K extends keyof Omit<CareerEvent, 'id'>>(key: K, value: Omit<CareerEvent, 'id'>[K]) =>
     setForm(previous => ({ ...previous, [key]: value }))
@@ -97,6 +110,7 @@ export default function CareerEvents() {
     }
     setEditingId(null)
     setForm(emptyForm())
+    setEditorOpen(false)
   }
 
   const edit = (item: CareerEvent) => {
@@ -115,6 +129,7 @@ export default function CareerEvents() {
       url: item.url ?? '',
       note: item.note ?? '',
     })
+    setEditorOpen(true)
   }
 
   const remove = (id: string) => {
@@ -122,6 +137,7 @@ export default function CareerEvents() {
     if (editingId === id) {
       setEditingId(null)
       setForm(emptyForm())
+      setEditorOpen(false)
     }
   }
 
@@ -136,10 +152,22 @@ export default function CareerEvents() {
           <h2>신청·지원 일정</h2>
           <p>채용, 교육, 행사, 공모전과 각종 프로그램 신청 결과를 한곳에서 관리합니다.</p>
         </div>
+        <button type="button" className="career-add-button" onClick={openNewEditor}>일정 추가</button>
       </header>
 
-      <section className="career-editor">
-        <div className="career-form-grid">
+      {editorOpen && (
+        <div className="career-modal-backdrop" role="presentation" onMouseDown={event => {
+          if (event.target === event.currentTarget) closeEditor()
+        }}>
+          <section className="career-editor" role="dialog" aria-modal="true" aria-labelledby="career-editor-title">
+            <div className="career-editor-heading">
+              <div>
+                <h3 id="career-editor-title">{editingId ? '일정 수정' : '새 일정 추가'}</h3>
+                <p>필요한 항목만 입력해도 저장할 수 있습니다.</p>
+              </div>
+              <button type="button" className="career-close-button" aria-label="닫기" onClick={closeEditor}>×</button>
+            </div>
+            <div className="career-form-grid">
           <label className="span-2">일정명
             <input value={form.title} onChange={event => updateForm('title', event.target.value)} placeholder="예: NEST AI-Lab 직무캠프" />
           </label>
@@ -200,12 +228,14 @@ export default function CareerEvents() {
           <label className="span-2">메모
             <textarea value={form.note ?? ''} onChange={event => updateForm('note', event.target.value)} placeholder="준비물, 신청 마감, 확인할 내용" rows={3} />
           </label>
+            </div>
+            <div className="career-form-actions">
+              <button type="button" className="secondary" onClick={closeEditor}>취소</button>
+              <button type="button" className="primary" onClick={save}>{editingId ? '수정 저장' : '일정 추가'}</button>
+            </div>
+          </section>
         </div>
-        <div className="career-form-actions">
-          {editingId && <button type="button" className="secondary" onClick={() => { setEditingId(null); setForm(emptyForm()) }}>취소</button>}
-          <button type="button" className="primary" onClick={save}>{editingId ? '수정 저장' : '일정 추가'}</button>
-        </div>
-      </section>
+      )}
 
       <nav className="career-filters" aria-label="신청·지원 일정 상태">
         {(['all', 'interested', 'planned', 'applied', 'pending', 'confirmed', 'completed', 'rejected', 'cancelled'] as const).map(status => (
@@ -249,9 +279,16 @@ export default function CareerEvents() {
 
       <style>{`
         .career-page { max-width: 1050px; margin: 0 auto; color: var(--text); display: flex; flex-direction: column; gap: 16px; }
+        .career-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
         .career-header h2 { margin: 0 0 5px; font-size: 24px; letter-spacing: 0; }
         .career-header p { margin: 0; color: var(--muted); font-size: 13px; }
-        .career-editor { padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); }
+        .career-add-button { flex: 0 0 auto; border: 1px solid var(--accent); border-radius: 7px; background: var(--accent); color: #fff; padding: 9px 14px; font-size: 12px; font-weight: 700; cursor: pointer; }
+        .career-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 18px; background: rgba(0, 0, 0, 0.52); }
+        .career-editor { width: min(720px, 100%); max-height: min(820px, calc(100vh - 36px)); overflow-y: auto; padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.28); box-sizing: border-box; }
+        .career-editor-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+        .career-editor-heading h3 { margin: 0 0 4px; font-size: 18px; letter-spacing: 0; }
+        .career-editor-heading p { margin: 0; color: var(--muted); font-size: 11px; }
+        .career-close-button { width: 32px; height: 32px; flex: 0 0 32px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--muted); font-size: 20px; line-height: 1; cursor: pointer; }
         .career-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
         .career-form-grid label { display: flex; flex-direction: column; gap: 5px; color: var(--muted); font-size: 11px; font-weight: 700; }
         .career-form-grid .span-2 { grid-column: 1 / -1; }
@@ -281,6 +318,10 @@ export default function CareerEvents() {
         .career-actions .danger { color: var(--red); }
         .career-empty { padding: 45px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); color: var(--muted); text-align: center; }
         @media (max-width: 700px) {
+          .career-header { align-items: center; }
+          .career-header p { max-width: 250px; }
+          .career-modal-backdrop { align-items: end; padding: 10px; }
+          .career-editor { max-height: calc(100vh - 20px); padding: 14px; }
           .career-form-grid { grid-template-columns: 1fr; }
           .career-form-grid .span-2 { grid-column: auto; }
           .career-item { grid-template-columns: 1fr; gap: 8px; }
