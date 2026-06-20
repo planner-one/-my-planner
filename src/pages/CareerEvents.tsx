@@ -38,6 +38,9 @@ const TIME_PRESETS = [
   { label: '14:00~17:00', start: '14:00', end: '17:00' },
 ]
 
+const mergePlace = (location?: string, address?: string) =>
+  [location, address].filter((value, index, values): value is string => Boolean(value) && values.indexOf(value) === index).join(' · ')
+
 const emptyForm = (): Omit<CareerEvent, 'id'> => ({
   title: '',
   organization: '',
@@ -99,7 +102,7 @@ export default function CareerEvents() {
       time: form.time || undefined,
       endTime: form.endTime || undefined,
       location: form.location?.trim() || undefined,
-      address: form.address?.trim() || undefined,
+      address: undefined,
       url: form.url?.trim() || undefined,
       note: form.note?.trim() || undefined,
     }
@@ -124,8 +127,8 @@ export default function CareerEvents() {
       time: item.time ?? '',
       endTime: item.endTime ?? '',
       mode: item.mode ?? 'offline',
-      location: item.location ?? '',
-      address: item.address ?? '',
+      location: mergePlace(item.location, item.address),
+      address: '',
       url: item.url ?? '',
       note: item.note ?? '',
     })
@@ -216,11 +219,8 @@ export default function CareerEvents() {
               <option value="hybrid">온·오프라인</option>
             </select>
           </label>
-          <label>장소
-            <input value={form.location ?? ''} onChange={event => updateForm('location', event.target.value)} placeholder="장소명" />
-          </label>
-          <label className="span-2">주소
-            <input value={form.address ?? ''} onChange={event => updateForm('address', event.target.value)} placeholder="주소" />
+          <label className="span-2">장소 / 주소
+            <input value={form.location ?? ''} onChange={event => updateForm('location', event.target.value)} placeholder="예: NEST AI-Lab 5층 · 서울시 광진구 광나루로 520" />
           </label>
           <label className="span-2">온라인 링크
             <input value={form.url ?? ''} onChange={event => updateForm('url', event.target.value)} placeholder="https://" />

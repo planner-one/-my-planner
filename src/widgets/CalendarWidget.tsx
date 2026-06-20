@@ -315,7 +315,7 @@ function ItemForm({
           <input
             value={form.location}
             onChange={e => set('location', e.target.value)}
-            placeholder="장소"
+            placeholder={form.type === 'career' ? '장소명 또는 주소' : '장소'}
             style={{
               width: '100%', padding: '7px 10px', borderRadius: 7,
               border: '1px solid var(--border)', background: 'var(--bg2)',
@@ -323,17 +323,19 @@ function ItemForm({
               boxSizing: 'border-box', outline: 'none',
             }}
           />
-          <input
-            value={form.address}
-            onChange={e => set('address', e.target.value)}
-            placeholder="주소"
-            style={{
-              width: '100%', padding: '7px 10px', borderRadius: 7,
-              border: '1px solid var(--border)', background: 'var(--bg2)',
-              color: 'var(--text)', fontSize: 13, fontFamily: 'inherit',
-              boxSizing: 'border-box', outline: 'none',
-            }}
-          />
+          {form.type !== 'career' && (
+            <input
+              value={form.address}
+              onChange={e => set('address', e.target.value)}
+              placeholder="주소"
+              style={{
+                width: '100%', padding: '7px 10px', borderRadius: 7,
+                border: '1px solid var(--border)', background: 'var(--bg2)',
+                color: 'var(--text)', fontSize: 13, fontFamily: 'inherit',
+                boxSizing: 'border-box', outline: 'none',
+              }}
+            />
+          )}
           {form.type === 'career' && (
             <input
               value={form.url}
@@ -450,7 +452,7 @@ function DayModal(props: ModalProps) {
         endTime: f.endTime || undefined,
         mode: f.scheduleMode || undefined,
         location: f.location.trim() || undefined,
-        address: f.address.trim() || undefined,
+        address: undefined,
         url: f.url.trim() || undefined,
         note: f.note.trim() || undefined,
       })
@@ -476,7 +478,7 @@ function DayModal(props: ModalProps) {
         endTime: f.endTime || undefined,
         mode: f.scheduleMode || undefined,
         location: f.location.trim() || undefined,
-        address: f.address.trim() || undefined,
+        address: undefined,
         url: f.url.trim() || undefined,
         note: f.note.trim() || undefined,
       })
@@ -518,7 +520,7 @@ function DayModal(props: ModalProps) {
     setForm({
       mode:'edit', type:'career', id:event.id, title:event.title, date:event.date,
       time:event.time||'', endTime:event.endTime||'', scheduleMode:event.mode||'',
-      location:event.location||'', address:event.address||'', note:event.note||'',
+      location:[event.location, event.address].filter(Boolean).join(' · '), address:'', note:event.note||'',
       organization:event.organization||'', careerCategory:event.category,
       careerStatus:event.status, url:event.url||'', priority:'medium',
       done:event.status === 'completed',
