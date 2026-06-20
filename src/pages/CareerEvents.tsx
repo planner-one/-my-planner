@@ -24,6 +24,22 @@ const STATUS_LABELS: Record<CareerEventStatus, string> = {
   cancelled: '취소',
 }
 
+const CATEGORY_FIELDS: Record<CareerEventCategory, {
+  dateLabel: string
+  application: boolean
+  result: boolean
+  operation: boolean
+}> = {
+  briefing: { dateLabel: '설명회 일자', application: true, result: false, operation: false },
+  interview: { dateLabel: '면접 일자', application: false, result: true, operation: false },
+  camp: { dateLabel: '대표 일정일', application: true, result: true, operation: true },
+  program: { dateLabel: '대표 일정일', application: true, result: true, operation: true },
+  seminar: { dateLabel: '행사 일자', application: true, result: false, operation: false },
+  contest: { dateLabel: '대표 일정일', application: true, result: true, operation: false },
+  support: { dateLabel: '대표 일정일', application: true, result: true, operation: true },
+  other: { dateLabel: '대표 일정일', application: true, result: true, operation: true },
+}
+
 const TIME_OPTIONS = Array.from({ length: 48 }, (_, index) => {
   const hour = Math.floor(index / 2)
   const minute = index % 2 === 0 ? '00' : '30'
@@ -41,12 +57,29 @@ const TIME_PRESETS = [
 const mergePlace = (location?: string, address?: string) =>
   [location, address].filter((value, index, values): value is string => Boolean(value) && values.indexOf(value) === index).join(' · ')
 
+const countWeekdays = (start?: string, end?: string) => {
+  if (!start || !end || end < start) return 0
+  const cursor = new Date(`${start}T00:00:00`)
+  const last = new Date(`${end}T00:00:00`)
+  let count = 0
+  while (cursor <= last) {
+    const day = cursor.getDay()
+    if (day !== 0 && day !== 6) count += 1
+    cursor.setDate(cursor.getDate() + 1)
+  }
+  return count
+}
+
 const emptyForm = (): Omit<CareerEvent, 'id'> => ({
   title: '',
   organization: '',
   category: 'briefing',
   status: 'interested',
   date: new Date().toISOString().slice(0, 10),
+  applicationDeadline: '',
+  resultDate: '',
+  operationStartDate: '',
+  operationEndDate: '',
   time: '',
   endTime: '',
   mode: 'offline',
@@ -78,6 +111,18 @@ export default function CareerEvents() {
   const updateForm = <K extends keyof Omit<CareerEvent, 'id'>>(key: K, value: Omit<CareerEvent, 'id'>[K]) =>
     setForm(previous => ({ ...previous, [key]: value }))
 
+  const updateCategory = (category: CareerEventCategory) => {
+    const fields = CATEGORY_FIELDS[category]
+    setForm(previous => ({
+      ...previous,
+      category,
+      applicationDeadline: fields.application ? previous.applicationDeadline : '',
+      resultDate: fields.result ? previous.resultDate : '',
+      operationStartDate: fields.operation ? previous.operationStartDate : '',
+      operationEndDate: fields.operation ? previous.operationEndDate : '',
+    }))
+  }
+
   const updateStartTime = (time: string) => {
     setForm(previous => ({
       ...previous,
@@ -95,15 +140,20 @@ export default function CareerEvents() {
   const save = () => {
     const title = form.title.trim()
     if (!title) return
+    const fields = CATEGORY_FIELDS[form.category]
     const normalized: Omit<CareerEvent, 'id'> = {
       ...form,
       title,
       organization: form.organization?.trim() || undefined,
+      applicationDeadline: fields.application ? form.applicationDeadline || undefined : undefined,
+      resultDate: fields.result ? form.resultDate || undefined : undefined,
+      operationStartDate: fields.operation ? form.operationStartDate || undefined : undefined,
+      operationEndDate: fields.operation && form.operationEndDate && (!form.operationStartDate || form.operationEndDate >= form.operationStartDate) ? form.operationEndDate : undefined,
       time: form.time || undefined,
       endTime: form.endTime || undefined,
-      location: form.location?.trim() || undefined,
+      location: form.mode === 'online' ? undefined : form.location?.trim() || undefined,
       address: undefined,
-      url: form.url?.trim() || undefined,
+      url: form.mode === 'offline' ? undefined : form.url?.trim() || undefined,
       note: form.note?.trim() || undefined,
     }
     if (editingId) {
@@ -124,6 +174,10 @@ export default function CareerEvents() {
       category: item.category,
       status: item.status,
       date: item.date,
+      applicationDeadline: item.applicationDeadline ?? '',
+      resultDate: item.resultDate ?? '',
+      operationStartDate: item.operationStartDate ?? '',
+      operationEndDate: item.operationEndDate ?? '',
       time: item.time ?? '',
       endTime: item.endTime ?? '',
       mode: item.mode ?? 'offline',
@@ -147,6 +201,9 @@ export default function CareerEvents() {
   const visible = [...careerEvents]
     .filter(item => filter === 'all' || item.status === filter)
     .sort((a, b) => a.date.localeCompare(b.date) || (a.time ?? '').localeCompare(b.time ?? ''))
+
+  const fieldConfig = CATEGORY_FIELDS[form.category]
+  const operationWeekdays = countWeekdays(form.operationStartDate, form.operationEndDate)
 
   return (
     <div className="career-page">
@@ -178,7 +235,7 @@ export default function CareerEvents() {
             <input value={form.organization ?? ''} onChange={event => updateForm('organization', event.target.value)} placeholder="기관 또는 회사명" />
           </label>
           <label>구분
-            <select value={form.category} onChange={event => updateForm('category', event.target.value as CareerEventCategory)}>
+            <select value={form.category} onChange={event => updateCategory(event.target.value as CareerEventCategory)}>
               {Object.entries(CATEGORY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </label>
@@ -187,9 +244,23 @@ export default function CareerEvents() {
               {Object.entries(STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </label>
-          <label>날짜
+          <label>{fieldConfig.dateLabel}
             <input type="date" value={form.date} onChange={event => updateForm('date', event.target.value)} />
           </label>
+          {fieldConfig.application && <label>신청 마감일
+            <input type="date" value={form.applicationDeadline ?? ''} onChange={event => updateForm('applicationDeadline', event.target.value)} />
+          </label>}
+          {fieldConfig.result && <label>결과 발표일
+            <input type="date" value={form.resultDate ?? ''} onChange={event => updateForm('resultDate', event.target.value)} />
+          </label>}
+          {fieldConfig.operation && <>
+            <label>운영 시작일
+              <input type="date" value={form.operationStartDate ?? ''} onChange={event => updateForm('operationStartDate', event.target.value)} />
+            </label>
+            <label>운영 종료일 {operationWeekdays > 0 && <span className="career-weekdays">평일 {operationWeekdays}일</span>}
+              <input type="date" min={form.operationStartDate || undefined} value={form.operationEndDate ?? ''} onChange={event => updateForm('operationEndDate', event.target.value)} />
+            </label>
+          </>}
           <label>빠른 시간
             <select value="" onChange={event => applyTimePreset(event.target.value)}>
               <option value="" disabled>시간대 선택</option>
@@ -219,12 +290,12 @@ export default function CareerEvents() {
               <option value="hybrid">온·오프라인</option>
             </select>
           </label>
-          <label className="span-2">장소 / 주소
+          {form.mode !== 'online' && <label className="span-2">장소 / 주소
             <input value={form.location ?? ''} onChange={event => updateForm('location', event.target.value)} placeholder="예: NEST AI-Lab 5층 · 서울시 광진구 광나루로 520" />
-          </label>
-          <label className="span-2">온라인 링크
+          </label>}
+          {form.mode !== 'offline' && <label className="span-2">온라인 링크
             <input value={form.url ?? ''} onChange={event => updateForm('url', event.target.value)} placeholder="https://" />
-          </label>
+          </label>}
           <label className="span-2">메모
             <textarea value={form.note ?? ''} onChange={event => updateForm('note', event.target.value)} placeholder="준비물, 신청 마감, 확인할 내용" rows={3} />
           </label>
@@ -266,6 +337,11 @@ export default function CareerEvents() {
                 {item.location && <span>{item.location}</span>}
                 {item.address && <span>{item.address}</span>}
               </div>
+              <div className="career-milestones">
+                {item.applicationDeadline && <span>신청 마감 {item.applicationDeadline}</span>}
+                {item.resultDate && <span>결과 발표 {item.resultDate}</span>}
+                {item.operationStartDate && <span>운영 {item.operationStartDate}{item.operationEndDate ? `~${item.operationEndDate}` : ''}{countWeekdays(item.operationStartDate, item.operationEndDate) > 0 ? ` · 평일 ${countWeekdays(item.operationStartDate, item.operationEndDate)}일` : ''}</span>}
+              </div>
               {item.note && <p className="career-note">{item.note}</p>}
               {item.url && <a href={item.url} target="_blank" rel="noreferrer">온라인 링크 열기</a>}
             </div>
@@ -291,6 +367,7 @@ export default function CareerEvents() {
         .career-close-button { width: 32px; height: 32px; flex: 0 0 32px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--muted); font-size: 20px; line-height: 1; cursor: pointer; }
         .career-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
         .career-form-grid label { display: flex; flex-direction: column; gap: 5px; color: var(--muted); font-size: 11px; font-weight: 700; }
+        .career-weekdays { color: var(--accent); font-weight: 700; }
         .career-form-grid .span-2 { grid-column: 1 / -1; }
         .career-form-grid input, .career-form-grid select, .career-form-grid textarea { width: 100%; min-width: 0; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); padding: 9px 10px; font: inherit; font-size: 13px; outline: none; box-sizing: border-box; }
         .career-form-grid textarea { resize: vertical; }
@@ -312,6 +389,8 @@ export default function CareerEvents() {
         .career-item-heading .status.cancelled { color: var(--red); }
         .career-main p { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
         .career-details { display: flex; flex-wrap: wrap; gap: 5px 10px; margin-top: 7px; color: var(--muted); font-size: 11px; }
+        .career-milestones { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+        .career-milestones span { padding: 4px 7px; border-radius: 5px; background: var(--accent-soft); color: var(--accent); font-size: 10px; font-weight: 700; }
         .career-note { white-space: pre-wrap; }
         .career-main a { display: inline-block; margin-top: 7px; color: var(--accent); font-size: 11px; font-weight: 700; }
         .career-actions { display: flex; gap: 4px; }

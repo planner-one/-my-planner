@@ -163,6 +163,10 @@ export interface CareerEvent {
   category: CareerEventCategory
   status: CareerEventStatus
   date: string
+  applicationDeadline?: string
+  resultDate?: string
+  operationStartDate?: string
+  operationEndDate?: string
   time?: string
   endTime?: string
   mode?: 'offline' | 'online' | 'hybrid'

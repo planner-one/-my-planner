@@ -68,6 +68,32 @@ function toDateStr(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 }
 
+const CAREER_DATE_FIELDS: Record<CareerEventCategory, { application: boolean; result: boolean; operation: boolean }> = {
+  briefing: { application: true, result: false, operation: false },
+  interview: { application: false, result: true, operation: false },
+  camp: { application: true, result: true, operation: true },
+  program: { application: true, result: true, operation: true },
+  seminar: { application: true, result: false, operation: false },
+  contest: { application: true, result: true, operation: false },
+  support: { application: true, result: true, operation: true },
+  other: { application: true, result: true, operation: true },
+}
+
+function isWeekdayInRange(dateStr: string, start?: string, end?: string) {
+  if (!start || dateStr < start || dateStr > (end || start)) return false
+  const day = new Date(`${dateStr}T00:00:00`).getDay()
+  return day !== 0 && day !== 6
+}
+
+function getCareerMilestones(event: CareerEvent, dateStr: string) {
+  const labels: string[] = []
+  if (event.date === dateStr) labels.push('일정')
+  if (event.applicationDeadline === dateStr) labels.push('신청 마감')
+  if (event.resultDate === dateStr) labels.push('결과 발표')
+  if (isWeekdayInRange(dateStr, event.operationStartDate, event.operationEndDate)) labels.push('운영')
+  return labels
+}
+
 function getCalendarDays(year: number, month: number): Date[] {
   const firstDay = new Date(year, month, 1).getDay()
   const lastDate = new Date(year, month + 1, 0).getDate()
@@ -150,6 +176,10 @@ interface FormState {
   id?: string
   title: string
   date: string
+  applicationDeadline: string
+  resultDate: string
+  operationStartDate: string
+  operationEndDate: string
   time: string
   endTime: string
   scheduleMode: '' | 'offline' | 'online' | 'hybrid'
@@ -174,6 +204,7 @@ function ItemForm({
 }) {
   const [form, setForm] = useState<FormState>(initial)
   const set = (k: keyof FormState, v: unknown) => setForm(f => ({ ...f, [k]: v }))
+  const careerDateFields = CAREER_DATE_FIELDS[form.careerCategory]
 
   return (
     <div style={{
@@ -224,7 +255,18 @@ function ItemForm({
                 }}
               />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                <select value={form.careerCategory} onChange={e => set('careerCategory', e.target.value)} style={calendarSelectStyle}>
+                <select value={form.careerCategory} onChange={e => {
+                  const category = e.target.value as CareerEventCategory
+                  const fields = CAREER_DATE_FIELDS[category]
+                  setForm(previous => ({
+                    ...previous,
+                    careerCategory: category,
+                    applicationDeadline: fields.application ? previous.applicationDeadline : '',
+                    resultDate: fields.result ? previous.resultDate : '',
+                    operationStartDate: fields.operation ? previous.operationStartDate : '',
+                    operationEndDate: fields.operation ? previous.operationEndDate : '',
+                  }))
+                }} style={calendarSelectStyle}>
                   <option value="briefing">채용설명회</option>
                   <option value="interview">면접</option>
                   <option value="camp">직무캠프</option>
@@ -294,6 +336,28 @@ function ItemForm({
               }}
             />
           </div>
+          {form.type === 'career' && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 }}>
+              {careerDateFields.application && <label style={{ color:'var(--muted)', fontSize:10 }}>
+                신청 마감일
+                <input type="date" value={form.applicationDeadline} onChange={e => set('applicationDeadline', e.target.value)} style={calendarSelectStyle} />
+              </label>}
+              {careerDateFields.result && <label style={{ color:'var(--muted)', fontSize:10 }}>
+                결과 발표일
+                <input type="date" value={form.resultDate} onChange={e => set('resultDate', e.target.value)} style={calendarSelectStyle} />
+              </label>}
+              {careerDateFields.operation && <>
+                <label style={{ color:'var(--muted)', fontSize:10 }}>
+                  운영 시작일
+                  <input type="date" value={form.operationStartDate} onChange={e => set('operationStartDate', e.target.value)} style={calendarSelectStyle} />
+                </label>
+                <label style={{ color:'var(--muted)', fontSize:10 }}>
+                  운영 종료일
+                  <input type="date" min={form.operationStartDate || undefined} value={form.operationEndDate} onChange={e => set('operationEndDate', e.target.value)} style={calendarSelectStyle} />
+                </label>
+              </>}
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 6 }}>
             {([
               ['', '미지정'],
@@ -312,7 +376,7 @@ function ItemForm({
               </button>
             ))}
           </div>
-          <input
+          {(form.type !== 'career' || form.scheduleMode !== 'online') && <input
             value={form.location}
             onChange={e => set('location', e.target.value)}
             placeholder={form.type === 'career' ? '장소명 또는 주소' : '장소'}
@@ -322,7 +386,7 @@ function ItemForm({
               color: 'var(--text)', fontSize: 13, fontFamily: 'inherit',
               boxSizing: 'border-box', outline: 'none',
             }}
-          />
+          />}
           {form.type !== 'career' && (
             <input
               value={form.address}
@@ -336,7 +400,7 @@ function ItemForm({
               }}
             />
           )}
-          {form.type === 'career' && (
+          {form.type === 'career' && (form.scheduleMode === 'online' || form.scheduleMode === 'hybrid') && (
             <input
               value={form.url}
               onChange={e => set('url', e.target.value)}
@@ -440,6 +504,7 @@ function DayModal(props: ModalProps) {
   const normal    = todos.filter(t => t.priority !== 'high')
 
   const handleSave = (f: FormState) => {
+    const careerFields = CAREER_DATE_FIELDS[f.careerCategory]
     if (f.mode === 'add') {
       if (f.type === 'todo') props.onAddTodo(f.title, f.priority)
       else if (f.type === 'career') props.onAddCareer({
@@ -448,12 +513,16 @@ function DayModal(props: ModalProps) {
         category: f.careerCategory,
         status: f.careerStatus,
         date: f.date,
+        applicationDeadline: careerFields.application ? f.applicationDeadline || undefined : undefined,
+        resultDate: careerFields.result ? f.resultDate || undefined : undefined,
+        operationStartDate: careerFields.operation ? f.operationStartDate || undefined : undefined,
+        operationEndDate: careerFields.operation && f.operationEndDate && (!f.operationStartDate || f.operationEndDate >= f.operationStartDate) ? f.operationEndDate : undefined,
         time: f.time || undefined,
         endTime: f.endTime || undefined,
         mode: f.scheduleMode || undefined,
-        location: f.location.trim() || undefined,
+        location: f.scheduleMode === 'online' ? undefined : f.location.trim() || undefined,
         address: undefined,
-        url: f.url.trim() || undefined,
+        url: f.scheduleMode === 'offline' ? undefined : f.url.trim() || undefined,
         note: f.note.trim() || undefined,
       })
       else props.onAddScheduled({
@@ -474,12 +543,16 @@ function DayModal(props: ModalProps) {
         category: f.careerCategory,
         status: f.careerStatus,
         date: f.date,
+        applicationDeadline: careerFields.application ? f.applicationDeadline || undefined : undefined,
+        resultDate: careerFields.result ? f.resultDate || undefined : undefined,
+        operationStartDate: careerFields.operation ? f.operationStartDate || undefined : undefined,
+        operationEndDate: careerFields.operation && f.operationEndDate && (!f.operationStartDate || f.operationEndDate >= f.operationStartDate) ? f.operationEndDate : undefined,
         time: f.time || undefined,
         endTime: f.endTime || undefined,
         mode: f.scheduleMode || undefined,
-        location: f.location.trim() || undefined,
+        location: f.scheduleMode === 'online' ? undefined : f.location.trim() || undefined,
         address: undefined,
-        url: f.url.trim() || undefined,
+        url: f.scheduleMode === 'offline' ? undefined : f.url.trim() || undefined,
         note: f.note.trim() || undefined,
       })
       else props.onUpdateScheduled(f.id!, {
@@ -499,18 +572,21 @@ function DayModal(props: ModalProps) {
 
   const startAdd = () => setForm({
     mode:'add', type:'scheduled', title:'', date:dateStr, time:'',
+    applicationDeadline:'', resultDate:'', operationStartDate:'', operationEndDate:'',
     endTime:'', scheduleMode:'', location:'', address:'', note:'', priority:'medium', done:false,
     organization:'', careerCategory:'briefing', careerStatus:'interested', url:'',
   })
   const startEditTodo = (t: Todo) =>
     setForm({
       mode:'edit', type:'todo', id:t.id, title:t.text, date:t.date||dateStr,
+      applicationDeadline:'', resultDate:'', operationStartDate:'', operationEndDate:'',
       time:'', endTime:'', scheduleMode:'', location:'', address:'', note:'', priority:t.priority, done:t.done,
       organization:'', careerCategory:'briefing', careerStatus:'interested', url:'',
     })
   const startEditScheduled = (s: ScheduledTask) =>
     setForm({
       mode:'edit', type:'scheduled', id:s.id, title:s.title, date:s.date,
+      applicationDeadline:'', resultDate:'', operationStartDate:'', operationEndDate:'',
       time:s.time||'', endTime:s.endTime||'', scheduleMode:s.mode||'',
       location:s.location||'', address:s.address||'', note:s.note||'',
       organization:'', careerCategory:'briefing', careerStatus:'interested', url:'',
@@ -519,6 +595,8 @@ function DayModal(props: ModalProps) {
   const startEditCareer = (event: CareerEvent) =>
     setForm({
       mode:'edit', type:'career', id:event.id, title:event.title, date:event.date,
+      applicationDeadline:event.applicationDeadline||'', resultDate:event.resultDate||'',
+      operationStartDate:event.operationStartDate||'', operationEndDate:event.operationEndDate||'',
       time:event.time||'', endTime:event.endTime||'', scheduleMode:event.mode||'',
       location:[event.location, event.address].filter(Boolean).join(' · '), address:'', note:event.note||'',
       organization:event.organization||'', careerCategory:event.category,
@@ -662,6 +740,7 @@ function DayModal(props: ModalProps) {
                   text={event.title}
                   done={event.status === 'completed' || event.status === 'cancelled'}
                   tag={[
+                    ...getCareerMilestones(event, dateStr).filter(label => label !== '일정'),
                     event.time ? `${event.time}${event.endTime ? `~${event.endTime}` : ''}` : undefined,
                     event.category === 'briefing' ? '채용설명회'
                       : event.category === 'interview' ? '면접'
@@ -780,7 +859,7 @@ export default function CalendarWidget() {
   const getItemsForDate = (dateStr: string) => ({
     todos:     todos.filter(t => t.date === dateStr),
     scheduled: scheduledTasks.filter(s => s.date === dateStr),
-    career:    careerEvents.filter(event => event.date === dateStr),
+    career:    careerEvents.filter(event => getCareerMilestones(event, dateStr).length > 0),
     goals:     goals.filter(g => g.due === dateStr),
     projects:  projects.filter(p => p.due === dateStr),
   })
@@ -908,7 +987,7 @@ export default function CalendarWidget() {
               // 이벤트 블록 (할일: 노란색, 예정작업: 파란색)
               const dayTodos     = isCurMonth ? todos.filter(t => t.date === dateStr) : []
               const dayScheduled = isCurMonth ? scheduledTasks.filter(s => s.date === dateStr) : []
-              const dayCareer = isCurMonth ? careerEvents.filter(event => event.date === dateStr) : []
+              const dayCareer = isCurMonth ? careerEvents.filter(event => getCareerMilestones(event, dateStr).length > 0) : []
 
               const allEvents = [
                 ...dayScheduled.map(s => ({
@@ -918,7 +997,7 @@ export default function CalendarWidget() {
                 })),
                 ...dayCareer.map(event => ({
                   key: event.id,
-                  label: event.time ? `${event.time} ${event.title}` : event.title,
+                  label: `${getCareerMilestones(event, dateStr).filter(label => label !== '일정').join(' · ')}${getCareerMilestones(event, dateStr).some(label => label !== '일정') ? ' ' : ''}${event.time && event.date === dateStr ? `${event.time} ` : ''}${event.title}`,
                   color: '#a855f7', bg: 'rgba(168,85,247,0.14)',
                   done: event.status === 'completed' || event.status === 'cancelled',
                 })),
