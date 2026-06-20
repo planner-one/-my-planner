@@ -24,6 +24,20 @@ const STATUS_LABELS: Record<CareerEventStatus, string> = {
   cancelled: '취소',
 }
 
+const TIME_OPTIONS = Array.from({ length: 48 }, (_, index) => {
+  const hour = Math.floor(index / 2)
+  const minute = index % 2 === 0 ? '00' : '30'
+  return `${String(hour).padStart(2, '0')}:${minute}`
+})
+
+const TIME_PRESETS = [
+  { label: '시간 미정', start: '', end: '' },
+  { label: '09:00~18:00', start: '09:00', end: '18:00' },
+  { label: '10:00~17:00', start: '10:00', end: '17:00' },
+  { label: '13:00~18:00', start: '13:00', end: '18:00' },
+  { label: '14:00~17:00', start: '14:00', end: '17:00' },
+]
+
 const emptyForm = (): Omit<CareerEvent, 'id'> => ({
   title: '',
   organization: '',
@@ -47,6 +61,20 @@ export default function CareerEvents() {
 
   const updateForm = <K extends keyof Omit<CareerEvent, 'id'>>(key: K, value: Omit<CareerEvent, 'id'>[K]) =>
     setForm(previous => ({ ...previous, [key]: value }))
+
+  const updateStartTime = (time: string) => {
+    setForm(previous => ({
+      ...previous,
+      time,
+      endTime: previous.endTime && time && previous.endTime <= time ? '' : previous.endTime,
+    }))
+  }
+
+  const applyTimePreset = (value: string) => {
+    const preset = TIME_PRESETS[Number(value)]
+    if (!preset) return
+    setForm(previous => ({ ...previous, time: preset.start, endTime: preset.end }))
+  }
 
   const save = () => {
     const title = form.title.trim()
@@ -131,11 +159,27 @@ export default function CareerEvents() {
           <label>날짜
             <input type="date" value={form.date} onChange={event => updateForm('date', event.target.value)} />
           </label>
+          <label>빠른 시간
+            <select value="" onChange={event => applyTimePreset(event.target.value)}>
+              <option value="" disabled>시간대 선택</option>
+              {TIME_PRESETS.map((preset, index) => (
+                <option key={preset.label} value={index}>{preset.label}</option>
+              ))}
+            </select>
+          </label>
           <label>시작
-            <input type="time" value={form.time ?? ''} onChange={event => updateForm('time', event.target.value)} />
+            <select value={form.time ?? ''} onChange={event => updateStartTime(event.target.value)}>
+              <option value="">시간 미정</option>
+              {TIME_OPTIONS.map(time => <option key={time} value={time}>{time}</option>)}
+            </select>
           </label>
           <label>종료
-            <input type="time" value={form.endTime ?? ''} onChange={event => updateForm('endTime', event.target.value)} />
+            <select value={form.endTime ?? ''} onChange={event => updateForm('endTime', event.target.value)}>
+              <option value="">종료 미정</option>
+              {TIME_OPTIONS
+                .filter(time => !form.time || time > form.time)
+                .map(time => <option key={time} value={time}>{time}</option>)}
+            </select>
           </label>
           <label>진행 방식
             <select value={form.mode ?? 'offline'} onChange={event => updateForm('mode', event.target.value as CareerEvent['mode'])}>
