@@ -8,7 +8,7 @@ import { HABITS_VERSION, isHabitScheduled, migrateHabits } from '../utils/habits
 import { createDefaultCounters, migrateCounters } from '../utils/counters'
 import type {
   Todo, TodoDailyResult, DeletedTodoDailyResult, Habit, Task, Goal, Project, TopGoal, Counters, Review,
-  Note, QuickMemoEntry, WeekTask, ScheduledTask, JournalEntry, LayoutItem, UserData,
+  Note, QuickMemoEntry, WeekTask, ScheduledTask, CareerEvent, JournalEntry, LayoutItem, UserData,
 } from '../types'
 
 interface AppContextValue {
@@ -41,6 +41,8 @@ interface AppContextValue {
   setTimeBlockData: React.Dispatch<React.SetStateAction<Record<string, Record<string, string>>>>
   scheduledTasks: ScheduledTask[]
   setScheduledTasks: React.Dispatch<React.SetStateAction<ScheduledTask[]>>
+  careerEvents: CareerEvent[]
+  setCareerEvents: React.Dispatch<React.SetStateAction<CareerEvent[]>>
   journal: JournalEntry[];   setJournal: React.Dispatch<React.SetStateAction<JournalEntry[]>>
   chartHistory: number[];    setChartHistory: React.Dispatch<React.SetStateAction<number[]>>
   dashboardLayout: LayoutItem[]
@@ -82,6 +84,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [weekTasks, setWeekTasks] = useState<Record<string, WeekTask[]>>({})
   const [timeBlockData, setTimeBlockData] = useState<Record<string, Record<string, string>>>({})
   const [scheduledTasks, setScheduledTasks] = useState<ScheduledTask[]>([])
+  const [careerEvents, setCareerEvents] = useState<CareerEvent[]>([])
   const [journal, setJournal] = useState<JournalEntry[]>([])
   const [chartHistory, setChartHistory] = useState<number[]>([])
   const [dashboardLayout, setDashboardLayout] = useState<LayoutItem[]>([])
@@ -103,7 +106,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       habitsVersion: HABITS_VERSION, habitsInitialized: true,
       tasks, goals, projects, topGoals,
       energy, counters, quickMemo: '', quickMemos, review,
-      notes, weekTasks, timeBlockData, scheduledTasks,
+      notes, weekTasks, timeBlockData, scheduledTasks, careerEvents,
       journal, chartHistory,
       dashboardLayout, dashboardActive,
       uiScale,
@@ -169,6 +172,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (d.weekTasks) setWeekTasks(d.weekTasks)
         if (d.timeBlockData) setTimeBlockData(d.timeBlockData)
         if (d.scheduledTasks) setScheduledTasks(d.scheduledTasks)
+        setCareerEvents(d.careerEvents ?? [])
         if (d.journal) setJournal(d.journal)
         if (d.chartHistory) setChartHistory(d.chartHistory)
         if (d.dashboardLayout) setDashboardLayout(d.dashboardLayout)
@@ -273,7 +277,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     todos, todoHistory, todoHistoryTrash, todoHistoryDeletedDates,
     habits, habitHistory, habitSavedAt, tasks, goals, projects, topGoals,
     energy, counters, quickMemos, review, notes, weekTasks,
-    timeBlockData, scheduledTasks, journal, chartHistory,
+    timeBlockData, scheduledTasks, careerEvents, journal, chartHistory,
     dashboardLayout, dashboardActive, uiScale, nickname, dataLoaded,
   ])
 
@@ -316,6 +320,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     weekTasks, setWeekTasks,
     timeBlockData, setTimeBlockData,
     scheduledTasks, setScheduledTasks,
+    careerEvents, setCareerEvents,
     journal, setJournal,
     chartHistory, setChartHistory,
     dashboardLayout, setDashboardLayout,

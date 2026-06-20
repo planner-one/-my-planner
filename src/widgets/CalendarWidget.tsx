@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useWidgetSize } from '../hooks/useWidgetSize'
 import { useApp } from '../store/AppContext'
 import { fetchHolidays } from '../services/holidayService'
-import type { Todo, ScheduledTask, Goal, Project } from '../types'
+import type { Todo, ScheduledTask, CareerEvent, CareerEventCategory, CareerEventStatus, Goal, Project } from '../types'
 
 export const meta = {
   id: 'calendar',
@@ -135,8 +135,15 @@ const navBtnStyle: CSSProperties = {
   display: 'flex', alignItems: 'center',
 }
 
+const calendarSelectStyle: CSSProperties = {
+  width: '100%', minWidth: 0, padding: '7px 8px', borderRadius: 7,
+  border: '1px solid var(--border)', background: 'var(--bg2)',
+  color: 'var(--text)', fontSize: 12, fontFamily: 'inherit',
+  boxSizing: 'border-box', outline: 'none',
+}
+
 // ── 항목 추가/수정 폼 ─────────────────────────────────────
-type FormType = 'scheduled' | 'todo'
+type FormType = 'scheduled' | 'todo' | 'career'
 interface FormState {
   mode: 'add' | 'edit'
   type: FormType
@@ -149,6 +156,10 @@ interface FormState {
   location: string
   address: string
   note: string
+  organization: string
+  careerCategory: CareerEventCategory
+  careerStatus: CareerEventStatus
+  url: string
   priority: Todo['priority']
   done: boolean
 }
@@ -171,14 +182,14 @@ function ItemForm({
     }}>
       {initial.mode === 'add' && (
         <div style={{ display: 'flex', gap: 6 }}>
-          {(['scheduled', 'todo'] as FormType[]).map(t => (
+          {(['scheduled', 'todo', 'career'] as FormType[]).map(t => (
             <button key={t} onClick={() => set('type', t)} style={{
               flex: 1, padding: '5px 0', borderRadius: 6, border: 'none', cursor: 'pointer',
               background: form.type === t ? 'var(--accent)' : 'var(--bg4)',
               color: form.type === t ? '#fff' : 'var(--muted)',
               fontSize: 12, fontWeight: form.type === t ? 600 : 400,
             }}>
-              {t === 'scheduled' ? '예정 작업' : '할 일'}
+              {t === 'scheduled' ? '예정 작업' : t === 'career' ? '지원 일정' : '할 일'}
             </button>
           ))}
         </div>
@@ -188,7 +199,7 @@ function ItemForm({
         autoFocus
         value={form.title}
         onChange={e => set('title', e.target.value)}
-        placeholder={form.type === 'scheduled' ? '작업 제목' : '할 일 내용'}
+        placeholder={form.type === 'scheduled' ? '작업 제목' : form.type === 'career' ? '지원 일정명' : '할 일 내용'}
         style={{
           width: '100%', padding: '7px 10px', borderRadius: 7,
           border: '1px solid var(--border)', background: 'var(--bg2)',
@@ -197,8 +208,38 @@ function ItemForm({
         }}
       />
 
-      {form.type === 'scheduled' && (
+      {form.type !== 'todo' && (
         <>
+          {form.type === 'career' && (
+            <>
+              <input
+                value={form.organization}
+                onChange={e => set('organization', e.target.value)}
+                placeholder="기관 또는 회사명"
+                style={{
+                  width: '100%', padding: '7px 10px', borderRadius: 7,
+                  border: '1px solid var(--border)', background: 'var(--bg2)',
+                  color: 'var(--text)', fontSize: 13, fontFamily: 'inherit',
+                  boxSizing: 'border-box', outline: 'none',
+                }}
+              />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                <select value={form.careerCategory} onChange={e => set('careerCategory', e.target.value)} style={calendarSelectStyle}>
+                  <option value="briefing">채용설명회</option>
+                  <option value="interview">면접</option>
+                  <option value="camp">직무캠프</option>
+                  <option value="other">기타</option>
+                </select>
+                <select value={form.careerStatus} onChange={e => set('careerStatus', e.target.value)} style={calendarSelectStyle}>
+                  <option value="interested">관심</option>
+                  <option value="applied">신청</option>
+                  <option value="confirmed">확정</option>
+                  <option value="completed">완료</option>
+                  <option value="cancelled">취소</option>
+                </select>
+              </div>
+            </>
+          )}
           <div style={{
             display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6,
             color: 'var(--muted)', fontSize: 10, padding: '0 2px',
@@ -286,6 +327,19 @@ function ItemForm({
               boxSizing: 'border-box', outline: 'none',
             }}
           />
+          {form.type === 'career' && (
+            <input
+              value={form.url}
+              onChange={e => set('url', e.target.value)}
+              placeholder="온라인 링크"
+              style={{
+                width: '100%', padding: '7px 10px', borderRadius: 7,
+                border: '1px solid var(--border)', background: 'var(--bg2)',
+                color: 'var(--text)', fontSize: 13, fontFamily: 'inherit',
+                boxSizing: 'border-box', outline: 'none',
+              }}
+            />
+          )}
           <textarea
             value={form.note}
             onChange={e => set('note', e.target.value)}
@@ -351,19 +405,23 @@ interface ModalProps {
   holiday?: string
   todos: Todo[]
   scheduled: ScheduledTask[]
+  career: CareerEvent[]
   goals: Goal[]
   projects: Project[]
   onClose: () => void
   onAddTodo: (text: string, priority: Todo['priority']) => void
   onAddScheduled: (task: Omit<ScheduledTask, 'id' | 'done'>) => void
+  onAddCareer: (event: Omit<CareerEvent, 'id'>) => void
   onUpdateTodo: (id: string, patch: Partial<Todo>) => void
   onUpdateScheduled: (id: string, patch: Partial<ScheduledTask>) => void
+  onUpdateCareer: (id: string, patch: Partial<CareerEvent>) => void
   onDeleteTodo: (id: string) => void
   onDeleteScheduled: (id: string) => void
+  onDeleteCareer: (id: string) => void
 }
 
 function DayModal(props: ModalProps) {
-  const { date, holiday, todos, scheduled, goals, projects, onClose } = props
+  const { date, holiday, todos, scheduled, career, goals, projects, onClose } = props
   const dateStr = toDateStr(date)
   const dateLabel = date.toLocaleDateString('ko-KR', { year:'numeric', month:'long', day:'numeric', weekday:'long' })
 
@@ -375,6 +433,20 @@ function DayModal(props: ModalProps) {
   const handleSave = (f: FormState) => {
     if (f.mode === 'add') {
       if (f.type === 'todo') props.onAddTodo(f.title, f.priority)
+      else if (f.type === 'career') props.onAddCareer({
+        title: f.title.trim(),
+        organization: f.organization.trim() || undefined,
+        category: f.careerCategory,
+        status: f.careerStatus,
+        date: f.date,
+        time: f.time || undefined,
+        endTime: f.endTime || undefined,
+        mode: f.scheduleMode || undefined,
+        location: f.location.trim() || undefined,
+        address: f.address.trim() || undefined,
+        url: f.url.trim() || undefined,
+        note: f.note.trim() || undefined,
+      })
       else props.onAddScheduled({
         title: f.title.trim(),
         date: f.date,
@@ -387,6 +459,20 @@ function DayModal(props: ModalProps) {
       })
     } else {
       if (f.type === 'todo') props.onUpdateTodo(f.id!, { text: f.title, priority: f.priority, done: f.done })
+      else if (f.type === 'career') props.onUpdateCareer(f.id!, {
+        title: f.title.trim(),
+        organization: f.organization.trim() || undefined,
+        category: f.careerCategory,
+        status: f.careerStatus,
+        date: f.date,
+        time: f.time || undefined,
+        endTime: f.endTime || undefined,
+        mode: f.scheduleMode || undefined,
+        location: f.location.trim() || undefined,
+        address: f.address.trim() || undefined,
+        url: f.url.trim() || undefined,
+        note: f.note.trim() || undefined,
+      })
       else props.onUpdateScheduled(f.id!, {
         title: f.title,
         date: f.date,
@@ -405,18 +491,30 @@ function DayModal(props: ModalProps) {
   const startAdd = () => setForm({
     mode:'add', type:'scheduled', title:'', date:dateStr, time:'',
     endTime:'', scheduleMode:'', location:'', address:'', note:'', priority:'medium', done:false,
+    organization:'', careerCategory:'briefing', careerStatus:'interested', url:'',
   })
   const startEditTodo = (t: Todo) =>
     setForm({
       mode:'edit', type:'todo', id:t.id, title:t.text, date:t.date||dateStr,
       time:'', endTime:'', scheduleMode:'', location:'', address:'', note:'', priority:t.priority, done:t.done,
+      organization:'', careerCategory:'briefing', careerStatus:'interested', url:'',
     })
   const startEditScheduled = (s: ScheduledTask) =>
     setForm({
       mode:'edit', type:'scheduled', id:s.id, title:s.title, date:s.date,
       time:s.time||'', endTime:s.endTime||'', scheduleMode:s.mode||'',
       location:s.location||'', address:s.address||'', note:s.note||'',
+      organization:'', careerCategory:'briefing', careerStatus:'interested', url:'',
       priority:'medium', done:s.done,
+    })
+  const startEditCareer = (event: CareerEvent) =>
+    setForm({
+      mode:'edit', type:'career', id:event.id, title:event.title, date:event.date,
+      time:event.time||'', endTime:event.endTime||'', scheduleMode:event.mode||'',
+      location:event.location||'', address:event.address||'', note:event.note||'',
+      organization:event.organization||'', careerCategory:event.category,
+      careerStatus:event.status, url:event.url||'', priority:'medium',
+      done:event.status === 'completed',
     })
 
   const Section = ({ title, color, children }: { title: string; color: string; children: ReactNode }) => (
@@ -474,7 +572,7 @@ function DayModal(props: ModalProps) {
     </div>
   )
 
-  const hasAnything = important.length + scheduled.length + normal.length + goals.length + projects.length > 0
+  const hasAnything = important.length + scheduled.length + career.length + normal.length + goals.length + projects.length > 0
 
   return createPortal(
     <div onClick={onClose} style={{
@@ -547,6 +645,24 @@ function DayModal(props: ModalProps) {
             </Section>
           )}
 
+          {career.length > 0 && (
+            <Section title="💼 지원 일정" color="#a855f7">
+              {career.map(event => (
+                <ItemRow
+                  key={event.id}
+                  text={event.title}
+                  done={event.status === 'completed' || event.status === 'cancelled'}
+                  tag={[
+                    event.time ? `${event.time}${event.endTime ? `~${event.endTime}` : ''}` : undefined,
+                    event.category === 'briefing' ? '채용설명회' : event.category === 'interview' ? '면접' : event.category === 'camp' ? '직무캠프' : '기타',
+                  ].filter(Boolean).join(' · ')}
+                  detail={[event.organization, event.location, event.address].filter(Boolean).join(' · ') || event.note}
+                  onEdit={() => startEditCareer(event)}
+                />
+              ))}
+            </Section>
+          )}
+
           {normal.length > 0 && (
             <Section title="☑️ 할 일" color="var(--text)">
               {normal.map(t => (
@@ -577,6 +693,7 @@ function DayModal(props: ModalProps) {
               onSave={handleSave}
               onDelete={form.mode === 'edit' ? () => {
                 if (form.type === 'todo') props.onDeleteTodo(form.id!)
+                else if (form.type === 'career') props.onDeleteCareer(form.id!)
                 else props.onDeleteScheduled(form.id!)
                 setForm(null)
               } : undefined}
@@ -607,7 +724,10 @@ function DayModal(props: ModalProps) {
 // ── 메인 위젯 ─────────────────────────────────────────────
 export default function CalendarWidget() {
   const { ref, w, h } = useWidgetSize()
-  const { todos, setTodos, scheduledTasks, setScheduledTasks, goals, projects } = useApp()
+  const {
+    todos, setTodos, scheduledTasks, setScheduledTasks,
+    careerEvents, setCareerEvents, goals, projects,
+  } = useApp()
 
   const today = new Date()
   const [year, setYear]   = useState(today.getFullYear())
@@ -644,6 +764,7 @@ export default function CalendarWidget() {
   const getItemsForDate = (dateStr: string) => ({
     todos:     todos.filter(t => t.date === dateStr),
     scheduled: scheduledTasks.filter(s => s.date === dateStr),
+    career:    careerEvents.filter(event => event.date === dateStr),
     goals:     goals.filter(g => g.due === dateStr),
     projects:  projects.filter(p => p.due === dateStr),
   })
@@ -652,8 +773,8 @@ export default function CalendarWidget() {
     todos.filter(t => t.date === dateStr && t.priority === 'high').length
 
   const getHasItems = (dateStr: string) => {
-    const { todos: t, scheduled: s, goals: g, projects: p } = getItemsForDate(dateStr)
-    return t.length + s.length + g.length + p.length > 0
+    const { todos: t, scheduled: s, career: c, goals: g, projects: p } = getItemsForDate(dateStr)
+    return t.length + s.length + c.length + g.length + p.length > 0
   }
 
   // CRUD handlers
@@ -673,8 +794,14 @@ export default function CalendarWidget() {
     setTodos(prev => prev.map(t => t.id === id ? { ...t, ...patch } : t))
   const handleUpdateScheduled = (id: string, patch: Partial<ScheduledTask>) =>
     setScheduledTasks(prev => prev.map(s => s.id === id ? { ...s, ...patch } : s))
+  const handleAddCareer = (event: Omit<CareerEvent, 'id'>) =>
+    setCareerEvents(previous => [...previous, { ...event, id: `career-${Date.now()}` }])
+  const handleUpdateCareer = (id: string, patch: Partial<CareerEvent>) =>
+    setCareerEvents(previous => previous.map(event => event.id === id ? { ...event, ...patch } : event))
   const handleDeleteTodo = (id: string) => setTodos(prev => prev.filter(t => t.id !== id))
   const handleDeleteScheduled = (id: string) => setScheduledTasks(prev => prev.filter(s => s.id !== id))
+  const handleDeleteCareer = (id: string) =>
+    setCareerEvents(previous => previous.filter(event => event.id !== id))
 
   const selectedItems = selected ? getItemsForDate(toDateStr(selected)) : null
   const selectedHoliday = selected
@@ -765,12 +892,19 @@ export default function CalendarWidget() {
               // 이벤트 블록 (할일: 노란색, 예정작업: 파란색)
               const dayTodos     = isCurMonth ? todos.filter(t => t.date === dateStr) : []
               const dayScheduled = isCurMonth ? scheduledTasks.filter(s => s.date === dateStr) : []
+              const dayCareer = isCurMonth ? careerEvents.filter(event => event.date === dateStr) : []
 
               const allEvents = [
                 ...dayScheduled.map(s => ({
                   key: s.id,
                   label: s.time ? `${s.time}${s.endTime ? `~${s.endTime}` : ''} ${s.title}` : s.title,
                   color: '#3b82f6', bg: 'rgba(59,130,246,0.15)', done: s.done,
+                })),
+                ...dayCareer.map(event => ({
+                  key: event.id,
+                  label: event.time ? `${event.time} ${event.title}` : event.title,
+                  color: '#a855f7', bg: 'rgba(168,85,247,0.14)',
+                  done: event.status === 'completed' || event.status === 'cancelled',
                 })),
                 ...dayTodos.map(t => ({ key: t.id, label: t.text, color: '#f59e0b', bg: 'rgba(245,158,11,0.15)', done: t.done })),
               ]
@@ -860,15 +994,19 @@ export default function CalendarWidget() {
               holiday={selectedHoliday}
               todos={selectedItems.todos}
               scheduled={selectedItems.scheduled}
+              career={selectedItems.career}
               goals={selectedItems.goals}
               projects={selectedItems.projects}
               onClose={() => setSelected(null)}
               onAddTodo={handleAddTodo}
               onAddScheduled={handleAddScheduled}
+              onAddCareer={handleAddCareer}
               onUpdateTodo={handleUpdateTodo}
               onUpdateScheduled={handleUpdateScheduled}
+              onUpdateCareer={handleUpdateCareer}
               onDeleteTodo={handleDeleteTodo}
               onDeleteScheduled={handleDeleteScheduled}
+              onDeleteCareer={handleDeleteCareer}
             />
           )}
         </>

@@ -149,6 +149,25 @@ export interface ScheduledTask {
   done: boolean
 }
 
+export type CareerEventCategory = 'briefing' | 'interview' | 'camp' | 'other'
+export type CareerEventStatus = 'interested' | 'applied' | 'confirmed' | 'completed' | 'cancelled'
+
+export interface CareerEvent {
+  id: string
+  title: string
+  organization?: string
+  category: CareerEventCategory
+  status: CareerEventStatus
+  date: string
+  time?: string
+  endTime?: string
+  mode?: 'offline' | 'online' | 'hybrid'
+  location?: string
+  address?: string
+  url?: string
+  note?: string
+}
+
 export interface JournalEntry {
   date: string
   habitPct?: number
@@ -191,6 +210,7 @@ export interface UserData {
   weekTasks?: Record<string, WeekTask[]>
   timeBlockData?: Record<string, Record<string, string>>
   scheduledTasks?: ScheduledTask[]
+  careerEvents?: CareerEvent[]
   journal?: JournalEntry[]
   chartHistory?: number[]
   dashboardLayout?: LayoutItem[]

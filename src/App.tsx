@@ -16,11 +16,12 @@ import ProfilePage from './pages/ProfilePage'
 import TodoPage from './pages/TodoPage'
 import Inquiries from './pages/Inquiries'
 import PrintPlanner from './pages/PrintPlanner'
+import CareerEvents from './pages/CareerEvents'
 import type { ComponentType } from 'react'
 
 type PageId =
   | 'dashboard' | 'habits' | 'tasks' | 'todos' | 'goals' | 'projects'
-  | 'weekly' | 'daily' | 'notes' | 'journal' | 'profile' | 'inquiries' | 'print'
+  | 'weekly' | 'daily' | 'notes' | 'journal' | 'profile' | 'inquiries' | 'print' | 'career'
 
 const PAGE_MAP: Record<PageId, ComponentType> = {
   dashboard: Dashboard,
@@ -36,6 +37,7 @@ const PAGE_MAP: Record<PageId, ComponentType> = {
   profile:   ProfilePage,
   inquiries: Inquiries,
   print:     PrintPlanner,
+  career:    CareerEvents,
 }
 
 function Loading() {

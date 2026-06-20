@@ -6,7 +6,7 @@ import { signOut } from '../services/authService'
 
 type PageId =
   | 'dashboard' | 'habits' | 'tasks' | 'todos' | 'goals' | 'projects'
-  | 'weekly' | 'daily' | 'notes' | 'journal' | 'profile' | 'inquiries' | 'print'
+  | 'weekly' | 'daily' | 'notes' | 'journal' | 'profile' | 'inquiries' | 'print' | 'career'
 
 interface NavItem {
   id: PageId
@@ -52,6 +52,10 @@ const NAV_ITEMS: NavItem[] = [
     paths: ['M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z'],
   },
   {
+    id: 'career', label: '지원 일정',
+    paths: ['M8 7V5a4 4 0 018 0v2', 'M3 7h18v13H3z', 'M3 12h18', 'M10 12v2h4v-2'],
+  },
+  {
     id: 'weekly', label: '주간',
     paths: ['M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z'],
   },
@@ -81,7 +85,7 @@ const NAV_ITEMS: NavItem[] = [
   },
 ]
 
-const BOTTOM_TABS: PageId[] = ['dashboard', 'tasks', 'goals', 'weekly', 'profile']
+const BOTTOM_TABS: PageId[] = ['dashboard', 'tasks', 'goals', 'career', 'weekly', 'profile']
 
 export default function PageShell({ children }: { children: ReactNode }) {
   const { user } = useAuth()
@@ -175,7 +179,7 @@ export default function PageShell({ children }: { children: ReactNode }) {
                 border: 'none', background: 'transparent', cursor: 'pointer',
                 color: active ? 'var(--accent)' : 'var(--muted)',
                 fontSize: 10, fontWeight: active ? 600 : 400,
-                padding: '4px 14px',
+                padding: '4px 8px',
               }}>
                 <Icon paths={item.paths} />
                 <span>{item.label}</span>
