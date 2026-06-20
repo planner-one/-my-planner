@@ -189,7 +189,7 @@ function ItemForm({
               color: form.type === t ? '#fff' : 'var(--muted)',
               fontSize: 12, fontWeight: form.type === t ? 600 : 400,
             }}>
-              {t === 'scheduled' ? '예정 작업' : t === 'career' ? '지원 일정' : '할 일'}
+              {t === 'scheduled' ? '예정 작업' : t === 'career' ? '신청·지원' : '할 일'}
             </button>
           ))}
         </div>
@@ -199,7 +199,7 @@ function ItemForm({
         autoFocus
         value={form.title}
         onChange={e => set('title', e.target.value)}
-        placeholder={form.type === 'scheduled' ? '작업 제목' : form.type === 'career' ? '지원 일정명' : '할 일 내용'}
+        placeholder={form.type === 'scheduled' ? '작업 제목' : form.type === 'career' ? '신청·지원 일정명' : '할 일 내용'}
         style={{
           width: '100%', padding: '7px 10px', borderRadius: 7,
           border: '1px solid var(--border)', background: 'var(--bg2)',
@@ -228,13 +228,20 @@ function ItemForm({
                   <option value="briefing">채용설명회</option>
                   <option value="interview">면접</option>
                   <option value="camp">직무캠프</option>
+                  <option value="program">교육/프로그램</option>
+                  <option value="seminar">행사/세미나</option>
+                  <option value="contest">공모전</option>
+                  <option value="support">지원사업</option>
                   <option value="other">기타</option>
                 </select>
                 <select value={form.careerStatus} onChange={e => set('careerStatus', e.target.value)} style={calendarSelectStyle}>
                   <option value="interested">관심</option>
-                  <option value="applied">신청</option>
-                  <option value="confirmed">확정</option>
+                  <option value="planned">신청 예정</option>
+                  <option value="applied">신청 완료</option>
+                  <option value="pending">결과 대기</option>
+                  <option value="confirmed">선정/확정</option>
                   <option value="completed">완료</option>
+                  <option value="rejected">탈락</option>
                   <option value="cancelled">취소</option>
                 </select>
               </div>
@@ -646,7 +653,7 @@ function DayModal(props: ModalProps) {
           )}
 
           {career.length > 0 && (
-            <Section title="💼 지원 일정" color="#a855f7">
+            <Section title="💼 신청·지원 일정" color="#a855f7">
               {career.map(event => (
                 <ItemRow
                   key={event.id}
@@ -654,7 +661,14 @@ function DayModal(props: ModalProps) {
                   done={event.status === 'completed' || event.status === 'cancelled'}
                   tag={[
                     event.time ? `${event.time}${event.endTime ? `~${event.endTime}` : ''}` : undefined,
-                    event.category === 'briefing' ? '채용설명회' : event.category === 'interview' ? '면접' : event.category === 'camp' ? '직무캠프' : '기타',
+                    event.category === 'briefing' ? '채용설명회'
+                      : event.category === 'interview' ? '면접'
+                      : event.category === 'camp' ? '직무캠프'
+                      : event.category === 'program' ? '교육/프로그램'
+                      : event.category === 'seminar' ? '행사/세미나'
+                      : event.category === 'contest' ? '공모전'
+                      : event.category === 'support' ? '지원사업'
+                      : '기타',
                   ].filter(Boolean).join(' · ')}
                   detail={[event.organization, event.location, event.address].filter(Boolean).join(' · ') || event.note}
                   onEdit={() => startEditCareer(event)}

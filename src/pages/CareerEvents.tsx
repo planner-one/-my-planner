@@ -6,14 +6,21 @@ const CATEGORY_LABELS: Record<CareerEventCategory, string> = {
   briefing: '채용설명회',
   interview: '면접',
   camp: '직무캠프',
+  program: '교육/프로그램',
+  seminar: '행사/세미나',
+  contest: '공모전',
+  support: '지원사업',
   other: '기타',
 }
 
 const STATUS_LABELS: Record<CareerEventStatus, string> = {
   interested: '관심',
-  applied: '신청',
-  confirmed: '확정',
+  planned: '신청 예정',
+  applied: '신청 완료',
+  pending: '결과 대기',
+  confirmed: '선정/확정',
   completed: '완료',
+  rejected: '탈락',
   cancelled: '취소',
 }
 
@@ -98,8 +105,8 @@ export default function CareerEvents() {
     <div className="career-page">
       <header className="career-header">
         <div>
-          <h2>지원 일정</h2>
-          <p>채용설명회, 면접, 직무캠프와 신청 결과를 한곳에서 관리합니다.</p>
+          <h2>신청·지원 일정</h2>
+          <p>채용, 교육, 행사, 공모전과 각종 프로그램 신청 결과를 한곳에서 관리합니다.</p>
         </div>
       </header>
 
@@ -156,8 +163,8 @@ export default function CareerEvents() {
         </div>
       </section>
 
-      <nav className="career-filters" aria-label="지원 일정 상태">
-        {(['all', 'interested', 'applied', 'confirmed', 'completed', 'cancelled'] as const).map(status => (
+      <nav className="career-filters" aria-label="신청·지원 일정 상태">
+        {(['all', 'interested', 'planned', 'applied', 'pending', 'confirmed', 'completed', 'rejected', 'cancelled'] as const).map(status => (
           <button key={status} type="button" className={filter === status ? 'active' : ''} onClick={() => setFilter(status)}>
             {status === 'all' ? '전체' : STATUS_LABELS[status]}
           </button>
@@ -166,7 +173,7 @@ export default function CareerEvents() {
 
       <section className="career-list">
         {visible.length === 0 ? (
-          <div className="career-empty">등록된 지원 일정이 없습니다.</div>
+          <div className="career-empty">등록된 신청·지원 일정이 없습니다.</div>
         ) : visible.map(item => (
           <article key={item.id} className="career-item">
             <div className="career-date">

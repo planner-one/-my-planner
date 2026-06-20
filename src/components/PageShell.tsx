@@ -52,7 +52,7 @@ const NAV_ITEMS: NavItem[] = [
     paths: ['M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z'],
   },
   {
-    id: 'career', label: '지원 일정',
+    id: 'career', label: '신청·지원',
     paths: ['M8 7V5a4 4 0 018 0v2', 'M3 7h18v13H3z', 'M3 12h18', 'M10 12v2h4v-2'],
   },
   {

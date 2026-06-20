@@ -149,8 +149,12 @@ export interface ScheduledTask {
   done: boolean
 }
 
-export type CareerEventCategory = 'briefing' | 'interview' | 'camp' | 'other'
-export type CareerEventStatus = 'interested' | 'applied' | 'confirmed' | 'completed' | 'cancelled'
+export type CareerEventCategory =
+  | 'briefing' | 'interview' | 'camp' | 'program'
+  | 'seminar' | 'contest' | 'support' | 'other'
+export type CareerEventStatus =
+  | 'interested' | 'planned' | 'applied' | 'pending'
+  | 'confirmed' | 'completed' | 'rejected' | 'cancelled'
 
 export interface CareerEvent {
   id: string
