@@ -400,11 +400,11 @@ function ItemForm({
               }}
             />
           )}
-          {form.type === 'career' && (form.scheduleMode === 'online' || form.scheduleMode === 'hybrid') && (
+          {form.type === 'career' && (
             <input
               value={form.url}
               onChange={e => set('url', e.target.value)}
-              placeholder="온라인 링크"
+              placeholder="공고, 신청 또는 온라인 접속 링크"
               style={{
                 width: '100%', padding: '7px 10px', borderRadius: 7,
                 border: '1px solid var(--border)', background: 'var(--bg2)',
@@ -522,7 +522,7 @@ function DayModal(props: ModalProps) {
         mode: f.scheduleMode || undefined,
         location: f.scheduleMode === 'online' ? undefined : f.location.trim() || undefined,
         address: undefined,
-        url: f.scheduleMode === 'offline' ? undefined : f.url.trim() || undefined,
+        url: f.url.trim() || undefined,
         note: f.note.trim() || undefined,
       })
       else props.onAddScheduled({
@@ -552,7 +552,7 @@ function DayModal(props: ModalProps) {
         mode: f.scheduleMode || undefined,
         location: f.scheduleMode === 'online' ? undefined : f.location.trim() || undefined,
         address: undefined,
-        url: f.scheduleMode === 'offline' ? undefined : f.url.trim() || undefined,
+        url: f.url.trim() || undefined,
         note: f.note.trim() || undefined,
       })
       else props.onUpdateScheduled(f.id!, {

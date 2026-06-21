@@ -157,7 +157,7 @@ export default function CareerEvents() {
       endTime: form.endTime || undefined,
       location: form.mode === 'online' ? undefined : form.location?.trim() || undefined,
       address: undefined,
-      url: form.mode === 'offline' ? undefined : form.url?.trim() || undefined,
+      url: form.url?.trim() || undefined,
       note: form.note?.trim() || undefined,
     }
     if (editingId) {
@@ -299,9 +299,9 @@ export default function CareerEvents() {
           {form.mode !== 'online' && <label className="span-2">장소 / 주소
             <input value={form.location ?? ''} onChange={event => updateForm('location', event.target.value)} placeholder="예: NEST AI-Lab 5층 · 서울시 광진구 광나루로 520" />
           </label>}
-          {form.mode !== 'offline' && <label className="span-2">온라인 링크
-            <input value={form.url ?? ''} onChange={event => updateForm('url', event.target.value)} placeholder="https://" />
-          </label>}
+          <label className="span-2">관련 링크
+            <input value={form.url ?? ''} onChange={event => updateForm('url', event.target.value)} placeholder="공고, 신청 또는 온라인 접속 링크" />
+          </label>
           <label className="span-2">메모
             <textarea value={form.note ?? ''} onChange={event => updateForm('note', event.target.value)} placeholder="준비물, 신청 마감, 확인할 내용" rows={3} />
           </label>
