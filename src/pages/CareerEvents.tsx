@@ -24,6 +24,10 @@ const STATUS_LABELS: Record<CareerEventStatus, string> = {
   cancelled: '취소',
 }
 
+const CREATION_STATUSES: CareerEventStatus[] = [
+  'interested', 'planned', 'applied', 'pending', 'confirmed', 'completed',
+]
+
 const CATEGORY_FIELDS: Record<CareerEventCategory, {
   dateLabel: string
   application: boolean
@@ -241,7 +245,9 @@ export default function CareerEvents() {
           </label>
           <label>상태
             <select value={form.status} onChange={event => updateForm('status', event.target.value as CareerEventStatus)}>
-              {Object.entries(STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              {Object.entries(STATUS_LABELS)
+                .filter(([value]) => editingId || CREATION_STATUSES.includes(value as CareerEventStatus))
+                .map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </label>
           <label>{fieldConfig.dateLabel}
@@ -250,7 +256,7 @@ export default function CareerEvents() {
           {fieldConfig.application && <label>신청 마감일
             <input type="date" value={form.applicationDeadline ?? ''} onChange={event => updateForm('applicationDeadline', event.target.value)} />
           </label>}
-          {fieldConfig.result && <label>결과 발표일
+          {fieldConfig.result && <label>결과 발표일 (선택)
             <input type="date" value={form.resultDate ?? ''} onChange={event => updateForm('resultDate', event.target.value)} />
           </label>}
           {fieldConfig.operation && <>
@@ -329,7 +335,7 @@ export default function CareerEvents() {
               <div className="career-item-heading">
                 <h3>{item.title}</h3>
                 <span>{CATEGORY_LABELS[item.category]}</span>
-                <span className={`status ${item.status}`}>{STATUS_LABELS[item.status]}</span>
+                <span className={`status ${item.status}`}>상태 · {STATUS_LABELS[item.status]}</span>
               </div>
               {item.organization && <p>{item.organization}</p>}
               <div className="career-details">
@@ -372,25 +378,25 @@ export default function CareerEvents() {
         .career-form-grid input, .career-form-grid select, .career-form-grid textarea { width: 100%; min-width: 0; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); padding: 9px 10px; font: inherit; font-size: 13px; outline: none; box-sizing: border-box; }
         .career-form-grid textarea { resize: vertical; }
         .career-form-actions { display: flex; justify-content: flex-end; gap: 7px; margin-top: 12px; }
-        .career-form-actions button, .career-filters button, .career-actions button { border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); padding: 8px 11px; cursor: pointer; font-size: 11px; }
+        .career-form-actions button, .career-filters button, .career-actions button { border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); padding: 8px 11px; cursor: pointer; font-size: 12px; }
         .career-form-actions .primary { border-color: var(--accent); background: var(--accent); color: #fff; font-weight: 700; }
         .career-filters { display: flex; flex-wrap: wrap; gap: 5px; }
         .career-filters button.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 700; }
         .career-list { display: flex; flex-direction: column; gap: 8px; }
-        .career-item { display: grid; grid-template-columns: 78px minmax(0, 1fr) auto; gap: 14px; align-items: start; padding: 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); }
+        .career-item { display: grid; grid-template-columns: 88px minmax(0, 1fr) auto; gap: 15px; align-items: start; padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); }
         .career-date { display: flex; flex-direction: column; gap: 3px; color: var(--accent); }
-        .career-date strong { font-size: 16px; }
-        .career-date span { color: var(--muted); font-size: 10px; white-space: nowrap; }
+        .career-date strong { font-size: 18px; }
+        .career-date span { color: var(--muted); font-size: 12px; white-space: nowrap; }
         .career-main { min-width: 0; }
         .career-item-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
-        .career-item-heading h3 { margin: 0; font-size: 15px; letter-spacing: 0; }
-        .career-item-heading span { padding: 3px 6px; border-radius: 5px; background: var(--bg3); color: var(--muted); font-size: 10px; }
+        .career-item-heading h3 { margin: 0; font-size: 17px; letter-spacing: 0; }
+        .career-item-heading span { padding: 4px 7px; border-radius: 5px; background: var(--bg3); color: var(--muted); font-size: 12px; }
         .career-item-heading .status.confirmed, .career-item-heading .status.completed { color: var(--accent); background: var(--accent-soft); }
         .career-item-heading .status.cancelled { color: var(--red); }
-        .career-main p { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
-        .career-details { display: flex; flex-wrap: wrap; gap: 5px 10px; margin-top: 7px; color: var(--muted); font-size: 11px; }
+        .career-main p { margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+        .career-details { display: flex; flex-wrap: wrap; gap: 5px 10px; margin-top: 8px; color: var(--muted); font-size: 12px; }
         .career-milestones { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
-        .career-milestones span { padding: 4px 7px; border-radius: 5px; background: var(--accent-soft); color: var(--accent); font-size: 10px; font-weight: 700; }
+        .career-milestones span { padding: 4px 7px; border-radius: 5px; background: var(--accent-soft); color: var(--accent); font-size: 11px; font-weight: 700; }
         .career-note { white-space: pre-wrap; }
         .career-main a { display: inline-block; margin-top: 7px; color: var(--accent); font-size: 11px; font-weight: 700; }
         .career-actions { display: flex; gap: 4px; }

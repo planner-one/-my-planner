@@ -283,8 +283,8 @@ function ItemForm({
                   <option value="pending">결과 대기</option>
                   <option value="confirmed">선정/확정</option>
                   <option value="completed">완료</option>
-                  <option value="rejected">탈락</option>
-                  <option value="cancelled">취소</option>
+                  {initial.mode === 'edit' && form.careerStatus === 'rejected' && <option value="rejected">탈락</option>}
+                  {initial.mode === 'edit' && form.careerStatus === 'cancelled' && <option value="cancelled">취소</option>}
                 </select>
               </div>
             </>
@@ -343,7 +343,7 @@ function ItemForm({
                 <input type="date" value={form.applicationDeadline} onChange={e => set('applicationDeadline', e.target.value)} style={calendarSelectStyle} />
               </label>}
               {careerDateFields.result && <label style={{ color:'var(--muted)', fontSize:10 }}>
-                결과 발표일
+                결과 발표일 (선택)
                 <input type="date" value={form.resultDate} onChange={e => set('resultDate', e.target.value)} style={calendarSelectStyle} />
               </label>}
               {careerDateFields.operation && <>
