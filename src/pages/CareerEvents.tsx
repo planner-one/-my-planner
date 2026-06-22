@@ -10,6 +10,7 @@ const CATEGORY_LABELS: Record<CareerEventCategory, string> = {
   seminar: '행사/세미나',
   contest: '공모전',
   support: '지원사업',
+  corp_support: '기업 지원',
   other: '기타',
 }
 
@@ -41,6 +42,7 @@ const CATEGORY_FIELDS: Record<CareerEventCategory, {
   seminar: { dateLabel: '행사 일자', application: true, result: false, operation: false },
   contest: { dateLabel: '대표 일정일', application: true, result: true, operation: false },
   support: { dateLabel: '대표 일정일', application: true, result: true, operation: true },
+  corp_support: { dateLabel: '대표 일정일', application: true, result: true, operation: true },
   other: { dateLabel: '대표 일정일', application: true, result: true, operation: true },
 }
 
@@ -57,6 +59,9 @@ const TIME_PRESETS = [
   { label: '13:00~18:00', start: '13:00', end: '18:00' },
   { label: '14:00~17:00', start: '14:00', end: '17:00' },
 ]
+
+const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
+const weekdayOf = (date: string) => WEEKDAY_LABELS[new Date(`${date}T00:00:00`).getDay()]
 
 const mergePlace = (location?: string, address?: string) =>
   [location, address].filter((value, index, values): value is string => Boolean(value) && values.indexOf(value) === index).join(' · ')
@@ -329,6 +334,7 @@ export default function CareerEvents() {
           <article key={item.id} className="career-item">
             <div className="career-date">
               <strong>{item.date.slice(5).replace('-', '/')}</strong>
+              <em>{weekdayOf(item.date)}요일</em>
               <span>{item.time ? `${item.time}${item.endTime ? `~${item.endTime}` : ''}` : '시간 미정'}</span>
             </div>
             <div className="career-main">
@@ -387,6 +393,7 @@ export default function CareerEvents() {
         .career-date { display: flex; flex-direction: column; gap: 3px; color: var(--accent); }
         .career-date strong { font-size: 18px; }
         .career-date span { color: var(--muted); font-size: 12px; white-space: nowrap; }
+        .career-date em { color: var(--muted); font-size: 11px; font-style: normal; }
         .career-main { min-width: 0; }
         .career-item-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
         .career-item-heading h3 { margin: 0; font-size: 17px; letter-spacing: 0; }

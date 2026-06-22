@@ -151,7 +151,7 @@ export interface ScheduledTask {
 
 export type CareerEventCategory =
   | 'briefing' | 'interview' | 'camp' | 'program'
-  | 'seminar' | 'contest' | 'support' | 'other'
+  | 'seminar' | 'contest' | 'support' | 'corp_support' | 'other'
 export type CareerEventStatus =
   | 'interested' | 'planned' | 'applied' | 'pending'
   | 'confirmed' | 'completed' | 'rejected' | 'cancelled'

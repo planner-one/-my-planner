@@ -76,6 +76,7 @@ const CAREER_DATE_FIELDS: Record<CareerEventCategory, { application: boolean; re
   seminar: { application: true, result: false, operation: false },
   contest: { application: true, result: true, operation: false },
   support: { application: true, result: true, operation: true },
+  corp_support: { application: true, result: true, operation: true },
   other: { application: true, result: true, operation: true },
 }
 
