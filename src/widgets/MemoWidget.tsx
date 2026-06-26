@@ -110,14 +110,14 @@ export default function MemoWidget() {
             key={memo.id}
             style={{
               display: 'grid', gridTemplateColumns: '6px minmax(0, 1fr) auto',
-              alignItems: 'center', gap: 8, minHeight: 34,
-              padding: '5px 8px', borderBottom: '1px solid var(--border)',
+              alignItems: 'start', gap: 8,
+              padding: '6px 8px', borderBottom: '1px solid var(--border)',
             }}
           >
-            <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--accent)' }} />
+            <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--accent)', marginTop: 5, flexShrink: 0 }} />
             <span style={{
-              minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap', color: 'var(--text)', fontSize: 12,
+              minWidth: 0, overflowWrap: 'break-word', whiteSpace: 'pre-wrap',
+              color: 'var(--text)', fontSize: 12, lineHeight: 1.5,
             }}>
               {memo.content}
             </span>
