@@ -3,6 +3,18 @@ import { createPortal } from 'react-dom'
 import { KOREA_LOCATIONS } from '../data/koreaLocations'
 import { useWidgetSize } from '../hooks/useWidgetSize'
 import { fetchForecast, latLonToGrid, weatherIcon, type DayForecast } from '../services/weatherService'
+import { addLocalDays, toLocalDateKey } from '../utils/date'
+
+const FORECAST_DAYS = 7
+const toApiDate = (key: string) => key.replace(/-/g, '')
+
+function buildWeekForecast(forecast: DayForecast[]): (DayForecast | null)[] {
+  const byDate = new Map(forecast.map(day => [day.date, day]))
+  return Array.from({ length: FORECAST_DAYS }, (_, i) => {
+    const apiDate = toApiDate(toLocalDateKey(addLocalDays(new Date(), i)))
+    return byDate.get(apiDate) ?? null
+  })
+}
 
 export const meta = {
   id: 'weather',
@@ -247,47 +259,45 @@ export default function WeatherWidget() {
         </div>
       )}
       {!loading && !error && forecast.length > 0 && (
-        <div style={{ minHeight: 0, flex: 1, display: 'flex', gap: compact ? 4 : 6 }}>
-          {forecast.map((day, i) => {
-            const d = new Date(
-              Number(day.date.slice(0, 4)),
-              Number(day.date.slice(4, 6)) - 1,
-              Number(day.date.slice(6, 8))
-            )
+        <div style={{ minHeight: 0, flex: 1, display: 'flex', gap: compact ? 3 : 5 }}>
+          {buildWeekForecast(forecast).map((day, i) => {
+            const d = addLocalDays(new Date(), i)
             const isToday = i === 0
             const dayLabel = isToday ? '오늘' : DAY_KO[d.getDay()]
-            const icon = weatherIcon(day.sky, day.pty)
+            const icon = day ? weatherIcon(day.sky, day.pty) : '－'
 
             return (
               <button
-                key={day.date}
+                key={i}
                 type="button"
-                onClick={() => setSelectedForecast(day)}
-                aria-label={`${dayLabel} 날씨 자세히 보기`}
+                onClick={() => day && setSelectedForecast(day)}
+                disabled={!day}
+                aria-label={`${dayLabel} 날씨 ${day ? '자세히 보기' : '정보 없음'}`}
                 style={{
-                flex: 1,
+                flex: '1 1 0%',
                 minWidth: 0, minHeight: 0,
                 display: 'flex', flexDirection: 'column',
                 alignItems: 'center', justifyContent: 'center',
                 gap: cardGap, borderRadius: compact ? 8 : 10,
-                padding: compact ? '4px 2px' : '8px 4px',
+                padding: compact ? '4px 1px' : '8px 3px',
                 background: isToday ? 'var(--accent)' : 'var(--bg3)',
                 border: 'none', color: 'inherit', fontFamily: 'inherit',
-                cursor: 'pointer',
+                cursor: day ? 'pointer' : 'default',
+                opacity: day ? 1 : 0.5,
               }}>
                 <div style={{ fontSize: compact ? 10 : 11, fontWeight: 600, color: isToday ? '#fff' : 'var(--muted)' }}>
                   {dayLabel}
                 </div>
-                <div style={{ fontSize: compact ? 19 : 24, lineHeight: 1 }}>{icon}</div>
-                <div style={{ fontSize: compact ? 13 : 14, fontWeight: 700, color: isToday ? '#fff' : 'var(--text)' }}>
-                  {day.high}°
+                <div style={{ fontSize: compact ? 17 : 22, lineHeight: 1 }}>{icon}</div>
+                <div style={{ fontSize: compact ? 12 : 13, fontWeight: 700, color: isToday ? '#fff' : 'var(--text)' }}>
+                  {day ? `${day.high}°` : '-'}
                 </div>
-                <div style={{ fontSize: compact ? 10 : 11, color: isToday ? 'rgba(255,255,255,0.7)' : 'var(--muted)' }}>
-                  {day.low}°
+                <div style={{ fontSize: compact ? 9 : 10, color: isToday ? 'rgba(255,255,255,0.7)' : 'var(--muted)' }}>
+                  {day ? `${day.low}°` : ''}
                 </div>
-                {day.pop > 0 && (
+                {day && day.pop > 0 && (
                   <div style={{
-                    fontSize: compact ? 9 : 10,
+                    fontSize: compact ? 8 : 9,
                     color: isToday ? 'rgba(255,255,255,0.8)' : '#3b82f6',
                     whiteSpace: 'nowrap',
                   }}>

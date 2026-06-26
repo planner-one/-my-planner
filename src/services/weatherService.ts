@@ -120,7 +120,7 @@ export async function fetchForecast(nx: number, ny: number): Promise<DayForecast
   const result: DayForecast[] = Object.entries(byDate)
     .sort(([a], [b]) => a.localeCompare(b))
     .filter(([date]) => date >= todayStr)
-    .slice(0, 5)
+    .slice(0, 7)
     .map(([date, cats]) => {
       const tmps = (cats['TMP'] ?? []).map(Number).filter(n => !isNaN(n))
       const tmx = cats['TMX']?.[0] ? Number(cats['TMX'][0]) : Math.max(...tmps)
