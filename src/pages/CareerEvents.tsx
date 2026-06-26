@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useApp } from '../store/AppContext'
 import type { CareerEvent, CareerEventCategory, CareerEventStatus } from '../types'
+import { toLocalDateKey } from '../utils/date'
 
 const CATEGORY_LABELS: Record<CareerEventCategory, string> = {
   briefing: '채용설명회',
@@ -90,7 +91,7 @@ const emptyForm = (): Omit<CareerEvent, 'id'> => ({
   organization: '',
   category: 'briefing',
   status: 'interested',
-  date: new Date().toISOString().slice(0, 10),
+  date: toLocalDateKey(),
   applicationDeadline: '',
   resultDate: '',
   operationStartDate: '',
@@ -214,7 +215,7 @@ export default function CareerEvents() {
     }
   }
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = toLocalDateKey()
 
   const filtered = careerEvents.filter(item => filter === 'all' || item.status === filter)
   const upcoming = filtered
