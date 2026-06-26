@@ -63,6 +63,12 @@ const TIME_PRESETS = [
 const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
 const weekdayOf = (date: string) => WEEKDAY_LABELS[new Date(`${date}T00:00:00`).getDay()]
 
+const lastRelevantDate = (item: CareerEvent) =>
+  [item.date, item.applicationDeadline, item.resultDate, item.operationEndDate]
+    .filter((value): value is string => Boolean(value))
+    .sort()
+    .pop() ?? item.date
+
 const mergePlace = (location?: string, address?: string) =>
   [location, address].filter((value, index, values): value is string => Boolean(value) && values.indexOf(value) === index).join(' · ')
 
@@ -104,6 +110,7 @@ export default function CareerEvents() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | CareerEventStatus>('all')
   const [editorOpen, setEditorOpen] = useState(false)
+  const [showPast, setShowPast] = useState(false)
 
   const closeEditor = () => {
     setEditorOpen(false)
@@ -207,9 +214,15 @@ export default function CareerEvents() {
     }
   }
 
-  const visible = [...careerEvents]
-    .filter(item => filter === 'all' || item.status === filter)
+  const today = new Date().toISOString().slice(0, 10)
+
+  const filtered = careerEvents.filter(item => filter === 'all' || item.status === filter)
+  const upcoming = filtered
+    .filter(item => lastRelevantDate(item) >= today)
     .sort((a, b) => a.date.localeCompare(b.date) || (a.time ?? '').localeCompare(b.time ?? ''))
+  const past = filtered
+    .filter(item => lastRelevantDate(item) < today)
+    .sort((a, b) => b.date.localeCompare(a.date) || (b.time ?? '').localeCompare(a.time ?? ''))
 
   const fieldConfig = CATEGORY_FIELDS[form.category]
   const operationWeekdays = countWeekdays(form.operationStartDate, form.operationEndDate)
@@ -328,42 +341,28 @@ export default function CareerEvents() {
       </nav>
 
       <section className="career-list">
-        {visible.length === 0 ? (
-          <div className="career-empty">등록된 신청·지원 일정이 없습니다.</div>
-        ) : visible.map(item => (
-          <article key={item.id} className="career-item">
-            <div className="career-date">
-              <strong>{item.date.slice(5).replace('-', '/')}</strong>
-              <em>{weekdayOf(item.date)}요일</em>
-              <span>{item.time ? `${item.time}${item.endTime ? `~${item.endTime}` : ''}` : '시간 미정'}</span>
-            </div>
-            <div className="career-main">
-              <div className="career-item-heading">
-                <h3>{item.title}</h3>
-                <span>{CATEGORY_LABELS[item.category]}</span>
-                <span className={`status ${item.status}`}>상태 · {STATUS_LABELS[item.status]}</span>
-              </div>
-              {item.organization && <p>{item.organization}</p>}
-              <div className="career-details">
-                {item.mode && <span>{item.mode === 'offline' ? '오프라인' : item.mode === 'online' ? '온라인' : '온·오프라인'}</span>}
-                {item.location && <span>{item.location}</span>}
-                {item.address && <span>{item.address}</span>}
-              </div>
-              <div className="career-milestones">
-                {item.applicationDeadline && <span>신청 마감 {item.applicationDeadline}</span>}
-                {item.resultDate && <span>결과 발표 {item.resultDate}</span>}
-                {item.operationStartDate && <span>운영 {item.operationStartDate}{item.operationEndDate ? `~${item.operationEndDate}` : ''}{countWeekdays(item.operationStartDate, item.operationEndDate) > 0 ? ` · 평일 ${countWeekdays(item.operationStartDate, item.operationEndDate)}일` : ''}</span>}
-              </div>
-              {item.note && <p className="career-note">{item.note}</p>}
-              {item.url && <a href={item.url} target="_blank" rel="noreferrer">온라인 링크 열기</a>}
-            </div>
-            <div className="career-actions">
-              <button type="button" onClick={() => edit(item)}>수정</button>
-              <button type="button" className="danger" onClick={() => remove(item.id)}>삭제</button>
-            </div>
-          </article>
+        {upcoming.length === 0 ? (
+          <div className="career-empty">예정된 신청·지원 일정이 없습니다.</div>
+        ) : upcoming.map(item => (
+          <CareerEventCard key={item.id} item={item} onEdit={edit} onRemove={remove} />
         ))}
       </section>
+
+      {past.length > 0 && (
+        <section className="career-past">
+          <button type="button" className="career-past-toggle" onClick={() => setShowPast(prev => !prev)}>
+            <span>지난 일정 {past.length}건</span>
+            <span className={`career-past-caret ${showPast ? 'open' : ''}`}>▾</span>
+          </button>
+          {showPast && (
+            <div className="career-list career-list-past">
+              {past.map(item => (
+                <CareerEventCard key={item.id} item={item} onEdit={edit} onRemove={remove} muted />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       <style>{`
         .career-page { max-width: 1050px; margin: 0 auto; color: var(--text); display: flex; flex-direction: column; gap: 16px; }
@@ -420,7 +419,53 @@ export default function CareerEvents() {
           .career-date { flex-direction: row; align-items: baseline; gap: 8px; }
           .career-actions { justify-content: flex-end; }
         }
+        .career-past { margin-top: 4px; }
+        .career-past-toggle { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg3); color: var(--muted); font-size: 12px; font-weight: 700; cursor: pointer; }
+        .career-past-caret { transition: transform 0.15s ease; }
+        .career-past-caret.open { transform: rotate(180deg); }
+        .career-list-past { margin-top: 8px; opacity: 0.75; }
       `}</style>
     </div>
+  )
+}
+
+function CareerEventCard({ item, onEdit, onRemove, muted }: {
+  item: CareerEvent
+  onEdit: (item: CareerEvent) => void
+  onRemove: (id: string) => void
+  muted?: boolean
+}) {
+  return (
+    <article className={`career-item${muted ? ' is-past' : ''}`}>
+      <div className="career-date">
+        <strong>{item.date.slice(5).replace('-', '/')}</strong>
+        <em>{weekdayOf(item.date)}요일</em>
+        <span>{item.time ? `${item.time}${item.endTime ? `~${item.endTime}` : ''}` : '시간 미정'}</span>
+      </div>
+      <div className="career-main">
+        <div className="career-item-heading">
+          <h3>{item.title}</h3>
+          <span>{CATEGORY_LABELS[item.category]}</span>
+          <span className={`status ${item.status}`}>상태 · {STATUS_LABELS[item.status]}</span>
+        </div>
+        {item.organization && <p>{item.organization}</p>}
+        <div className="career-details">
+          {item.mode && <span>{item.mode === 'offline' ? '오프라인' : item.mode === 'online' ? '온라인' : '온·오프라인'}</span>}
+          {item.location && <span>{item.location}</span>}
+          {item.address && <span>{item.address}</span>}
+        </div>
+        <div className="career-milestones">
+          {item.applicationDeadline && <span>신청 마감 {item.applicationDeadline}</span>}
+          {item.resultDate && <span>결과 발표 {item.resultDate}</span>}
+          {item.operationStartDate && <span>운영 {item.operationStartDate}{item.operationEndDate ? `~${item.operationEndDate}` : ''}{countWeekdays(item.operationStartDate, item.operationEndDate) > 0 ? ` · 평일 ${countWeekdays(item.operationStartDate, item.operationEndDate)}일` : ''}</span>}
+        </div>
+        {item.note && <p className="career-note">{item.note}</p>}
+        {item.url && <a href={item.url} target="_blank" rel="noreferrer">온라인 링크 열기</a>}
+      </div>
+      <div className="career-actions">
+        <button type="button" onClick={() => onEdit(item)}>수정</button>
+        <button type="button" className="danger" onClick={() => onRemove(item.id)}>삭제</button>
+      </div>
+    </article>
   )
 }
