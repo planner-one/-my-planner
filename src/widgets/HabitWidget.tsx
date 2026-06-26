@@ -3,7 +3,7 @@ import { useApp } from '../store/AppContext'
 import { useRouter } from '../store/RouterContext'
 import { useWidgetSize } from '../hooks/useWidgetSize'
 import { toLocalDateKey } from '../utils/date'
-import { getHabitIcon, isHabitScheduled } from '../utils/habits'
+import { EVERY_DAY, createHabitId, getHabitIcon, isHabitScheduled } from '../utils/habits'
 
 function HabitActions() {
   const {
@@ -84,8 +84,10 @@ export const meta = {
 
 export default function HabitWidget() {
   const { ref, w, h } = useWidgetSize()
-  const { habits, habitHistory, setHabitHistory } = useApp()
+  const { habits, setHabits, habitHistory, setHabitHistory } = useApp()
   const { setPage } = useRouter()
+  const [input, setInput] = useState('')
+  const [composing, setComposing] = useState(false)
   const today = toLocalDateKey()
   const todayRecord = habitHistory[today] ?? {}
   const activeHabits = habits.filter(habit => isHabitScheduled(habit))
@@ -98,6 +100,24 @@ export default function HabitWidget() {
         [id]: !prev[today]?.[id],
       },
     }))
+  }
+
+  const addHabit = () => {
+    const name = input.trim()
+    if (!name || habits.some(habit => habit.name === name)) return
+    const habit = {
+      id: createHabitId(),
+      name,
+      icon: '✨',
+      repeatDays: [...EVERY_DAY],
+      createdAt: new Date().toISOString(),
+    }
+    setHabits(prev => [...prev, habit])
+    setHabitHistory(prev => ({
+      ...prev,
+      [today]: { ...(prev[today] ?? {}), [habit.id]: false },
+    }))
+    setInput('')
   }
 
   const doneCnt = activeHabits.filter(h => todayRecord[h.id]).length
@@ -114,6 +134,27 @@ export default function HabitWidget() {
       padding: `2px ${horizontalPadding}px ${compact ? 10 : 14}px`,
       boxSizing: 'border-box', gap: compact ? 9 : 14,
     }}>
+      {!short && (
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+          <input
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onCompositionStart={() => setComposing(true)}
+            onCompositionEnd={() => setComposing(false)}
+            onKeyDown={e => { if (e.key === 'Enter' && !composing) addHabit() }}
+            placeholder="새 루틴 추가..."
+            style={{
+              flex: 1, minWidth: 0, border: '1px solid var(--border)', borderRadius: 7,
+              background: 'var(--bg3)', color: 'var(--text)', fontSize: compact ? 11 : 12,
+              padding: '6px 9px', outline: 'none', fontFamily: 'inherit',
+            }}
+          />
+          <button onClick={addHabit} style={{
+            border: 'none', borderRadius: 7, background: 'var(--accent)',
+            color: '#fff', fontSize: 14, width: 30, cursor: 'pointer', flexShrink: 0,
+          }}>+</button>
+        </div>
+      )}
       {activeHabits.length > 0 && (
         <div style={{
           height: compact ? 5 : 7, borderRadius: 999, background: 'var(--bg3)',

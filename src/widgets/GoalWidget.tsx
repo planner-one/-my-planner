@@ -1,7 +1,11 @@
+import { useState } from 'react'
 import { useApp } from '../store/AppContext'
 import { useRouter } from '../store/RouterContext'
 import { useWidgetSize } from '../hooks/useWidgetSize'
 import { getGoalDueText, getRemainingSteps, sortPriorityGoals } from '../utils/goals'
+import type { TopGoal } from '../types'
+
+const TOP_GOAL_MAX = 6
 
 export const meta = {
   id: 'goal',
@@ -18,6 +22,8 @@ export default function GoalWidget() {
   const { goals, topGoals, setTopGoals } = useApp()
   const { setPage } = useRouter()
   const { ref, w, h } = useWidgetSize()
+  const [input, setInput] = useState('')
+  const [composing, setComposing] = useState(false)
 
   const compact = w > 0 && w < 340
   const tight = h > 0 && h < 260
@@ -27,9 +33,18 @@ export default function GoalWidget() {
   const priorityGoals = sortPriorityGoals(goals).slice(0, visibleCount)
   const hiddenCount = Math.max(0, goals.length - priorityGoals.length)
   const hasAnyGoal = topGoals.length > 0 || goals.length > 0
+  const atMax = topGoals.length >= TOP_GOAL_MAX
 
   const toggleTopGoal = (id: string) => {
     setTopGoals(prev => prev.map(goal => goal.id === id ? { ...goal, done: !goal.done } : goal))
+  }
+
+  const addTopGoal = () => {
+    const text = input.trim()
+    if (!text || atMax) return
+    const next: TopGoal = { id: `top-goal-${Date.now()}`, text, done: false }
+    setTopGoals(prev => [...prev, next])
+    setInput('')
   }
 
   return (
@@ -38,6 +53,35 @@ export default function GoalWidget() {
       height: '100%', padding: compact ? 10 : 12,
       boxSizing: 'border-box', gap: 8, overflow: 'hidden',
     }}>
+      {!veryTight && (
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+          <input
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onCompositionStart={() => setComposing(true)}
+            onCompositionEnd={() => setComposing(false)}
+            onKeyDown={e => { if (e.key === 'Enter' && !composing) addTopGoal() }}
+            disabled={atMax}
+            placeholder={atMax ? `오늘 집중은 최대 ${TOP_GOAL_MAX}개까지예요` : '오늘 집중할 일 추가...'}
+            style={{
+              flex: 1, minWidth: 0, border: '1px solid var(--border)', borderRadius: 7,
+              background: 'var(--bg3)', color: 'var(--text)', fontSize: 12,
+              padding: '6px 9px', outline: 'none', fontFamily: 'inherit',
+            }}
+          />
+          <button
+            type="button"
+            onClick={addTopGoal}
+            disabled={atMax}
+            style={{
+              border: 'none', borderRadius: 7, background: 'var(--accent)',
+              color: '#fff', fontSize: 14, width: 30, cursor: atMax ? 'default' : 'pointer',
+              flexShrink: 0, opacity: atMax ? 0.5 : 1,
+            }}
+          >+</button>
+        </div>
+      )}
+
       {!hasAnyGoal ? (
         <button
           type="button"
@@ -48,7 +92,7 @@ export default function GoalWidget() {
             cursor: 'pointer', fontSize: 12, lineHeight: 1.5,
           }}
         >
-          오늘 집중과 장기 목표를 추가하세요
+          장기 목표는 목표 페이지에서 추가하세요
         </button>
       ) : (
         <>

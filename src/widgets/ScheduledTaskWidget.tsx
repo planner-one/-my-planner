@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { useApp } from '../store/AppContext'
 import { toLocalDateKey } from '../utils/date'
+import type { ScheduledTask } from '../types'
 
 export const meta = {
   id: 'scheduled',
@@ -14,11 +16,26 @@ export const meta = {
 
 export default function ScheduledTaskWidget() {
   const { scheduledTasks, setScheduledTasks } = useApp()
-
   const today = toLocalDateKey()
+  const [title, setTitle] = useState('')
+  const [date, setDate] = useState(today)
+  const [composing, setComposing] = useState(false)
 
   const toggle = (id: string) =>
     setScheduledTasks(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t))
+
+  const add = () => {
+    const text = title.trim()
+    if (!text) return
+    const task: ScheduledTask = {
+      id: `scheduled-${Date.now()}`,
+      title: text,
+      date: date || today,
+      done: false,
+    }
+    setScheduledTasks(prev => [...prev, task])
+    setTitle('')
+  }
 
   const upcoming = [...scheduledTasks]
     .filter(t => t.date >= today)
@@ -37,7 +54,37 @@ export default function ScheduledTaskWidget() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '8px 12px', boxSizing: 'border-box', gap: 4, overflowY: 'auto' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '8px 12px', boxSizing: 'border-box', gap: 6, overflowY: 'auto' }}>
+      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+        <input
+          value={title}
+          onChange={e => setTitle(e.target.value)}
+          onCompositionStart={() => setComposing(true)}
+          onCompositionEnd={() => setComposing(false)}
+          onKeyDown={e => { if (e.key === 'Enter' && !composing) add() }}
+          placeholder="예정된 작업 추가..."
+          style={{
+            flex: 1, minWidth: 0, border: '1px solid var(--border)', borderRadius: 7,
+            background: 'var(--bg3)', color: 'var(--text)', fontSize: 12,
+            padding: '6px 9px', outline: 'none', fontFamily: 'inherit',
+          }}
+        />
+        <input
+          type="date"
+          value={date}
+          onChange={e => setDate(e.target.value)}
+          style={{
+            border: '1px solid var(--border)', borderRadius: 7,
+            background: 'var(--bg3)', color: 'var(--text)', fontSize: 12,
+            padding: '6px 6px', outline: 'none', fontFamily: 'inherit', flexShrink: 0,
+          }}
+        />
+        <button onClick={add} style={{
+          border: 'none', borderRadius: 7, background: 'var(--accent)',
+          color: '#fff', fontSize: 14, width: 30, cursor: 'pointer', flexShrink: 0,
+        }}>+</button>
+      </div>
+
       {upcoming.length === 0 && (
         <p style={{ color: 'var(--muted)', fontSize: 12, textAlign: 'center', marginTop: 16 }}>
           예정된 작업이 없어요
