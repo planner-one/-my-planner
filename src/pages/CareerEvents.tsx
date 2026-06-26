@@ -64,11 +64,7 @@ const TIME_PRESETS = [
 const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
 const weekdayOf = (date: string) => WEEKDAY_LABELS[new Date(`${date}T00:00:00`).getDay()]
 
-const lastRelevantDate = (item: CareerEvent) =>
-  [item.date, item.applicationDeadline, item.resultDate, item.operationEndDate]
-    .filter((value): value is string => Boolean(value))
-    .sort()
-    .pop() ?? item.date
+const lastRelevantDate = (item: CareerEvent) => item.date
 
 const mergePlace = (location?: string, address?: string) =>
   [location, address].filter((value, index, values): value is string => Boolean(value) && values.indexOf(value) === index).join(' · ')
