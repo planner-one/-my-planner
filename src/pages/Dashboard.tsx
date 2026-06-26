@@ -26,7 +26,6 @@ const MOBILE_WIDGET_HEIGHTS: Record<string, number> = {
   goal: 260,
   menu: 240,
   review: 270,
-  quickadd: 150,
 }
 
 const normalizeLayout = (layout: LayoutItem[]): LayoutItem[] =>

@@ -10,7 +10,6 @@ import ChartWidget, { meta as chartMeta } from './ChartWidget'
 import GoalWidget, { meta as goalMeta } from './GoalWidget'
 import MenuWidget, { meta as menuMeta } from './MenuWidget'
 import ReviewWidget, { meta as reviewMeta } from './ReviewWidget'
-import QuickAddWidget, { meta as quickAddMeta } from './QuickAddWidget'
 import ScheduledTaskWidget, { meta as scheduledMeta } from './ScheduledTaskWidget'
 import WeatherWidget, { meta as weatherMeta } from './WeatherWidget'
 
@@ -39,7 +38,6 @@ export const WIDGETS: WidgetMeta[] = [
   { ...goalMeta,     component: GoalWidget },
   { ...menuMeta,     component: MenuWidget },
   { ...reviewMeta,   component: ReviewWidget },
-  { ...quickAddMeta, component: QuickAddWidget },
   { ...scheduledMeta,component: ScheduledTaskWidget },
   { ...weatherMeta,  component: WeatherWidget },
 ].sort((a, b) => a.order - b.order)
