@@ -12,14 +12,17 @@ export const meta = {
 }
 
 const PAGES = [
+  { id: 'todos',   icon: '✅', name: '오늘 할 일' },
+  { id: 'tasks',   icon: '🗒', name: '작업 관리' },
   { id: 'habits',  icon: '🏃', name: '습관 트래커' },
-  { id: 'tasks',   icon: '✅', name: '할 일 관리' },
   { id: 'goals',   icon: '🎯', name: '목표 관리' },
   { id: 'projects',icon: '📁', name: '프로젝트' },
   { id: 'weekly',  icon: '📅', name: '주간 플래너' },
   { id: 'daily',   icon: '⏰', name: '일일 플래너' },
   { id: 'notes',   icon: '📝', name: '노트' },
   { id: 'journal', icon: '📔', name: '저널' },
+  { id: 'inquiries', icon: '💬', name: '문의' },
+  { id: 'print',   icon: '🖨', name: '플래너 출력' },
   { id: 'profile', icon: '👤', name: '프로필' },
 ] as const
 
@@ -31,7 +34,7 @@ export default function MenuWidget() {
       {PAGES.map(p => (
         <button
           key={p.id}
-          onClick={() => setPage(p.id as any)}
+          onClick={() => setPage(p.id)}
           style={{
             display: 'flex', alignItems: 'center', gap: 8,
             padding: '7px 10px', borderRadius: 8,
