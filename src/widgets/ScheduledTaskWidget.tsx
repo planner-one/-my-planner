@@ -1,4 +1,5 @@
 import { useApp } from '../store/AppContext'
+import { toLocalDateKey } from '../utils/date'
 
 export const meta = {
   id: 'scheduled',
@@ -14,7 +15,7 @@ export const meta = {
 export default function ScheduledTaskWidget() {
   const { scheduledTasks, setScheduledTasks } = useApp()
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = toLocalDateKey()
 
   const toggle = (id: string) =>
     setScheduledTasks(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t))
