@@ -10,11 +10,12 @@ export default function Goals() {
   const [newTopGoal, setNewTopGoal] = useState('')
   const [newGoalName, setNewGoalName] = useState('')
 
+  const TOP_GOAL_MAX = 6
   const addTopGoal = () => {
     const text = newTopGoal.trim()
-    if (!text) return
+    if (!text || topGoals.length >= TOP_GOAL_MAX) return
     const next: TopGoal = { id: `top-goal-${Date.now()}`, text, done: false }
-    setTopGoals(prev => [...prev, next].slice(0, 6))
+    setTopGoals(prev => [...prev, next])
     setNewTopGoal('')
   }
 
@@ -102,9 +103,10 @@ export default function Goals() {
               onKeyDown={event => {
                 if (event.key === 'Enter' && !event.nativeEvent.isComposing) addTopGoal()
               }}
-              placeholder="예: 앱 출시 준비 흐름 잡기"
+              disabled={topGoals.length >= TOP_GOAL_MAX}
+              placeholder={topGoals.length >= TOP_GOAL_MAX ? `최대 ${TOP_GOAL_MAX}개까지 추가할 수 있어요` : '예: 앱 출시 준비 흐름 잡기'}
             />
-            <button type="button" onClick={addTopGoal}>추가</button>
+            <button type="button" onClick={addTopGoal} disabled={topGoals.length >= TOP_GOAL_MAX}>추가</button>
           </div>
           <div className="top-goal-list">
             {topGoals.length === 0 ? (
@@ -247,6 +249,7 @@ export default function Goals() {
         .inline-add { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
         .inline-add input, .goal-card input, .goal-card select, .top-goal-row input { min-width: 0; height: 34px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); padding: 0 10px; font-family: inherit; font-size: 13px; outline: none; }
         .inline-add button, .subtle-button { height: 34px; border: 0; border-radius: 7px; background: var(--accent); color: #fff; padding: 0 13px; font-size: 12px; font-weight: 700; cursor: pointer; }
+        .inline-add input:disabled, .inline-add button:disabled { opacity: 0.5; cursor: not-allowed; }
         .top-goal-list, .goal-list { display: flex; flex-direction: column; gap: 8px; }
         .top-goal-row { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 8px; border-radius: 8px; background: var(--bg3); }
         .check { width: 32px; height: 32px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); color: var(--muted); cursor: pointer; font-weight: 800; }
