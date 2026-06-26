@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useApp } from '../store/AppContext'
 import { toLocalDateKey } from '../utils/date'
+import QuickAddModal from '../components/QuickAddModal'
 import type { ScheduledTask } from '../types'
 
 export const meta = {
@@ -17,12 +18,20 @@ export const meta = {
 export default function ScheduledTaskWidget() {
   const { scheduledTasks, setScheduledTasks } = useApp()
   const today = toLocalDateKey()
+  const [modalOpen, setModalOpen] = useState(false)
   const [title, setTitle] = useState('')
   const [date, setDate] = useState(today)
   const [composing, setComposing] = useState(false)
 
   const toggle = (id: string) =>
     setScheduledTasks(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t))
+
+  const openModal = () => {
+    setTitle('')
+    setDate(today)
+    setModalOpen(true)
+  }
+  const closeModal = () => setModalOpen(false)
 
   const add = () => {
     const text = title.trim()
@@ -34,7 +43,7 @@ export default function ScheduledTaskWidget() {
       done: false,
     }
     setScheduledTasks(prev => [...prev, task])
-    setTitle('')
+    closeModal()
   }
 
   const upcoming = [...scheduledTasks]
@@ -55,34 +64,17 @@ export default function ScheduledTaskWidget() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '8px 12px', boxSizing: 'border-box', gap: 6, overflowY: 'auto' }}>
-      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-        <input
-          value={title}
-          onChange={e => setTitle(e.target.value)}
-          onCompositionStart={() => setComposing(true)}
-          onCompositionEnd={() => setComposing(false)}
-          onKeyDown={e => { if (e.key === 'Enter' && !composing) add() }}
-          placeholder="예정된 작업 추가..."
+      <div style={{ display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
+        <button
+          type="button"
+          onClick={openModal}
           style={{
-            flex: 1, minWidth: 0, border: '1px solid var(--border)', borderRadius: 7,
-            background: 'var(--bg3)', color: 'var(--text)', fontSize: 12,
-            padding: '6px 9px', outline: 'none', fontFamily: 'inherit',
+            border: 'none', borderRadius: 7, background: 'var(--accent)',
+            color: '#fff', fontSize: 12, fontWeight: 700, padding: '6px 12px', cursor: 'pointer',
           }}
-        />
-        <input
-          type="date"
-          value={date}
-          onChange={e => setDate(e.target.value)}
-          style={{
-            border: '1px solid var(--border)', borderRadius: 7,
-            background: 'var(--bg3)', color: 'var(--text)', fontSize: 12,
-            padding: '6px 6px', outline: 'none', fontFamily: 'inherit', flexShrink: 0,
-          }}
-        />
-        <button onClick={add} style={{
-          border: 'none', borderRadius: 7, background: 'var(--accent)',
-          color: '#fff', fontSize: 14, width: 30, cursor: 'pointer', flexShrink: 0,
-        }}>+</button>
+        >
+          + 추가
+        </button>
       </div>
 
       {upcoming.length === 0 && (
@@ -128,6 +120,53 @@ export default function ScheduledTaskWidget() {
           </div>
         </div>
       ))}
+
+      {modalOpen && (
+        <QuickAddModal title="예정된 작업 추가" onClose={closeModal}>
+          <input
+            autoFocus
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            onCompositionStart={() => setComposing(true)}
+            onCompositionEnd={() => setComposing(false)}
+            onKeyDown={e => { if (e.key === 'Enter' && !composing) add() }}
+            placeholder="예: 팀 회의 준비"
+            style={{
+              border: '1px solid var(--border)', borderRadius: 8,
+              background: 'var(--bg3)', color: 'var(--text)', fontSize: 14,
+              padding: '9px 12px', outline: 'none', fontFamily: 'inherit',
+            }}
+          />
+          <input
+            type="date"
+            value={date}
+            onChange={e => setDate(e.target.value)}
+            style={{
+              border: '1px solid var(--border)', borderRadius: 8,
+              background: 'var(--bg3)', color: 'var(--text)', fontSize: 14,
+              padding: '9px 12px', outline: 'none', fontFamily: 'inherit',
+            }}
+          />
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 7 }}>
+            <button
+              type="button"
+              onClick={closeModal}
+              style={{
+                border: '1px solid var(--border)', borderRadius: 7, background: 'transparent',
+                color: 'var(--muted)', fontSize: 13, padding: '8px 14px', cursor: 'pointer',
+              }}
+            >취소</button>
+            <button
+              type="button"
+              onClick={add}
+              style={{
+                border: 'none', borderRadius: 7, background: 'var(--accent)',
+                color: '#fff', fontSize: 13, fontWeight: 700, padding: '8px 14px', cursor: 'pointer',
+              }}
+            >추가</button>
+          </div>
+        </QuickAddModal>
+      )}
     </div>
   )
 }

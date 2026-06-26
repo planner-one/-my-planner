@@ -4,6 +4,7 @@ import { useRouter } from '../store/RouterContext'
 import { useWidgetSize } from '../hooks/useWidgetSize'
 import { toLocalDateKey } from '../utils/date'
 import { EVERY_DAY, createHabitId, getHabitIcon, isHabitScheduled } from '../utils/habits'
+import QuickAddModal from '../components/QuickAddModal'
 
 function HabitActions() {
   const {
@@ -86,6 +87,7 @@ export default function HabitWidget() {
   const { ref, w, h } = useWidgetSize()
   const { habits, setHabits, habitHistory, setHabitHistory } = useApp()
   const { setPage } = useRouter()
+  const [modalOpen, setModalOpen] = useState(false)
   const [input, setInput] = useState('')
   const [composing, setComposing] = useState(false)
   const today = toLocalDateKey()
@@ -102,6 +104,9 @@ export default function HabitWidget() {
     }))
   }
 
+  const openModal = () => { setInput(''); setModalOpen(true) }
+  const closeModal = () => setModalOpen(false)
+
   const addHabit = () => {
     const name = input.trim()
     if (!name || habits.some(habit => habit.name === name)) return
@@ -117,7 +122,7 @@ export default function HabitWidget() {
       ...prev,
       [today]: { ...(prev[today] ?? {}), [habit.id]: false },
     }))
-    setInput('')
+    closeModal()
   }
 
   const doneCnt = activeHabits.filter(h => todayRecord[h.id]).length
@@ -134,25 +139,19 @@ export default function HabitWidget() {
       padding: `2px ${horizontalPadding}px ${compact ? 10 : 14}px`,
       boxSizing: 'border-box', gap: compact ? 9 : 14,
     }}>
-      {!short && (
-        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-          <input
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onCompositionStart={() => setComposing(true)}
-            onCompositionEnd={() => setComposing(false)}
-            onKeyDown={e => { if (e.key === 'Enter' && !composing) addHabit() }}
-            placeholder="새 루틴 추가..."
+      {activeHabits.length > 0 && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
+          <button
+            type="button"
+            onClick={openModal}
             style={{
-              flex: 1, minWidth: 0, border: '1px solid var(--border)', borderRadius: 7,
-              background: 'var(--bg3)', color: 'var(--text)', fontSize: compact ? 11 : 12,
-              padding: '6px 9px', outline: 'none', fontFamily: 'inherit',
+              border: 'none', borderRadius: 7, background: 'var(--accent)',
+              color: '#fff', fontSize: compact ? 11 : 12, fontWeight: 700,
+              padding: compact ? '4px 9px' : '5px 11px', cursor: 'pointer',
             }}
-          />
-          <button onClick={addHabit} style={{
-            border: 'none', borderRadius: 7, background: 'var(--accent)',
-            color: '#fff', fontSize: 14, width: 30, cursor: 'pointer', flexShrink: 0,
-          }}>+</button>
+          >
+            + 추가
+          </button>
         </div>
       )}
       {activeHabits.length > 0 && (
@@ -178,17 +177,30 @@ export default function HabitWidget() {
             color: 'var(--muted)', textAlign: 'center',
           }}>
             <span style={{ fontSize: 12 }}>아직 등록된 루틴이 없습니다.</span>
-            <button
-              type="button"
-              onClick={() => setPage('habits')}
-              style={{
-                border: 0, borderRadius: 7, padding: '8px 12px',
-                background: 'var(--accent)', color: '#fff',
-                fontSize: 12, fontWeight: 700, cursor: 'pointer',
-              }}
-            >
-              습관 페이지에서 루틴 추가
-            </button>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button
+                type="button"
+                onClick={openModal}
+                style={{
+                  border: 0, borderRadius: 7, padding: '8px 12px',
+                  background: 'var(--accent)', color: '#fff',
+                  fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                }}
+              >
+                + 루틴 추가
+              </button>
+              <button
+                type="button"
+                onClick={() => setPage('habits')}
+                style={{
+                  border: '1px solid var(--border)', borderRadius: 7, padding: '8px 12px',
+                  background: 'transparent', color: 'var(--muted)',
+                  fontSize: 12, cursor: 'pointer',
+                }}
+              >
+                습관 페이지
+              </button>
+            </div>
           </div>
         )}
         {habits.length > 0 && activeHabits.length === 0 && (
@@ -238,6 +250,43 @@ export default function HabitWidget() {
           )
         })}
       </div>
+
+      {modalOpen && (
+        <QuickAddModal title="새 루틴 추가" onClose={closeModal}>
+          <input
+            autoFocus
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onCompositionStart={() => setComposing(true)}
+            onCompositionEnd={() => setComposing(false)}
+            onKeyDown={e => { if (e.key === 'Enter' && !composing) addHabit() }}
+            placeholder="예: 물 8잔 마시기"
+            style={{
+              border: '1px solid var(--border)', borderRadius: 8,
+              background: 'var(--bg3)', color: 'var(--text)', fontSize: 14,
+              padding: '9px 12px', outline: 'none', fontFamily: 'inherit',
+            }}
+          />
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 7 }}>
+            <button
+              type="button"
+              onClick={closeModal}
+              style={{
+                border: '1px solid var(--border)', borderRadius: 7, background: 'transparent',
+                color: 'var(--muted)', fontSize: 13, padding: '8px 14px', cursor: 'pointer',
+              }}
+            >취소</button>
+            <button
+              type="button"
+              onClick={addHabit}
+              style={{
+                border: 'none', borderRadius: 7, background: 'var(--accent)',
+                color: '#fff', fontSize: 13, fontWeight: 700, padding: '8px 14px', cursor: 'pointer',
+              }}
+            >추가</button>
+          </div>
+        </QuickAddModal>
+      )}
     </div>
   )
 }
