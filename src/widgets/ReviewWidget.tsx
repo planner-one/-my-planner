@@ -1,4 +1,5 @@
 import { useApp } from '../store/AppContext'
+import { toLocalDateKey } from '../utils/date'
 
 export const meta = {
   id: 'review',
@@ -18,7 +19,27 @@ const QUESTIONS = [
 ]
 
 export default function ReviewWidget() {
-  const { review, setReview } = useApp()
+  const { reviewHistory, setReviewHistory } = useApp()
+  const today = toLocalDateKey()
+  const todayEntry = reviewHistory.find(entry => entry.date === today)
+
+  const updateField = (key: 'r1' | 'r2' | 'r3', value: string) => {
+    setReviewHistory(prev => {
+      const existing = prev.find(entry => entry.date === today)
+      const updated = {
+        date: today,
+        r1: existing?.r1 ?? '',
+        r2: existing?.r2 ?? '',
+        r3: existing?.r3 ?? '',
+        [key]: value,
+        updatedAt: new Date().toISOString(),
+      }
+      if (existing) {
+        return prev.map(entry => entry.date === today ? updated : entry)
+      }
+      return [updated, ...prev]
+    })
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '10px 14px', boxSizing: 'border-box', gap: 10, overflowY: 'auto' }}>
@@ -26,8 +47,8 @@ export default function ReviewWidget() {
         <div key={q.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <label style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>{q.label}</label>
           <textarea
-            value={review[q.key]}
-            onChange={e => setReview(prev => ({ ...prev, [q.key]: e.target.value }))}
+            value={todayEntry?.[q.key] ?? ''}
+            onChange={e => updateField(q.key, e.target.value)}
             rows={3}
             placeholder="내용을 입력하세요..."
             style={{

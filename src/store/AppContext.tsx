@@ -7,8 +7,9 @@ import { toLocalDateKey } from '../utils/date'
 import { HABITS_VERSION, isHabitScheduled, migrateHabits } from '../utils/habits'
 import { createDefaultCounters, migrateCounters } from '../utils/counters'
 import type {
-  Todo, TodoDailyResult, DeletedTodoDailyResult, Habit, Task, Goal, Project, TopGoal, Counters, Review,
+  Todo, TodoDailyResult, DeletedTodoDailyResult, Habit, Task, Goal, Project, TopGoal, Counters,
   Note, QuickMemoEntry, WeekTask, ScheduledTask, CareerEvent, JournalEntry, LayoutItem, UserData,
+  ReviewDailyEntry,
 } from '../types'
 
 interface AppContextValue {
@@ -33,7 +34,8 @@ interface AppContextValue {
   counters: Counters;        setCounters: React.Dispatch<React.SetStateAction<Counters>>
   quickMemos: QuickMemoEntry[]
   setQuickMemos: React.Dispatch<React.SetStateAction<QuickMemoEntry[]>>
-  review: Review;            setReview: React.Dispatch<React.SetStateAction<Review>>
+  reviewHistory: ReviewDailyEntry[]
+  setReviewHistory: React.Dispatch<React.SetStateAction<ReviewDailyEntry[]>>
   notes: Note[];             setNotes: React.Dispatch<React.SetStateAction<Note[]>>
   weekTasks: Record<string, WeekTask[]>
   setWeekTasks: React.Dispatch<React.SetStateAction<Record<string, WeekTask[]>>>
@@ -79,7 +81,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [energy, setEnergy] = useState<number>(0)
   const [counters, setCounters] = useState<Counters>(() => createDefaultCounters())
   const [quickMemos, setQuickMemos] = useState<QuickMemoEntry[]>([])
-  const [review, setReview] = useState<Review>({ r1: '', r2: '', r3: '' })
+  const [reviewHistory, setReviewHistory] = useState<ReviewDailyEntry[]>([])
   const [notes, setNotes] = useState<Note[]>([])
   const [weekTasks, setWeekTasks] = useState<Record<string, WeekTask[]>>({})
   const [timeBlockData, setTimeBlockData] = useState<Record<string, Record<string, string>>>({})
@@ -105,7 +107,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       habits, habitHistory, habitSavedAt,
       habitsVersion: HABITS_VERSION, habitsInitialized: true,
       tasks, goals, projects, topGoals,
-      energy, counters, quickMemo: '', quickMemos, review,
+      energy, counters, quickMemo: '', quickMemos, reviewHistory,
       notes, weekTasks, timeBlockData, scheduledTasks, careerEvents,
       journal, chartHistory,
       dashboardLayout, dashboardActive,
@@ -167,7 +169,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
             updatedAt: migratedAt,
           }])
         }
-        if (d.review) setReview(d.review)
+        if (d.reviewHistory) {
+          setReviewHistory(d.reviewHistory)
+        } else if (d.review && (d.review.r1 || d.review.r2 || d.review.r3)) {
+          const migratedDate = d._lastSaved ? toLocalDateKey(new Date(d._lastSaved)) : toLocalDateKey()
+          setReviewHistory([{
+            date: migratedDate,
+            r1: d.review.r1, r2: d.review.r2, r3: d.review.r3,
+            updatedAt: d._lastSaved ?? new Date().toISOString(),
+          }])
+        }
         if (d.notes) setNotes(d.notes)
         if (d.weekTasks) setWeekTasks(d.weekTasks)
         if (d.timeBlockData) setTimeBlockData(d.timeBlockData)
@@ -276,7 +287,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [
     todos, todoHistory, todoHistoryTrash, todoHistoryDeletedDates,
     habits, habitHistory, habitSavedAt, tasks, goals, projects, topGoals,
-    energy, counters, quickMemos, review, notes, weekTasks,
+    energy, counters, quickMemos, reviewHistory, notes, weekTasks,
     timeBlockData, scheduledTasks, careerEvents, journal, chartHistory,
     dashboardLayout, dashboardActive, uiScale, nickname, dataLoaded,
   ])
@@ -315,7 +326,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     energy, setEnergy,
     counters, setCounters,
     quickMemos, setQuickMemos,
-    review, setReview,
+    reviewHistory, setReviewHistory,
     notes, setNotes,
     weekTasks, setWeekTasks,
     timeBlockData, setTimeBlockData,

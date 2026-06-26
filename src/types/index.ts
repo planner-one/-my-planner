@@ -107,6 +107,14 @@ export interface Review {
   r3: string
 }
 
+export interface ReviewDailyEntry {
+  date: string
+  r1: string
+  r2: string
+  r3: string
+  updatedAt: string
+}
+
 export interface QuickMemoEntry {
   id: string
   content: string
@@ -214,6 +222,7 @@ export interface UserData {
   quickMemo?: string
   quickMemos?: QuickMemoEntry[]
   review?: Review
+  reviewHistory?: ReviewDailyEntry[]
   notes?: Note[]
   weekTasks?: Record<string, WeekTask[]>
   timeBlockData?: Record<string, Record<string, string>>
