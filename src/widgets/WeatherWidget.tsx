@@ -8,11 +8,26 @@ import { addLocalDays, toLocalDateKey } from '../utils/date'
 const FORECAST_DAYS = 7
 const toApiDate = (key: string) => key.replace(/-/g, '')
 
-function buildWeekForecast(forecast: DayForecast[]): (DayForecast | null)[] {
+interface WeekDay {
+  date: Date
+  forecast: DayForecast | null
+  isToday: boolean
+}
+
+function buildWeekForecast(forecast: DayForecast[]): WeekDay[] {
   const byDate = new Map(forecast.map(day => [day.date, day]))
+  const today = new Date()
+  const todayKey = toLocalDateKey(today)
+  const startOfWeek = addLocalDays(today, -today.getDay())
+
   return Array.from({ length: FORECAST_DAYS }, (_, i) => {
-    const apiDate = toApiDate(toLocalDateKey(addLocalDays(new Date(), i)))
-    return byDate.get(apiDate) ?? null
+    const date = addLocalDays(startOfWeek, i)
+    const apiDate = toApiDate(toLocalDateKey(date))
+    return {
+      date,
+      forecast: byDate.get(apiDate) ?? null,
+      isToday: toLocalDateKey(date) === todayKey,
+    }
   })
 }
 
@@ -260,10 +275,8 @@ export default function WeatherWidget() {
       )}
       {!loading && !error && forecast.length > 0 && (
         <div style={{ minHeight: 0, flex: 1, display: 'flex', gap: compact ? 3 : 5 }}>
-          {buildWeekForecast(forecast).map((day, i) => {
-            const d = addLocalDays(new Date(), i)
-            const isToday = i === 0
-            const dayLabel = isToday ? '오늘' : DAY_KO[d.getDay()]
+          {buildWeekForecast(forecast).map(({ date, forecast: day, isToday }, i) => {
+            const dayLabel = DAY_KO[date.getDay()]
             const icon = day ? weatherIcon(day.sky, day.pty) : '－'
 
             return (
@@ -272,7 +285,7 @@ export default function WeatherWidget() {
                 type="button"
                 onClick={() => day && setSelectedForecast(day)}
                 disabled={!day}
-                aria-label={`${dayLabel} 날씨 ${day ? '자세히 보기' : '정보 없음'}`}
+                aria-label={`${dayLabel}요일${isToday ? ' (오늘)' : ''} 날씨 ${day ? '자세히 보기' : '정보 없음'}`}
                 style={{
                 flex: '1 1 0%',
                 minWidth: 0, minHeight: 0,
@@ -286,7 +299,7 @@ export default function WeatherWidget() {
                 opacity: day ? 1 : 0.5,
               }}>
                 <div style={{ fontSize: compact ? 10 : 11, fontWeight: 600, color: isToday ? '#fff' : 'var(--muted)' }}>
-                  {dayLabel}
+                  {dayLabel}{isToday && <span style={{ marginLeft: 2 }}>(오늘)</span>}
                 </div>
                 <div style={{ fontSize: compact ? 17 : 22, lineHeight: 1 }}>{icon}</div>
                 <div style={{ fontSize: compact ? 12 : 13, fontWeight: 700, color: isToday ? '#fff' : 'var(--text)' }}>
