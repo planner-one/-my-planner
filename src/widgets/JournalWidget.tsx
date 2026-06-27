@@ -57,6 +57,7 @@ export default function JournalWidget() {
   const [error, setError] = useState('')
   const [showSettings, setShowSettings] = useState(false)
   const [urlInput, setUrlInput] = useState(webhookUrl)
+  const [slide, setSlide] = useState(0)
 
   const load = async (url: string) => {
     if (!url) {
@@ -76,10 +77,12 @@ export default function JournalWidget() {
       if (normalized.length === 0) throw new Error('빈 데이터')
       setItems(normalized)
       setIsMock(false)
+      setSlide(0)
     } catch {
       setError('연결 실패 — 예시 데이터를 보여드려요')
       setItems(MOCK_ITEMS)
       setIsMock(true)
+      setSlide(0)
     } finally {
       setLoading(false)
     }
@@ -139,36 +142,7 @@ export default function JournalWidget() {
         <div style={{ fontSize: 11, color: 'var(--red)', flexShrink: 0 }}>{error}</div>
       )}
 
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto' }}>
-        {items.slice(0, MAX_ITEMS).map((item, i) => {
-          const body = itemText(item)
-          // title이 본문으로 그대로 쓰인 경우(별도 message 없음) 라벨 줄을 중복 표시하지 않음
-          const showTitleLabel = Boolean(item.title) && item.title !== body
-          const Wrapper = item.link ? 'a' : 'div'
-
-          return (
-            <Wrapper
-              key={i}
-              {...(item.link ? { href: item.link, target: '_blank', rel: 'noreferrer' } : {})}
-              style={{
-                border: 'none', borderRadius: 10, background: 'var(--bg3)',
-                padding: '9px 11px', display: 'flex', flexDirection: 'column', gap: 3,
-                textDecoration: 'none', cursor: item.link ? 'pointer' : 'default',
-              }}
-            >
-              {showTitleLabel && (
-                <span style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 700 }}>{item.title}</span>
-              )}
-              <span style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600, lineHeight: 1.4 }}>
-                {body}
-              </span>
-              {item.date && (
-                <span style={{ fontSize: 10, color: 'var(--muted)' }}>{item.date}</span>
-              )}
-            </Wrapper>
-          )
-        })}
-      </div>
+      <JournalCarousel items={items.slice(0, MAX_ITEMS)} slide={slide} setSlide={setSlide} />
 
       {showSettings && (
         <QuickAddModal title="n8n 웹훅 설정" onClose={() => setShowSettings(false)}>
@@ -210,4 +184,119 @@ export default function JournalWidget() {
       )}
     </div>
   )
+}
+
+interface JournalCarouselProps {
+  items: JournalItem[]
+  slide: number
+  setSlide: (updater: (prev: number) => number) => void
+}
+
+function JournalCarousel({ items, slide, setSlide }: JournalCarouselProps) {
+  const count = items.length
+  const goPrev = () => setSlide(prev => (prev - 1 + count) % count)
+  const goNext = () => setSlide(prev => (prev + 1) % count)
+
+  if (count === 0) {
+    return (
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', fontSize: 12 }}>
+        표시할 항목이 없어요
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <button
+          type="button"
+          onClick={goPrev}
+          disabled={count < 2}
+          aria-label="이전"
+          style={carouselArrowStyle(count < 2)}
+        >
+          ‹
+        </button>
+
+        <div style={{ flex: 1, minHeight: 0, height: '100%', overflow: 'hidden', position: 'relative', borderRadius: 12 }}>
+          <div style={{
+            display: 'flex', height: '100%', width: `${count * 100}%`,
+            transform: `translateX(-${slide * (100 / count)}%)`,
+            transition: 'transform 0.3s ease',
+          }}>
+            {items.map((item, i) => {
+              const body = itemText(item)
+              const showTitleLabel = Boolean(item.title) && item.title !== body
+              const Wrapper = item.link ? 'a' : 'div'
+              return (
+                <Wrapper
+                  key={i}
+                  {...(item.link ? { href: item.link, target: '_blank', rel: 'noreferrer' } : {})}
+                  style={{
+                    flex: `0 0 ${100 / count}%`, minWidth: 0, boxSizing: 'border-box',
+                    height: '100%', display: 'flex', flexDirection: 'column',
+                    justifyContent: 'center', gap: 8, padding: '16px 18px',
+                    background: 'var(--bg3)', textDecoration: 'none',
+                    cursor: item.link ? 'pointer' : 'default',
+                  }}
+                >
+                  {showTitleLabel && (
+                    <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 700 }}>{item.title}</span>
+                  )}
+                  <span style={{
+                    fontSize: 16, color: 'var(--text)', fontWeight: 700, lineHeight: 1.5,
+                    display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                  }}>
+                    {body}
+                  </span>
+                  {item.date && (
+                    <span style={{ fontSize: 11, color: 'var(--muted)' }}>{item.date}</span>
+                  )}
+                </Wrapper>
+              )
+            })}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={goNext}
+          disabled={count < 2}
+          aria-label="다음"
+          style={carouselArrowStyle(count < 2)}
+        >
+          ›
+        </button>
+      </div>
+
+      {count > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 5, flexShrink: 0 }}>
+          {items.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => setSlide(() => i)}
+              aria-label={`${i + 1}번째`}
+              style={{
+                width: i === slide ? 16 : 6, height: 6, borderRadius: 999,
+                border: 'none', padding: 0, cursor: 'pointer',
+                background: i === slide ? 'var(--accent)' : 'var(--bg4)',
+                transition: 'width 0.2s ease',
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function carouselArrowStyle(disabled: boolean) {
+  return {
+    flexShrink: 0, width: 30, height: 30, borderRadius: '50%',
+    border: '1px solid var(--border)', background: 'var(--bg3)',
+    color: disabled ? 'var(--muted)' : 'var(--text)',
+    fontSize: 18, lineHeight: 1, cursor: disabled ? 'default' : 'pointer',
+    opacity: disabled ? 0.4 : 1,
+  } as const
 }
