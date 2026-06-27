@@ -2,6 +2,37 @@ import { useEffect, useState } from 'react'
 
 const WEBHOOK_URL = 'https://dbp-jack.app.n8n.cloud/webhook/journal-widget'
 
+// JournalActions(제목줄)와 JournalWidget(본문)이 별개 위치에 렌더링되므로
+// "새로고침" 요청만 작은 pub/sub로 전달
+const refreshListeners = new Set<() => void>()
+function requestJournalRefresh() {
+  refreshListeners.forEach(listener => listener())
+}
+function subscribeJournalRefresh(listener: () => void) {
+  refreshListeners.add(listener)
+  return () => { refreshListeners.delete(listener) }
+}
+
+export function JournalActions() {
+  return (
+    <button
+      type="button"
+      onClick={requestJournalRefresh}
+      title="새로고침"
+      aria-label="새로고침"
+      style={{
+        width: 26, height: 26, padding: 0,
+        border: '1px solid var(--border)', borderRadius: 6,
+        background: 'transparent', color: 'var(--accent)',
+        fontSize: 14, cursor: 'pointer',
+        display: 'grid', placeItems: 'center', flexShrink: 0,
+      }}
+    >
+      ↻
+    </button>
+  )
+}
+
 export const meta = {
   id: 'journalFeed',
   name: '저널 알림',
@@ -11,6 +42,7 @@ export const meta = {
   minW: 5,
   minH: 4,
   order: 15,
+  Actions: JournalActions,
 }
 
 interface JournalItem {
@@ -20,6 +52,13 @@ interface JournalItem {
   text?: string
   date?: string
   link?: string
+  image?: string
+  thumbnail?: string
+  imageUrl?: string
+}
+
+function itemImage(item: JournalItem): string | undefined {
+  return item.image ?? item.thumbnail ?? item.imageUrl
 }
 
 const MAX_ITEMS = 4
@@ -51,13 +90,10 @@ function itemText(item: JournalItem): string {
 
 export default function JournalWidget() {
   const [items, setItems] = useState<JournalItem[]>(MOCK_ITEMS)
-  const [isMock, setIsMock] = useState(true)
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [slide, setSlide] = useState(0)
 
   const load = async (url: string) => {
-    setLoading(true)
     setError('')
     try {
       const res = await fetch(url)
@@ -68,20 +104,17 @@ export default function JournalWidget() {
       const normalized = normalizeItems(data)
       if (normalized.length === 0) throw new Error('빈 데이터')
       setItems(normalized)
-      setIsMock(false)
       setSlide(0)
     } catch {
       setError('연결 실패 — 예시 데이터를 보여드려요')
       setItems(MOCK_ITEMS)
-      setIsMock(true)
       setSlide(0)
-    } finally {
-      setLoading(false)
     }
   }
 
   useEffect(() => {
     load(WEBHOOK_URL)
+    return subscribeJournalRefresh(() => load(WEBHOOK_URL))
   }, [])
 
   return (
@@ -89,27 +122,6 @@ export default function JournalWidget() {
       display: 'flex', flexDirection: 'column', height: '100%',
       padding: '10px 14px', boxSizing: 'border-box', gap: 8, overflow: 'hidden',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-        <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>
-          {isMock ? '예시 데이터 (n8n 미연결)' : '연결됨'}
-        </span>
-        <button
-          type="button"
-          onClick={() => load(WEBHOOK_URL)}
-          disabled={loading}
-          title="새로고침"
-          aria-label="새로고침"
-          style={{
-            width: 28, padding: 0, borderRadius: 6, flexShrink: 0,
-            border: '1px solid var(--border)', background: 'var(--bg3)',
-            color: 'var(--muted)', fontSize: 13, cursor: loading ? 'default' : 'pointer',
-            opacity: loading ? 0.5 : 1,
-          }}
-        >
-          ↻
-        </button>
-      </div>
-
       {error && (
         <div style={{ fontSize: 11, color: 'var(--red)', flexShrink: 0 }}>{error}</div>
       )}
@@ -160,6 +172,7 @@ function JournalCarousel({ items, slide, setSlide }: JournalCarouselProps) {
             {items.map((item, i) => {
               const body = itemText(item)
               const showTitleLabel = Boolean(item.title) && item.title !== body
+              const image = itemImage(item)
               const Wrapper = item.link ? 'a' : 'div'
               return (
                 <Wrapper
@@ -168,11 +181,25 @@ function JournalCarousel({ items, slide, setSlide }: JournalCarouselProps) {
                   style={{
                     flex: `0 0 ${100 / count}%`, minWidth: 0, boxSizing: 'border-box',
                     height: '100%', display: 'flex', flexDirection: 'column',
-                    justifyContent: 'center', gap: 8, padding: '16px 18px',
+                    justifyContent: image ? 'flex-start' : 'center', gap: 8,
+                    padding: image ? 0 : '16px 18px',
                     background: 'var(--bg3)', textDecoration: 'none',
-                    cursor: item.link ? 'pointer' : 'default',
+                    cursor: item.link ? 'pointer' : 'default', overflow: 'hidden',
                   }}
                 >
+                  {image && (
+                    <img
+                      src={image}
+                      alt=""
+                      style={{ width: '100%', height: '55%', objectFit: 'cover', flexShrink: 0 }}
+                      onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                    />
+                  )}
+                  <div style={{
+                    display: 'flex', flexDirection: 'column', gap: 8,
+                    padding: image ? '12px 16px 16px' : 0,
+                    flex: 1, minHeight: 0, justifyContent: image ? 'flex-start' : 'center',
+                  }}>
                   {showTitleLabel && (
                     <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 700 }}>{item.title}</span>
                   )}
@@ -185,6 +212,7 @@ function JournalCarousel({ items, slide, setSlide }: JournalCarouselProps) {
                   {item.date && (
                     <span style={{ fontSize: 11, color: 'var(--muted)' }}>{item.date}</span>
                   )}
+                  </div>
                 </Wrapper>
               )
             })}
