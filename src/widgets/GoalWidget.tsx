@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { useApp } from '../store/AppContext'
 import { useRouter } from '../store/RouterContext'
 import { useWidgetSize } from '../hooks/useWidgetSize'
@@ -7,6 +7,37 @@ import QuickAddModal from '../components/QuickAddModal'
 import type { Goal, TopGoal } from '../types'
 
 const TOP_GOAL_MAX = 6
+
+// GoalActions(제목줄)와 GoalWidget(본문)이 별개 위치에 렌더링되므로
+// "추가 모달 열기" 요청만 작은 pub/sub로 전달
+const openModalListeners = new Set<() => void>()
+function requestOpenGoalModal() {
+  openModalListeners.forEach(listener => listener())
+}
+function subscribeOpenGoalModal(listener: () => void) {
+  openModalListeners.add(listener)
+  return () => { openModalListeners.delete(listener) }
+}
+
+export function GoalActions() {
+  return (
+    <button
+      type="button"
+      onClick={requestOpenGoalModal}
+      title="추가"
+      aria-label="추가"
+      style={{
+        width: 26, height: 26, padding: 0,
+        border: '1px solid var(--border)', borderRadius: 6,
+        background: 'transparent', color: 'var(--accent)',
+        fontSize: 14, fontWeight: 800, cursor: 'pointer',
+        display: 'grid', placeItems: 'center', flexShrink: 0,
+      }}
+    >
+      +
+    </button>
+  )
+}
 
 export const meta = {
   id: 'goal',
@@ -17,6 +48,7 @@ export const meta = {
   minW: 5,
   minH: 4,
   order: 8,
+  Actions: GoalActions,
 }
 
 type ModalType = 'top' | 'goal' | null
@@ -30,24 +62,31 @@ export default function GoalWidget() {
   const [composing, setComposing] = useState(false)
 
   const compact = w > 0 && w < 340
-  const tight = h > 0 && h < 260
-  const veryTight = h > 0 && h < 210
-  const visibleTopGoals = topGoals.slice(0, veryTight ? 1 : 3)
-  const visibleCount = veryTight ? 1 : tight ? 2 : 3
-  const priorityGoals = sortPriorityGoals(goals).slice(0, visibleCount)
-  const hiddenCount = Math.max(0, goals.length - priorityGoals.length)
   const hasAnyGoal = topGoals.length > 0 || goals.length > 0
   const atMax = topGoals.length >= TOP_GOAL_MAX
+
+  // "오늘 집중"은 가로로 줄바꿈되는 한 줄 레이아웃이라 전부 표시 (최대 TOP_GOAL_MAX개)
+  // "목표"는 세로로 쌓이는 카드라 위젯 높이에 비례해 보여줄 개수를 동적으로 계산
+  const itemH = compact ? 34 : 38
+  const chrome = compact ? 90 : 105
+  const goalSlots = h > 0 ? Math.max(1, Math.floor((h - chrome) / itemH)) : 3
+
+  const visibleTopGoals = topGoals
+  const priorityGoals = sortPriorityGoals(goals).slice(0, goalSlots)
+  const hiddenCount = Math.max(0, goals.length - priorityGoals.length)
 
   const toggleTopGoal = (id: string) => {
     setTopGoals(prev => prev.map(goal => goal.id === id ? { ...goal, done: !goal.done } : goal))
   }
 
-  const openModal = (type: Exclude<ModalType, null>) => {
+  // 버튼 하나로 통합 — 모달 안에서 '오늘 집중'/'목표'를 선택
+  const openModal = () => {
     setDraft('')
-    setModal(type)
+    setModal('top')
   }
   const closeModal = () => { setModal(null); setDraft('') }
+
+  useEffect(() => subscribeOpenGoalModal(openModal), [])
 
   const submitModal = () => {
     const text = draft.trim()
@@ -75,77 +114,65 @@ export default function GoalWidget() {
     <div ref={ref} style={{
       display: 'flex', flexDirection: 'column',
       height: '100%', padding: compact ? 10 : 12,
-      boxSizing: 'border-box', gap: 8, overflow: 'hidden',
+      boxSizing: 'border-box', gap: 6, overflow: 'hidden',
     }}>
       {!hasAnyGoal ? (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center', justifyContent: 'center' }}>
           <span style={{ color: 'var(--muted)', fontSize: 12 }}>오늘 집중과 목표를 추가하세요</span>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button type="button" onClick={() => openModal('top')} style={addButtonStyle}>+ 오늘 집중</button>
-            <button type="button" onClick={() => openModal('goal')} style={addButtonStyle}>+ 목표</button>
-          </div>
+          <button type="button" onClick={openModal} style={addButtonStyle}>+ 추가</button>
         </div>
       ) : (
         <>
-          <section style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+          <section style={{ flexShrink: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+            <button
+              type="button"
+              onClick={() => setPage('goals')}
+              style={{ display: 'flex', alignItems: 'baseline', gap: 6, border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', flexShrink: 0 }}
+            >
+              <span style={{ color: 'var(--muted)', fontSize: 11, fontWeight: 800 }}>오늘 집중</span>
+              {visibleTopGoals.length > 0 && (
+                <span style={{ color: 'var(--accent)', fontSize: 11, fontWeight: 800 }}>
+                  {visibleTopGoals.filter(goal => goal.done).length}/{visibleTopGoals.length}
+                </span>
+              )}
+            </button>
+            {visibleTopGoals.map((goal, index) => (
               <button
+                key={goal.id}
                 type="button"
-                onClick={() => setPage('goals')}
-                style={{ display: 'flex', alignItems: 'baseline', gap: 6, border: 'none', background: 'transparent', padding: 0, cursor: 'pointer' }}
+                onClick={() => toggleTopGoal(goal.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  border: 'none', borderRadius: 9,
+                  background: goal.done ? 'var(--accent)' : 'var(--bg3)',
+                  color: goal.done ? '#fff' : 'var(--text)',
+                  padding: compact ? '6px 8px' : '7px 9px',
+                  cursor: 'pointer', textAlign: 'left',
+                  minWidth: 0, maxWidth: '100%',
+                }}
               >
-                <span style={{ color: 'var(--muted)', fontSize: 11, fontWeight: 800 }}>오늘 집중</span>
-                {!veryTight && visibleTopGoals.length > 0 && (
-                  <span style={{ color: 'var(--accent)', fontSize: 11, fontWeight: 800 }}>
-                    {visibleTopGoals.filter(goal => goal.done).length}/{visibleTopGoals.length}
-                  </span>
-                )}
+                <span style={{ flexShrink: 0, fontSize: compact ? 12 : 13, fontWeight: 900 }}>
+                  {goal.done ? '✓' : index + 1}
+                </span>
+                <span style={{
+                  minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap', fontSize: compact ? 12 : 13,
+                  fontWeight: 800, textDecoration: goal.done ? 'line-through' : 'none',
+                }}>
+                  {goal.text}
+                </span>
               </button>
-              <button type="button" onClick={() => openModal('top')} disabled={atMax} style={addIconStyle(atMax)}>+</button>
-            </div>
-            {visibleTopGoals.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                {visibleTopGoals.map((goal, index) => (
-                  <button
-                    key={goal.id}
-                    type="button"
-                    onClick={() => toggleTopGoal(goal.id)}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 8,
-                      border: 'none', borderRadius: 9,
-                      background: goal.done ? 'var(--accent)' : 'var(--bg3)',
-                      color: goal.done ? '#fff' : 'var(--text)',
-                      padding: compact ? '7px 8px' : '8px 9px',
-                      cursor: 'pointer', textAlign: 'left',
-                    }}
-                  >
-                    <span style={{ flexShrink: 0, fontSize: compact ? 12 : 13, fontWeight: 900 }}>
-                      {goal.done ? '✓' : index + 1}
-                    </span>
-                    <span style={{
-                      minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap', fontSize: compact ? 12 : 13,
-                      fontWeight: 800, textDecoration: goal.done ? 'line-through' : 'none',
-                    }}>
-                      {goal.text}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
+            ))}
           </section>
 
           <section style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexShrink: 0 }}>
-              <button
-                type="button"
-                onClick={() => setPage('goals')}
-                style={{ border: 'none', background: 'transparent', padding: 0, color: 'var(--muted)', fontSize: 11, fontWeight: 800, cursor: 'pointer', textAlign: 'left' }}
-              >
-                목표
-              </button>
-              <button type="button" onClick={() => openModal('goal')} style={addIconStyle(false)}>+</button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setPage('goals')}
+              style={{ flexShrink: 0, border: 'none', background: 'transparent', padding: 0, color: 'var(--muted)', fontSize: 11, fontWeight: 800, cursor: 'pointer', textAlign: 'left' }}
+            >
+              목표
+            </button>
             {priorityGoals.length > 0 && (
               <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {priorityGoals.map(goal => (
@@ -177,15 +204,6 @@ export default function GoalWidget() {
             )}
           </section>
 
-          {topGoals.length > visibleTopGoals.length && !veryTight && (
-            <button
-              type="button"
-              onClick={() => setPage('goals')}
-              style={{ border: 'none', background: 'transparent', color: 'var(--muted)', cursor: 'pointer', fontSize: 10, flexShrink: 0 }}
-            >
-              오늘 집중 +{topGoals.length - visibleTopGoals.length}개
-            </button>
-          )}
           {hiddenCount > 0 && (
             <button
               type="button"
@@ -199,7 +217,24 @@ export default function GoalWidget() {
       )}
 
       {modal && (
-        <QuickAddModal title={modal === 'top' ? '오늘 집중 추가' : '목표 추가'} onClose={closeModal}>
+        <QuickAddModal title="추가" onClose={closeModal}>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button
+              type="button"
+              onClick={() => setModal('top')}
+              disabled={atMax}
+              style={toggleButtonStyle(modal === 'top', atMax)}
+            >
+              오늘 집중
+            </button>
+            <button
+              type="button"
+              onClick={() => setModal('goal')}
+              style={toggleButtonStyle(modal === 'goal', false)}
+            >
+              목표
+            </button>
+          </div>
           <input
             autoFocus
             value={draft}
@@ -229,11 +264,12 @@ const addButtonStyle: CSSProperties = {
   color: '#fff', fontSize: 12, fontWeight: 700, padding: '7px 12px', cursor: 'pointer',
 }
 
-const addIconStyle = (disabled: boolean): CSSProperties => ({
-  border: 'none', borderRadius: 6, background: 'var(--bg3)',
-  color: disabled ? 'var(--muted)' : 'var(--accent)', fontSize: 13, fontWeight: 800,
-  width: 22, height: 22, cursor: disabled ? 'default' : 'pointer', flexShrink: 0,
-  opacity: disabled ? 0.5 : 1,
+const toggleButtonStyle = (active: boolean, disabled: boolean): CSSProperties => ({
+  flex: 1, border: 'none', borderRadius: 7,
+  background: active ? 'var(--accent)' : 'var(--bg3)',
+  color: active ? '#fff' : disabled ? 'var(--muted)' : 'var(--text)',
+  fontSize: 13, fontWeight: 700, padding: '8px 10px',
+  cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.5 : 1,
 })
 
 const modalPrimaryButtonStyle: CSSProperties = {

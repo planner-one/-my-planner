@@ -1,8 +1,39 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useApp } from '../store/AppContext'
 import { toLocalDateKey } from '../utils/date'
 import QuickAddModal from '../components/QuickAddModal'
 import type { ScheduledTask } from '../types'
+
+// ScheduledTaskActions(제목줄)와 본문이 별개 위치에 렌더링되므로
+// "추가 모달 열기" 요청만 작은 pub/sub로 전달
+const openModalListeners = new Set<() => void>()
+function requestOpenScheduledModal() {
+  openModalListeners.forEach(listener => listener())
+}
+function subscribeOpenScheduledModal(listener: () => void) {
+  openModalListeners.add(listener)
+  return () => { openModalListeners.delete(listener) }
+}
+
+export function ScheduledTaskActions() {
+  return (
+    <button
+      type="button"
+      onClick={requestOpenScheduledModal}
+      title="작업 추가"
+      aria-label="작업 추가"
+      style={{
+        width: 26, height: 26, padding: 0,
+        border: '1px solid var(--border)', borderRadius: 6,
+        background: 'transparent', color: 'var(--accent)',
+        fontSize: 14, fontWeight: 800, cursor: 'pointer',
+        display: 'grid', placeItems: 'center', flexShrink: 0,
+      }}
+    >
+      +
+    </button>
+  )
+}
 
 export const meta = {
   id: 'scheduled',
@@ -13,6 +44,7 @@ export const meta = {
   minW: 4,
   minH: 4,
   order: 13,
+  Actions: ScheduledTaskActions,
 }
 
 export default function ScheduledTaskWidget() {
@@ -32,6 +64,8 @@ export default function ScheduledTaskWidget() {
     setModalOpen(true)
   }
   const closeModal = () => setModalOpen(false)
+
+  useEffect(() => subscribeOpenScheduledModal(openModal), [])
 
   const add = () => {
     const text = title.trim()
@@ -64,19 +98,6 @@ export default function ScheduledTaskWidget() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '8px 12px', boxSizing: 'border-box', gap: 6, overflowY: 'auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
-        <button
-          type="button"
-          onClick={openModal}
-          style={{
-            border: 'none', borderRadius: 7, background: 'var(--accent)',
-            color: '#fff', fontSize: 12, fontWeight: 700, padding: '6px 12px', cursor: 'pointer',
-          }}
-        >
-          + 추가
-        </button>
-      </div>
-
       {upcoming.length === 0 && (
         <p style={{ color: 'var(--muted)', fontSize: 12, textAlign: 'center', marginTop: 16 }}>
           예정된 작업이 없어요

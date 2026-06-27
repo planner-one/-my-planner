@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { KOREA_LOCATIONS } from '../data/koreaLocations'
 import { useWidgetSize } from '../hooks/useWidgetSize'
-import { fetchForecast, latLonToGrid, weatherIcon, type DayForecast } from '../services/weatherService'
+import {
+  fetchForecast, fetchHistoricalWeather, gridToLatLon, latLonToGrid,
+  weatherIcon, type DayForecast,
+} from '../services/weatherService'
 import { addLocalDays, toLocalDateKey } from '../utils/date'
 
 const FORECAST_DAYS = 7
@@ -12,22 +15,25 @@ interface WeekDay {
   date: Date
   forecast: DayForecast | null
   isToday: boolean
+  isPast: boolean
 }
 
-function buildWeekForecast(forecast: DayForecast[]): WeekDay[] {
+function buildWeekForecast(forecast: DayForecast[], history: DayForecast[], weekOffset: 0 | 1 = 0): WeekDay[] {
   const byDate = new Map(forecast.map(day => [day.date, day]))
+  const historyByDate = new Map(history.map(day => [day.date, day]))
   const today = new Date()
   const todayKey = toLocalDateKey(today)
-  const startOfWeek = addLocalDays(today, -today.getDay())
+  const startOfWeek = addLocalDays(today, -today.getDay() + weekOffset * 7)
 
   return Array.from({ length: FORECAST_DAYS }, (_, i) => {
     const date = addLocalDays(startOfWeek, i)
-    const apiDate = toApiDate(toLocalDateKey(date))
-    return {
-      date,
-      forecast: byDate.get(apiDate) ?? null,
-      isToday: toLocalDateKey(date) === todayKey,
-    }
+    const dateKey = toLocalDateKey(date)
+    const apiDate = toApiDate(dateKey)
+    const isToday = dateKey === todayKey
+    const isPast = dateKey < todayKey
+    // 미래·오늘: 단기예보 API / 지난 날짜: 실제 관측 데이터(Open-Meteo)
+    const dayForecast = isPast ? (historyByDate.get(apiDate) ?? null) : (byDate.get(apiDate) ?? null)
+    return { date, forecast: dayForecast, isToday, isPast }
   })
 }
 
@@ -68,6 +74,8 @@ function weatherLabel(sky: number, pty: number) {
 export default function WeatherWidget() {
   const { ref, h } = useWidgetSize()
   const [forecast, setForecast] = useState<DayForecast[]>([])
+  const [historicalForecast, setHistoricalForecast] = useState<DayForecast[]>([])
+  const [weekOffset, setWeekOffset] = useState<0 | 1>(0)
   const [selectedForecast, setSelectedForecast] = useState<DayForecast | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -83,7 +91,25 @@ export default function WeatherWidget() {
 
   const sigunguList = KOREA_LOCATIONS.find(s => s.name === selectedSido)?.sigungu ?? []
 
-  const load = async (nx: number, ny: number) => {
+  // 기상청 단기예보 API는 과거 날짜를 주지 않으므로, 이번 주 지난 날짜는
+  // Open-Meteo 과거 관측 API로 따로 가져옴
+  const loadHistory = async (lat: number, lon: number) => {
+    const today = new Date()
+    const startOfWeek = addLocalDays(today, -today.getDay())
+    const yesterday = addLocalDays(today, -1)
+    if (startOfWeek > yesterday) {
+      setHistoricalForecast([])
+      return
+    }
+    try {
+      const data = await fetchHistoricalWeather(lat, lon, toLocalDateKey(startOfWeek), toLocalDateKey(yesterday))
+      setHistoricalForecast(data)
+    } catch {
+      setHistoricalForecast([])
+    }
+  }
+
+  const load = async (nx: number, ny: number, latLon?: { lat: number; lon: number }) => {
     setLoading(true)
     setError('')
     try {
@@ -94,6 +120,8 @@ export default function WeatherWidget() {
     } finally {
       setLoading(false)
     }
+    const { lat, lon } = latLon ?? gridToLatLon(nx, ny)
+    loadHistory(lat, lon)
   }
 
   const detectCurrentLocation = () => {
@@ -122,7 +150,7 @@ export default function WeatherWidget() {
         setSelectedSido('')
         setSelectedSigungu('')
         setShowPicker(false)
-        load(nx, ny)
+        load(nx, ny, { lat: latitude, lon: longitude })
       },
       () => {
         setLoading(false)
@@ -136,6 +164,8 @@ export default function WeatherWidget() {
   useEffect(() => {
     if (location?.source === 'manual') {
       load(location.nx, location.ny)
+    } else if (location?.source === 'auto' && location.latitude != null && location.longitude != null) {
+      load(location.nx, location.ny, { lat: location.latitude, lon: location.longitude })
     } else {
       detectCurrentLocation()
     }
@@ -262,6 +292,29 @@ export default function WeatherWidget() {
         </div>
       )}
 
+      {/* 주간 전환 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+        <button
+          type="button"
+          onClick={() => setWeekOffset(0)}
+          style={weekToggleStyle(weekOffset === 0, compact)}
+        >
+          이번주
+        </button>
+        <button
+          type="button"
+          onClick={() => setWeekOffset(1)}
+          style={weekToggleStyle(weekOffset === 1, compact)}
+        >
+          다음주
+        </button>
+        {weekOffset === 1 && (
+          <span style={{ fontSize: compact ? 10 : 11, color: 'var(--accent)', fontWeight: 700 }}>
+            다음주 날씨를 보고 있어요
+          </span>
+        )}
+      </div>
+
       {/* 날씨 카드 */}
       {loading && (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', fontSize: 12 }}>
@@ -275,8 +328,9 @@ export default function WeatherWidget() {
       )}
       {!loading && !error && forecast.length > 0 && (
         <div style={{ minHeight: 0, flex: 1, display: 'flex', gap: compact ? 3 : 5 }}>
-          {buildWeekForecast(forecast).map(({ date, forecast: day, isToday }, i) => {
+          {buildWeekForecast(forecast, historicalForecast, weekOffset).map(({ date, forecast: day, isToday }, i) => {
             const dayLabel = DAY_KO[date.getDay()]
+            const dateLabel = `${date.getMonth() + 1}/${date.getDate()}`
             const icon = day ? weatherIcon(day.sky, day.pty) : '－'
 
             return (
@@ -285,7 +339,7 @@ export default function WeatherWidget() {
                 type="button"
                 onClick={() => day && setSelectedForecast(day)}
                 disabled={!day}
-                aria-label={`${dayLabel}요일${isToday ? ' (오늘)' : ''} 날씨 ${day ? '자세히 보기' : '정보 없음'}`}
+                aria-label={`${weekOffset === 1 ? '다음주 ' : ''}${dateLabel} ${dayLabel}요일${isToday ? ' (오늘)' : ''} 날씨 ${day ? '자세히 보기' : '정보 없음'}`}
                 style={{
                 flex: '1 1 0%',
                 minWidth: 0, minHeight: 0,
@@ -300,6 +354,9 @@ export default function WeatherWidget() {
               }}>
                 <div style={{ fontSize: compact ? 10 : 11, fontWeight: 600, color: isToday ? '#fff' : 'var(--muted)' }}>
                   {dayLabel}{isToday && <span style={{ marginLeft: 2 }}>(오늘)</span>}
+                </div>
+                <div style={{ fontSize: compact ? 9 : 10, color: isToday ? 'rgba(255,255,255,0.75)' : 'var(--muted)' }}>
+                  {dateLabel}
                 </div>
                 <div style={{ fontSize: compact ? 17 : 22, lineHeight: 1 }}>{icon}</div>
                 <div style={{ fontSize: compact ? 12 : 13, fontWeight: 700, color: isToday ? '#fff' : 'var(--text)' }}>
@@ -404,4 +461,14 @@ export default function WeatherWidget() {
       )}
     </div>
   )
+}
+
+function weekToggleStyle(active: boolean, compact: boolean) {
+  return {
+    border: 'none', borderRadius: 6,
+    background: active ? 'var(--accent)' : 'var(--bg3)',
+    color: active ? '#fff' : 'var(--muted)',
+    fontSize: compact ? 10 : 11, fontWeight: 700,
+    padding: compact ? '3px 8px' : '4px 10px', cursor: 'pointer',
+  } as const
 }

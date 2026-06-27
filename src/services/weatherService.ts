@@ -47,6 +47,53 @@ export function latLonToGrid(lat: number, lon: number): { nx: number; ny: number
   return { nx, ny }
 }
 
+/** 기상청 격자 좌표(nx, ny) → 위도/경도 역변환 (지난 날짜 과거 날씨 조회용) */
+export function gridToLatLon(nx: number, ny: number): { lat: number; lon: number } {
+  const RE = 6371.00877
+  const GRID = 5.0
+  const SLAT1 = 30.0
+  const SLAT2 = 60.0
+  const OLON = 126.0
+  const OLAT = 38.0
+  const XO = 43
+  const YO = 136
+  const DEGRAD = Math.PI / 180.0
+  const RADDEG = 180.0 / Math.PI
+
+  const re = RE / GRID
+  const slat1 = SLAT1 * DEGRAD
+  const slat2 = SLAT2 * DEGRAD
+  const olon = OLON * DEGRAD
+  const olat = OLAT * DEGRAD
+
+  let sn = Math.tan(Math.PI * 0.25 + slat2 * 0.5) / Math.tan(Math.PI * 0.25 + slat1 * 0.5)
+  sn = Math.log(Math.cos(slat1) / Math.cos(slat2)) / Math.log(sn)
+  let sf = Math.tan(Math.PI * 0.25 + slat1 * 0.5)
+  sf = Math.pow(sf, sn) * Math.cos(slat1) / sn
+  let ro = Math.tan(Math.PI * 0.25 + olat * 0.5)
+  ro = re * sf / Math.pow(ro, sn)
+
+  const xn = nx - XO
+  const yn = ro - (ny - YO)
+  const ra = Math.sqrt(xn * xn + yn * yn)
+  const raAdj = sn < 0 ? -ra : ra
+  let alat = Math.pow((re * sf) / raAdj, 1.0 / sn)
+  alat = 2.0 * Math.atan(alat) - Math.PI * 0.5
+
+  let theta = 0
+  if (Math.abs(xn) <= 0.0000001) {
+    theta = 0
+  } else if (Math.abs(yn) <= 0.0000001) {
+    theta = Math.PI * 0.5
+    if (xn < 0) theta = -theta
+  } else {
+    theta = Math.atan2(xn, yn)
+  }
+  const alon = theta / sn + olon
+
+  return { lat: alat * RADDEG, lon: alon * RADDEG }
+}
+
 /** 가장 최근 발표 시각 계산 (0200, 0500, 0800, 1100, 1400, 1700, 2000, 2300) */
 function getBaseDateTime(): { base_date: string; base_time: string } {
   const now = new Date()
@@ -135,6 +182,65 @@ export async function fetchForecast(nx: number, ny: number): Promise<DayForecast
 
       return { date, high: Math.round(tmx), low: Math.round(tmn), sky, pty, pop }
     })
+
+  sessionStorage.setItem(cacheKey, JSON.stringify(result))
+  return result
+}
+
+// WMO 날씨 코드(Open-Meteo) → 기상청 sky/pty 코드로 매핑
+function wmoCodeToSkyPty(code: number): { sky: number; pty: number } {
+  if ([95, 96, 99].includes(code)) return { sky: 4, pty: 4 } // 뇌우
+  if ([80, 81, 82].includes(code)) return { sky: 3, pty: 4 } // 소나기
+  if ([71, 73, 75, 77, 85, 86].includes(code)) return { sky: 4, pty: 3 } // 눈
+  if ([51, 53, 55, 56, 57, 61, 63, 65, 66, 67].includes(code)) return { sky: 4, pty: 1 } // 비
+  if ([45, 48].includes(code)) return { sky: 4, pty: 0 } // 안개
+  if (code === 0) return { sky: 1, pty: 0 } // 맑음
+  if ([1, 2].includes(code)) return { sky: 3, pty: 0 } // 구름 조금/보통
+  return { sky: 4, pty: 0 } // 3(overcast) 등 흐림
+}
+
+/**
+ * 지난 날짜의 실제 관측 날씨 — Open-Meteo 과거 관측 API(무료, 키 불필요)
+ * 기상청 단기예보 API는 과거 데이터를 주지 않으므로 별도 소스 사용
+ */
+export async function fetchHistoricalWeather(
+  lat: number,
+  lon: number,
+  startDate: string, // YYYY-MM-DD
+  endDate: string,   // YYYY-MM-DD
+): Promise<DayForecast[]> {
+  const cacheKey = `weather_history_${lat.toFixed(2)}_${lon.toFixed(2)}_${startDate}_${endDate}`
+  const cached = sessionStorage.getItem(cacheKey)
+  if (cached) return JSON.parse(cached)
+
+  const params = new URLSearchParams({
+    latitude: String(lat),
+    longitude: String(lon),
+    start_date: startDate,
+    end_date: endDate,
+    daily: 'weathercode,temperature_2m_max,temperature_2m_min',
+    timezone: 'Asia/Seoul',
+  })
+
+  const res = await fetch(`https://archive-api.open-meteo.com/v1/archive?${params}`)
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const data = await res.json()
+
+  const dates: string[] = data?.daily?.time ?? []
+  const codes: number[] = data?.daily?.weathercode ?? []
+  const highs: number[] = data?.daily?.temperature_2m_max ?? []
+  const lows: number[] = data?.daily?.temperature_2m_min ?? []
+
+  const result: DayForecast[] = dates.map((isoDate, i) => {
+    const { sky, pty } = wmoCodeToSkyPty(codes[i] ?? 3)
+    return {
+      date: isoDate.replace(/-/g, ''),
+      high: Math.round(highs[i] ?? 0),
+      low: Math.round(lows[i] ?? 0),
+      sky, pty,
+      pop: 0, // 과거 실제 관측치라 "확률" 개념이 없음 — 아이콘으로 강수 여부 표시
+    }
+  })
 
   sessionStorage.setItem(cacheKey, JSON.stringify(result))
   return result

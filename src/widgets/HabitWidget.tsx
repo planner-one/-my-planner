@@ -1,10 +1,21 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useApp } from '../store/AppContext'
 import { useRouter } from '../store/RouterContext'
 import { useWidgetSize } from '../hooks/useWidgetSize'
 import { toLocalDateKey } from '../utils/date'
 import { EVERY_DAY, createHabitId, getHabitIcon, isHabitScheduled } from '../utils/habits'
 import QuickAddModal from '../components/QuickAddModal'
+
+// HabitActions(제목줄)와 HabitWidget(본문)이 별개 위치에 렌더링되므로
+// "추가 모달 열기" 요청만 작은 pub/sub로 전달
+const openModalListeners = new Set<() => void>()
+function requestOpenHabitModal() {
+  openModalListeners.forEach(listener => listener())
+}
+function subscribeOpenHabitModal(listener: () => void) {
+  openModalListeners.add(listener)
+  return () => { openModalListeners.delete(listener) }
+}
 
 function HabitActions() {
   const {
@@ -40,6 +51,22 @@ function HabitActions() {
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <button
+        type="button"
+        onClick={requestOpenHabitModal}
+        title="루틴 추가"
+        aria-label="루틴 추가"
+        style={{
+          width: 26, height: 26, padding: 0,
+          border: '1px solid var(--border)', borderRadius: 6,
+          background: 'transparent', color: 'var(--accent)',
+          fontSize: 14, fontWeight: 800,
+          cursor: 'pointer',
+          display: 'grid', placeItems: 'center', flexShrink: 0,
+        }}
+      >
+        +
+      </button>
       {activeHabits.length > 0 && (
         <button
           type="button"
@@ -107,6 +134,8 @@ export default function HabitWidget() {
   const openModal = () => { setInput(''); setModalOpen(true) }
   const closeModal = () => setModalOpen(false)
 
+  useEffect(() => subscribeOpenHabitModal(openModal), [])
+
   const addHabit = () => {
     const name = input.trim()
     if (!name || habits.some(habit => habit.name === name)) return
@@ -139,21 +168,6 @@ export default function HabitWidget() {
       padding: `2px ${horizontalPadding}px ${compact ? 10 : 14}px`,
       boxSizing: 'border-box', gap: compact ? 9 : 14,
     }}>
-      {activeHabits.length > 0 && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
-          <button
-            type="button"
-            onClick={openModal}
-            style={{
-              border: 'none', borderRadius: 7, background: 'var(--accent)',
-              color: '#fff', fontSize: compact ? 11 : 12, fontWeight: 700,
-              padding: compact ? '4px 9px' : '5px 11px', cursor: 'pointer',
-            }}
-          >
-            + 추가
-          </button>
-        </div>
-      )}
       {activeHabits.length > 0 && (
         <div style={{
           height: compact ? 5 : 7, borderRadius: 999, background: 'var(--bg3)',
