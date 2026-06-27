@@ -152,79 +152,72 @@ function JournalCarousel({ items, slide, setSlide }: JournalCarouselProps) {
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ flex: 1, minHeight: 0, position: 'relative', borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{
+          display: 'flex', height: '100%', width: `${count * 100}%`,
+          transform: `translateX(-${slide * (100 / count)}%)`,
+          transition: 'transform 0.3s ease',
+        }}>
+          {items.map((item, i) => {
+            const body = itemText(item)
+            const image = itemImage(item)
+            const Wrapper = item.link ? 'a' : 'div'
+            return (
+              <Wrapper
+                key={i}
+                {...(item.link ? { href: item.link, target: '_blank', rel: 'noreferrer' } : {})}
+                style={{
+                  flex: `0 0 ${100 / count}%`, minWidth: 0, boxSizing: 'border-box',
+                  height: '100%', display: 'flex', flexDirection: 'column',
+                  justifyContent: image ? 'flex-start' : 'center', gap: 8,
+                  padding: image ? 0 : '16px 18px',
+                  background: 'var(--bg3)', textDecoration: 'none',
+                  cursor: item.link ? 'pointer' : 'default', overflow: 'hidden',
+                }}
+              >
+                {image && (
+                  <img
+                    src={image}
+                    alt=""
+                    style={{ width: '100%', height: '55%', objectFit: 'cover', flexShrink: 0 }}
+                    onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                  />
+                )}
+                <div style={{
+                  display: 'flex', flexDirection: 'column', gap: 8,
+                  padding: image ? '12px 16px 16px' : 0,
+                  flex: 1, minHeight: 0, justifyContent: image ? 'flex-start' : 'center',
+                }}>
+                <span style={{
+                  fontSize: 16, color: 'var(--text)', fontWeight: 700, lineHeight: 1.5,
+                  display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                }}>
+                  {body}
+                </span>
+                {item.date && (
+                  <span style={{ fontSize: 11, color: 'var(--muted)' }}>{item.date}</span>
+                )}
+                </div>
+              </Wrapper>
+            )
+          })}
+        </div>
+
         <button
           type="button"
           onClick={goPrev}
           disabled={count < 2}
           aria-label="이전"
-          style={carouselArrowStyle(count < 2)}
+          style={carouselArrowStyle(count < 2, 'left')}
         >
           ‹
         </button>
-
-        <div style={{ flex: 1, minHeight: 0, height: '100%', overflow: 'hidden', position: 'relative', borderRadius: 12 }}>
-          <div style={{
-            display: 'flex', height: '100%', width: `${count * 100}%`,
-            transform: `translateX(-${slide * (100 / count)}%)`,
-            transition: 'transform 0.3s ease',
-          }}>
-            {items.map((item, i) => {
-              const body = itemText(item)
-              const showTitleLabel = Boolean(item.title) && item.title !== body
-              const image = itemImage(item)
-              const Wrapper = item.link ? 'a' : 'div'
-              return (
-                <Wrapper
-                  key={i}
-                  {...(item.link ? { href: item.link, target: '_blank', rel: 'noreferrer' } : {})}
-                  style={{
-                    flex: `0 0 ${100 / count}%`, minWidth: 0, boxSizing: 'border-box',
-                    height: '100%', display: 'flex', flexDirection: 'column',
-                    justifyContent: image ? 'flex-start' : 'center', gap: 8,
-                    padding: image ? 0 : '16px 18px',
-                    background: 'var(--bg3)', textDecoration: 'none',
-                    cursor: item.link ? 'pointer' : 'default', overflow: 'hidden',
-                  }}
-                >
-                  {image && (
-                    <img
-                      src={image}
-                      alt=""
-                      style={{ width: '100%', height: '55%', objectFit: 'cover', flexShrink: 0 }}
-                      onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-                    />
-                  )}
-                  <div style={{
-                    display: 'flex', flexDirection: 'column', gap: 8,
-                    padding: image ? '12px 16px 16px' : 0,
-                    flex: 1, minHeight: 0, justifyContent: image ? 'flex-start' : 'center',
-                  }}>
-                  {showTitleLabel && (
-                    <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 700 }}>{item.title}</span>
-                  )}
-                  <span style={{
-                    fontSize: 16, color: 'var(--text)', fontWeight: 700, lineHeight: 1.5,
-                    display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden',
-                  }}>
-                    {body}
-                  </span>
-                  {item.date && (
-                    <span style={{ fontSize: 11, color: 'var(--muted)' }}>{item.date}</span>
-                  )}
-                  </div>
-                </Wrapper>
-              )
-            })}
-          </div>
-        </div>
-
         <button
           type="button"
           onClick={goNext}
           disabled={count < 2}
           aria-label="다음"
-          style={carouselArrowStyle(count < 2)}
+          style={carouselArrowStyle(count < 2, 'right')}
         >
           ›
         </button>
@@ -252,12 +245,15 @@ function JournalCarousel({ items, slide, setSlide }: JournalCarouselProps) {
   )
 }
 
-function carouselArrowStyle(disabled: boolean) {
+function carouselArrowStyle(disabled: boolean, side: 'left' | 'right') {
   return {
-    flexShrink: 0, width: 30, height: 30, borderRadius: '50%',
-    border: '1px solid var(--border)', background: 'var(--bg3)',
-    color: disabled ? 'var(--muted)' : 'var(--text)',
+    position: 'absolute', top: '50%', [side]: 8,
+    transform: 'translateY(-50%)', zIndex: 1,
+    width: 30, height: 30, borderRadius: '50%',
+    border: 'none', background: 'rgba(0,0,0,0.45)',
+    color: disabled ? 'rgba(255,255,255,0.4)' : '#fff',
     fontSize: 18, lineHeight: 1, cursor: disabled ? 'default' : 'pointer',
-    opacity: disabled ? 0.4 : 1,
+    opacity: disabled ? 0.5 : 1,
+    display: 'grid', placeItems: 'center',
   } as const
 }
