@@ -175,18 +175,17 @@ function JournalCarousel({ items, slide, setSlide }: JournalCarouselProps) {
                   cursor: item.link ? 'pointer' : 'default', overflow: 'hidden',
                 }}
               >
-                {image && (
+                {image ? (
                   <img
                     src={image}
-                    alt=""
-                    style={{ width: '100%', height: '55%', objectFit: 'cover', flexShrink: 0 }}
+                    alt={body}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
                   />
-                )}
+                ) : (
                 <div style={{
                   display: 'flex', flexDirection: 'column', gap: 8,
-                  padding: image ? '12px 16px 16px' : 0,
-                  flex: 1, minHeight: 0, justifyContent: image ? 'flex-start' : 'center',
+                  flex: 1, minHeight: 0, justifyContent: 'center',
                 }}>
                 <span style={{
                   fontSize: 16, color: 'var(--text)', fontWeight: 700, lineHeight: 1.5,
@@ -198,6 +197,7 @@ function JournalCarousel({ items, slide, setSlide }: JournalCarouselProps) {
                   <span style={{ fontSize: 11, color: 'var(--muted)' }}>{item.date}</span>
                 )}
                 </div>
+                )}
               </Wrapper>
             )
           })}
