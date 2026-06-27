@@ -46,7 +46,7 @@ function normalizeItems(data: unknown): JournalItem[] {
 }
 
 function itemText(item: JournalItem): string {
-  return item.message ?? item.content ?? item.text ?? '내용 없음'
+  return item.message ?? item.content ?? item.text ?? item.title ?? '내용 없음'
 }
 
 export default function JournalWidget() {
@@ -140,25 +140,34 @@ export default function JournalWidget() {
       )}
 
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto' }}>
-        {items.slice(0, MAX_ITEMS).map((item, i) => (
-          <div
-            key={i}
-            style={{
-              border: 'none', borderRadius: 10, background: 'var(--bg3)',
-              padding: '9px 11px', display: 'flex', flexDirection: 'column', gap: 3,
-            }}
-          >
-            {item.title && (
-              <span style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 700 }}>{item.title}</span>
-            )}
-            <span style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600, lineHeight: 1.4 }}>
-              {itemText(item)}
-            </span>
-            {item.date && (
-              <span style={{ fontSize: 10, color: 'var(--muted)' }}>{item.date}</span>
-            )}
-          </div>
-        ))}
+        {items.slice(0, MAX_ITEMS).map((item, i) => {
+          const body = itemText(item)
+          // title이 본문으로 그대로 쓰인 경우(별도 message 없음) 라벨 줄을 중복 표시하지 않음
+          const showTitleLabel = Boolean(item.title) && item.title !== body
+          const Wrapper = item.link ? 'a' : 'div'
+
+          return (
+            <Wrapper
+              key={i}
+              {...(item.link ? { href: item.link, target: '_blank', rel: 'noreferrer' } : {})}
+              style={{
+                border: 'none', borderRadius: 10, background: 'var(--bg3)',
+                padding: '9px 11px', display: 'flex', flexDirection: 'column', gap: 3,
+                textDecoration: 'none', cursor: item.link ? 'pointer' : 'default',
+              }}
+            >
+              {showTitleLabel && (
+                <span style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 700 }}>{item.title}</span>
+              )}
+              <span style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600, lineHeight: 1.4 }}>
+                {body}
+              </span>
+              {item.date && (
+                <span style={{ fontSize: 10, color: 'var(--muted)' }}>{item.date}</span>
+              )}
+            </Wrapper>
+          )
+        })}
       </div>
 
       {showSettings && (
