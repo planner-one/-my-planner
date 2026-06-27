@@ -89,30 +89,38 @@ export default function Dashboard() {
       <div key={item.i} style={{
         background: 'var(--bg2)', border: '1px solid var(--border)',
         borderRadius: mobile ? 16 : 20, overflow: 'hidden',
-        display: 'flex', flexDirection: 'column',
+        display: 'flex', flexDirection: 'column', position: 'relative',
         height: mobile ? mobileHeight : '100%',
         minWidth: 0,
       }}>
-        <div style={{
-          padding: mobile ? '9px 12px 7px' : '10px 14px 8px',
-          fontSize: mobile ? 12 : 13, fontWeight: 600,
-          color: 'var(--accent)',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          flexShrink: 0,
-        }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 5,
-            minWidth: 0, whiteSpace: 'nowrap',
-          }}>
-            <span style={{ flexShrink: 0 }}>{meta.icon}</span>
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{meta.name}</span>
-          </div>
-          {meta.Actions && (
-            <div style={{ flexShrink: 0, marginLeft: 8 }}>
+        {meta.hideHeaderLabel ? (
+          meta.Actions && (
+            <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}>
               <meta.Actions />
             </div>
-          )}
-        </div>
+          )
+        ) : (
+          <div style={{
+            padding: mobile ? '9px 12px 7px' : '10px 14px 8px',
+            fontSize: mobile ? 12 : 13, fontWeight: 600,
+            color: 'var(--accent)',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            flexShrink: 0,
+          }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              minWidth: 0, whiteSpace: 'nowrap',
+            }}>
+              <span style={{ flexShrink: 0 }}>{meta.icon}</span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{meta.name}</span>
+            </div>
+            {meta.Actions && (
+              <div style={{ flexShrink: 0, marginLeft: 8 }}>
+                <meta.Actions />
+              </div>
+            )}
+          </div>
+        )}
         <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
           <div style={{ position: 'absolute', inset: 0 }}>
             <Comp />

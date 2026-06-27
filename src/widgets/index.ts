@@ -25,6 +25,7 @@ export interface WidgetMeta {
   order: number
   component: ComponentType
   Actions?: ComponentType
+  hideHeaderLabel?: boolean
 }
 
 export const WIDGETS: WidgetMeta[] = [

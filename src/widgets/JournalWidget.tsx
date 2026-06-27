@@ -43,6 +43,7 @@ export const meta = {
   minH: 4,
   order: 15,
   Actions: JournalActions,
+  hideHeaderLabel: true,
 }
 
 interface JournalItem {
@@ -120,10 +121,10 @@ export default function JournalWidget() {
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', height: '100%',
-      padding: '10px 14px', boxSizing: 'border-box', gap: 8, overflow: 'hidden',
+      boxSizing: 'border-box', gap: 8, overflow: 'hidden',
     }}>
       {error && (
-        <div style={{ fontSize: 11, color: 'var(--red)', flexShrink: 0 }}>{error}</div>
+        <div style={{ fontSize: 11, color: 'var(--red)', flexShrink: 0, padding: '8px 14px 0' }}>{error}</div>
       )}
 
       <JournalCarousel items={items.slice(0, MAX_ITEMS)} slide={slide} setSlide={setSlide} />
