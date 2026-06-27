@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import { KOREA_LOCATIONS } from '../data/koreaLocations'
 import { useWidgetSize } from '../hooks/useWidgetSize'
@@ -10,6 +10,44 @@ import { addLocalDays, toLocalDateKey } from '../utils/date'
 
 const FORECAST_DAYS = 7
 const toApiDate = (key: string) => key.replace(/-/g, '')
+
+// WeatherActions(제목줄)와 WeatherWidget(본문)이 별개 위치에 렌더링되므로
+// "이번주/다음주" 선택 상태를 작은 공유 스토어로 동기화
+let weekOffsetValue: 0 | 1 = 0
+const weekOffsetListeners = new Set<() => void>()
+function getWeekOffset(): 0 | 1 {
+  return weekOffsetValue
+}
+function setWeekOffsetGlobal(value: 0 | 1) {
+  weekOffsetValue = value
+  weekOffsetListeners.forEach(listener => listener())
+}
+function subscribeWeekOffset(listener: () => void) {
+  weekOffsetListeners.add(listener)
+  return () => { weekOffsetListeners.delete(listener) }
+}
+
+export function WeatherActions() {
+  const weekOffset = useSyncExternalStore(subscribeWeekOffset, getWeekOffset)
+  return (
+    <div style={{ display: 'flex', gap: 4 }}>
+      <button
+        type="button"
+        onClick={() => setWeekOffsetGlobal(0)}
+        style={weekToggleStyle(weekOffset === 0, false)}
+      >
+        이번주
+      </button>
+      <button
+        type="button"
+        onClick={() => setWeekOffsetGlobal(1)}
+        style={weekToggleStyle(weekOffset === 1, false)}
+      >
+        다음주
+      </button>
+    </div>
+  )
+}
 
 interface WeekDay {
   date: Date
@@ -46,6 +84,7 @@ export const meta = {
   minW: 10,
   minH: 4,
   order: 14,
+  Actions: WeatherActions,
 }
 
 const DAY_KO = ['일', '월', '화', '수', '목', '금', '토']
@@ -75,7 +114,7 @@ export default function WeatherWidget() {
   const { ref, h } = useWidgetSize()
   const [forecast, setForecast] = useState<DayForecast[]>([])
   const [historicalForecast, setHistoricalForecast] = useState<DayForecast[]>([])
-  const [weekOffset, setWeekOffset] = useState<0 | 1>(0)
+  const weekOffset = useSyncExternalStore(subscribeWeekOffset, getWeekOffset)
   const [selectedForecast, setSelectedForecast] = useState<DayForecast | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -292,28 +331,11 @@ export default function WeatherWidget() {
         </div>
       )}
 
-      {/* 주간 전환 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-        <button
-          type="button"
-          onClick={() => setWeekOffset(0)}
-          style={weekToggleStyle(weekOffset === 0, compact)}
-        >
-          이번주
-        </button>
-        <button
-          type="button"
-          onClick={() => setWeekOffset(1)}
-          style={weekToggleStyle(weekOffset === 1, compact)}
-        >
-          다음주
-        </button>
-        {weekOffset === 1 && (
-          <span style={{ fontSize: compact ? 10 : 11, color: 'var(--accent)', fontWeight: 700 }}>
-            다음주 날씨를 보고 있어요
-          </span>
-        )}
-      </div>
+      {weekOffset === 1 && (
+        <span style={{ fontSize: compact ? 10 : 11, color: 'var(--accent)', fontWeight: 700, flexShrink: 0 }}>
+          다음주 날씨를 보고 있어요
+        </span>
+      )}
 
       {/* 날씨 카드 */}
       {loading && (
