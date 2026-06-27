@@ -12,6 +12,7 @@ import MenuWidget, { meta as menuMeta } from './MenuWidget'
 import ReviewWidget, { meta as reviewMeta } from './ReviewWidget'
 import ScheduledTaskWidget, { meta as scheduledMeta } from './ScheduledTaskWidget'
 import WeatherWidget, { meta as weatherMeta } from './WeatherWidget'
+import JournalWidget, { meta as journalFeedMeta } from './JournalWidget'
 
 export interface WidgetMeta {
   id: string
@@ -40,6 +41,7 @@ export const WIDGETS: WidgetMeta[] = [
   { ...reviewMeta,   component: ReviewWidget },
   { ...scheduledMeta,component: ScheduledTaskWidget },
   { ...weatherMeta,  component: WeatherWidget },
+  { ...journalFeedMeta, component: JournalWidget },
 ].sort((a, b) => a.order - b.order)
 
 export const WIDGET_MAP: Record<string, WidgetMeta> = Object.fromEntries(
