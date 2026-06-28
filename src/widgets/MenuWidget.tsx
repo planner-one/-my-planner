@@ -21,6 +21,7 @@ const PAGES = [
   { id: 'daily',   icon: '⏰', name: '일일 플래너' },
   { id: 'notes',   icon: '📝', name: '노트' },
   { id: 'journal', icon: '📔', name: '저널' },
+  { id: 'career',  icon: '💼', name: '신청 관리' },
   { id: 'inquiries', icon: '💬', name: '문의' },
   { id: 'print',   icon: '🖨', name: '플래너 출력' },
   { id: 'profile', icon: '👤', name: '프로필' },
