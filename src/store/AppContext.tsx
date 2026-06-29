@@ -6,6 +6,10 @@ import { useAuth } from './AuthContext'
 import { toLocalDateKey } from '../utils/date'
 import { HABITS_VERSION, isHabitScheduled, migrateHabits } from '../utils/habits'
 import { createDefaultCounters, migrateCounters } from '../utils/counters'
+import {
+  DEFAULT_CAREER_CATEGORY, DEFAULT_CAREER_STATUS,
+  isCareerEventCategory, isCareerEventStatus,
+} from '../utils/careerEvents'
 import type {
   Todo, TodoDailyResult, DeletedTodoDailyResult, Habit, Task, Goal, Project, TopGoal, Counters,
   Note, QuickMemoEntry, WeekTask, ScheduledTask, CareerEvent, JournalEntry, LayoutItem, UserData,
@@ -60,9 +64,41 @@ interface AppContextValue {
 
 const AppContext = createContext<AppContextValue | null>(null)
 
-const LS_KEYS = ['dashboard_cols_v']
+const LS_KEYS = ['dashboard_cols_v', 'weather_location', 'theme', 'clock_widget_mode']
 
 const sanitize = (data: UserData): UserData => JSON.parse(JSON.stringify(data))
+
+const clampPercent = (value: unknown) => {
+  const number = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(number)) return 0
+  return Math.max(0, Math.min(100, Math.round(number)))
+}
+
+const normalizeText = (value: unknown, fallback: string) =>
+  typeof value === 'string' && value.trim() ? value.trim() : fallback
+
+const migrateProjects = (projects: UserData['projects'] = []): Project[] =>
+  (projects as Array<Partial<Project>>).map((project, index) => ({
+    ...project,
+    id: project.id ?? `project-${Date.now()}-${index}`,
+    name: normalizeText(project.name, '이름 없는 프로젝트'),
+    pct: clampPercent(project.pct),
+  }))
+
+const migrateCareerEvents = (careerEvents: UserData['careerEvents'] = []): CareerEvent[] =>
+  (careerEvents as Array<Partial<CareerEvent>>).map((event, index) => ({
+    ...event,
+    id: event.id ?? `career-${Date.now()}-${index}`,
+    title: normalizeText(event.title, '제목 없음'),
+    category: isCareerEventCategory(event.category) ? event.category : DEFAULT_CAREER_CATEGORY,
+    status: isCareerEventStatus(event.status) ? event.status : DEFAULT_CAREER_STATUS,
+    date: event.date
+      ?? event.applicationDeadline
+      ?? event.resultDate
+      ?? event.operationStartDate
+      ?? event.operationEndDate
+      ?? toLocalDateKey(),
+  }))
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
@@ -99,9 +135,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const isLoadingRef = useRef(true)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const currentUidRef = useRef<string | null>(null)
+  const currentUserMetaRef = useRef({ displayName: '', email: '', photoURL: '' })
   const currentDataRef = useRef<UserData>({})
 
   useEffect(() => {
+    const liveUserMeta = {
+      displayName: user?.displayName ?? '',
+      email: user?.email ?? '',
+      photoURL: user?.photoURL ?? '',
+    }
+    if (currentUidRef.current && currentUidRef.current === user?.uid) {
+      currentUserMetaRef.current = liveUserMeta
+    }
+    const userMeta = currentUidRef.current === user?.uid ? liveUserMeta : currentUserMetaRef.current
+
     currentDataRef.current = sanitize({
       todos, todoHistory, todoHistoryTrash, todoHistoryDeletedDates,
       habits, habitHistory, habitSavedAt,
@@ -114,14 +161,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
       uiScale,
       nickname,
       _lastSaved: new Date().toISOString(),
-      _displayName: user?.displayName ?? '',
-      _email: user?.email ?? '',
-      _photoURL: user?.photoURL ?? '',
+      _displayName: userMeta.displayName,
+      _email: userMeta.email,
+      _photoURL: userMeta.photoURL,
     })
   })
 
   useEffect(() => {
-    if (!user) return
+    if (!user) {
+      if (saveTimerRef.current) {
+        const previousUid = currentUidRef.current
+        const previousData = currentDataRef.current
+        clearTimeout(saveTimerRef.current)
+        saveTimerRef.current = null
+        if (previousUid) {
+          saveUserData(previousUid, previousData).catch(console.error)
+        }
+      }
+      currentUidRef.current = null
+      currentUserMetaRef.current = { displayName: '', email: '', photoURL: '' }
+      return
+    }
+
+    if (saveTimerRef.current) {
+      const previousUid = currentUidRef.current
+      const previousData = currentDataRef.current
+      clearTimeout(saveTimerRef.current)
+      saveTimerRef.current = null
+      if (previousUid && previousUid !== user.uid) {
+        saveUserData(previousUid, previousData).catch(console.error)
+      }
+    }
 
     const storedUid = localStorage.getItem('_uid')
     if (storedUid && storedUid !== user.uid) {
@@ -129,76 +199,105 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     localStorage.setItem('_uid', user.uid)
     currentUidRef.current = user.uid
+    currentUserMetaRef.current = {
+      displayName: user.displayName ?? '',
+      email: user.email ?? '',
+      photoURL: user.photoURL ?? '',
+    }
+    const loadingUid = user.uid
 
     isLoadingRef.current = true
     setDataLoaded(false)
-    setUiScale(90)
+    setTodos([])
+    setTodoHistory([])
     setTodoHistoryTrash([])
     setTodoHistoryDeletedDates([])
+    setHabits([])
+    setHabitHistory({})
     setHabitSavedAt({})
+    setTasks([])
+    setGoals([])
+    setProjects([])
+    setTopGoals([])
+    setEnergy(0)
+    setCounters(createDefaultCounters())
     setQuickMemos([])
+    setReviewHistory([])
+    setNotes([])
+    setWeekTasks({})
+    setTimeBlockData({})
+    setScheduledTasks([])
+    setCareerEvents([])
+    setJournal([])
+    setChartHistory([])
+    setDashboardLayout([])
+    setDashboardActive([])
+    setUiScale(90)
+    setNickname('')
 
-    loadUserData(user.uid).then(d => {
+    loadUserData(loadingUid).then(d => {
+      if (currentUidRef.current !== loadingUid) return
+
+      const migratedHabits = migrateHabits(
+        (d?.habits ?? []) as Array<Partial<Habit> & { name: string }>,
+        d?.habitHistory ?? {},
+        d?.habitsInitialized,
+      )
+
+      setTodos(d?.todos ?? [])
+      setTodoHistory(d?.todoHistory ?? [])
+      setTodoHistoryTrash(d?.todoHistoryTrash ?? [])
+      setTodoHistoryDeletedDates(d?.todoHistoryDeletedDates ?? [])
+      setHabits(migratedHabits.habits)
+      setHabitHistory(migratedHabits.habitHistory)
+      setHabitSavedAt(d?.habitSavedAt ?? {})
+      setTasks(d?.tasks ?? [])
+      setGoals(d?.goals ?? [])
+      setProjects(migrateProjects(d?.projects))
+      setTopGoals(d?.topGoals ?? [])
+      setEnergy(d?.energy ?? 0)
+      setCounters(migrateCounters(d?.counters))
+      if (d?.quickMemos) {
+        setQuickMemos(d.quickMemos)
+      } else if (d?.quickMemo?.trim()) {
+        const migratedAt = d._lastSaved ?? new Date().toISOString()
+        setQuickMemos([{
+          id: `legacy-memo-${Date.now()}`,
+          content: d.quickMemo.trim(),
+          createdAt: migratedAt,
+          updatedAt: migratedAt,
+        }])
+      } else {
+        setQuickMemos([])
+      }
+      if (d?.reviewHistory) {
+        setReviewHistory(d.reviewHistory)
+      } else if (d?.review && (d.review.r1 || d.review.r2 || d.review.r3)) {
+        const migratedDate = d._lastSaved ? toLocalDateKey(new Date(d._lastSaved)) : toLocalDateKey()
+        setReviewHistory([{
+          date: migratedDate,
+          r1: d.review.r1, r2: d.review.r2, r3: d.review.r3,
+          updatedAt: d._lastSaved ?? new Date().toISOString(),
+        }])
+      } else {
+        setReviewHistory([])
+      }
+      setNotes(d?.notes ?? [])
+      setWeekTasks(d?.weekTasks ?? {})
+      setTimeBlockData(d?.timeBlockData ?? {})
+      setScheduledTasks(d?.scheduledTasks ?? [])
+      setCareerEvents(migrateCareerEvents(d?.careerEvents))
+      setJournal(d?.journal ?? [])
+      setChartHistory(d?.chartHistory ?? [])
+      setDashboardLayout(d?.dashboardLayout ?? [])
+      setDashboardActive(d?.dashboardActive ?? [])
+      setNickname(d?.nickname ?? '')
+      setUiScale(d?.uiScale ?? 90)
       if (d) {
-        if (d.todos) setTodos(d.todos)
-        if (d.todoHistory) setTodoHistory(d.todoHistory)
-        setTodoHistoryTrash(d.todoHistoryTrash ?? [])
-        setTodoHistoryDeletedDates(d.todoHistoryDeletedDates ?? [])
-        const migratedHabits = migrateHabits(
-          (d.habits ?? []) as Array<Partial<Habit> & { name: string }>,
-          d.habitHistory ?? {},
-          d.habitsInitialized,
-        )
-        setHabits(migratedHabits.habits)
-        setHabitHistory(migratedHabits.habitHistory)
-        setHabitSavedAt(d.habitSavedAt ?? {})
-        if (d.tasks) setTasks(d.tasks)
-        if (d.goals) setGoals(d.goals)
-        if (d.projects) setProjects(d.projects)
-        if (d.topGoals) setTopGoals(d.topGoals)
-        if (d.energy != null) setEnergy(d.energy)
-        setCounters(migrateCounters(d.counters))
-        if (d.quickMemos) {
-          setQuickMemos(d.quickMemos)
-        } else if (d.quickMemo?.trim()) {
-          const migratedAt = d._lastSaved ?? new Date().toISOString()
-          setQuickMemos([{
-            id: `legacy-memo-${Date.now()}`,
-            content: d.quickMemo.trim(),
-            createdAt: migratedAt,
-            updatedAt: migratedAt,
-          }])
-        }
-        if (d.reviewHistory) {
-          setReviewHistory(d.reviewHistory)
-        } else if (d.review && (d.review.r1 || d.review.r2 || d.review.r3)) {
-          const migratedDate = d._lastSaved ? toLocalDateKey(new Date(d._lastSaved)) : toLocalDateKey()
-          setReviewHistory([{
-            date: migratedDate,
-            r1: d.review.r1, r2: d.review.r2, r3: d.review.r3,
-            updatedAt: d._lastSaved ?? new Date().toISOString(),
-          }])
-        }
-        if (d.notes) setNotes(d.notes)
-        if (d.weekTasks) setWeekTasks(d.weekTasks)
-        if (d.timeBlockData) setTimeBlockData(d.timeBlockData)
-        if (d.scheduledTasks) setScheduledTasks(d.scheduledTasks)
-        setCareerEvents(d.careerEvents ?? [])
-        if (d.journal) setJournal(d.journal)
-        if (d.chartHistory) setChartHistory(d.chartHistory)
-        if (d.dashboardLayout) setDashboardLayout(d.dashboardLayout)
-        if (d.dashboardActive) setDashboardActive(d.dashboardActive)
-        if (d.nickname) setNickname(d.nickname)
         localStorage.setItem('dashboard_cols_v', '2')
       }
-      if (!d) {
-        const migratedHabits = migrateHabits([], {}, undefined)
-        setHabits(migratedHabits.habits)
-        setHabitHistory(migratedHabits.habitHistory)
-        setCounters(createDefaultCounters())
-      }
-      setUiScale(d?.uiScale ?? 90)
       setTimeout(() => {
+        if (currentUidRef.current !== loadingUid) return
         isLoadingRef.current = false
         setDataLoaded(true)
       }, 300)
@@ -279,10 +378,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user || !dataLoaded || isLoadingRef.current) return
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    const uid = currentUidRef.current
+    const data = currentDataRef.current
+    if (!uid) return
     saveTimerRef.current = setTimeout(() => {
-      if (currentUidRef.current) {
-        saveUserData(currentUidRef.current, currentDataRef.current)
-      }
+      saveTimerRef.current = null
+      saveUserData(uid, data).catch(console.error)
     }, 1000)
   }, [
     todos, todoHistory, todoHistoryTrash, todoHistoryDeletedDates,
@@ -293,19 +394,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
   ])
 
   const saveWithOverrides = (overrides: Partial<UserData> = {}): Promise<void> => {
-    if (!currentUidRef.current) return Promise.resolve()
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    const uid = currentUidRef.current
+    if (!uid) return Promise.resolve()
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current)
+      saveTimerRef.current = null
+    }
     return saveUserData(
-      currentUidRef.current,
+      uid,
       sanitize({ ...currentDataRef.current, ...overrides })
     ).catch(console.error)
   }
 
   const saveNow = (): Promise<void> => {
-    if (!currentUidRef.current) return Promise.resolve()
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    const uid = currentUidRef.current
+    const data = currentDataRef.current
+    if (!uid) return Promise.resolve()
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current)
+      saveTimerRef.current = null
+    }
     return Promise.race([
-      saveUserData(currentUidRef.current, currentDataRef.current),
+      saveUserData(uid, data),
       new Promise<void>(r => setTimeout(r, 3000)),
     ])
   }

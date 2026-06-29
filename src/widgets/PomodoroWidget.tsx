@@ -11,7 +11,7 @@ export const meta = {
   defaultH: 6,
   minW: 4,
   minH: 4,
-  order: 5,
+  order: 6,
 }
 
 type Mode = 'focus' | 'short' | 'long'

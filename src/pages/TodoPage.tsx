@@ -65,6 +65,7 @@ export default function TodoPage() {
   const editRef = useRef<HTMLInputElement>(null)
 
   const today = toLocalDateKey()
+  const tomorrow = toLocalDateKey(addLocalDays(new Date(`${today}T12:00:00`), 1))
   const weekAgo = toLocalDateKey(addLocalDays(new Date(), -6))
 
   useEffect(() => { if (editId) editRef.current?.focus() }, [editId])
@@ -88,6 +89,8 @@ export default function TodoPage() {
   const doneAll = todos.filter(t => (!t.date || t.date === today) && t.done).length
   const pctAll = totalAll === 0 ? 0 : Math.round((doneAll / totalAll) * 100)
   const todayAdded = todos.filter(t => t.date === today).length
+  const todayItems = todos.filter(t => !t.date || t.date === today)
+  const todayIncomplete = todayItems.filter(t => !t.done)
 
   const catStat = (c: Category) => {
     const items = todos.filter(t => (!t.date || t.date === today) && cat(t) === c)
@@ -127,7 +130,7 @@ export default function TodoPage() {
   const cancelEdit = () => setEditId(null)
 
   const saveTodayResult = async () => {
-    const items = todos.filter(t => !t.date || t.date === today).map(t => ({ ...t, date: today }))
+    const items = todayItems.map(t => ({ ...t, date: today }))
     const completed = items.filter(t => t.done).length
     const result: TodoDailyResult = {
       date: today,
@@ -153,6 +156,95 @@ export default function TodoPage() {
     })
     setSaveMessage('오늘 결과를 저장했습니다.')
     window.setTimeout(() => setSaveMessage(''), 2000)
+  }
+
+  const todoCarryKey = (todo: Todo) =>
+    `${todo.text.trim().toLowerCase()}::${cat(todo)}`
+
+  const rolloverTodayIncomplete = async () => {
+    if (todayIncomplete.length === 0) {
+      setSaveMessage('내일로 넘길 미완료 Todo가 없습니다.')
+      window.setTimeout(() => setSaveMessage(''), 2000)
+      return
+    }
+    const confirmed = window.confirm(
+      `미완료 Todo ${todayIncomplete.length}개를 ${tomorrow}로 가져갈까요?\n오늘 결과도 기록에 저장됩니다.`
+    )
+    if (!confirmed) return
+
+    const tomorrowKeys = new Set(
+      todos
+        .filter(todo => todo.date === tomorrow)
+        .map(todoCarryKey)
+    )
+    const carried = todayIncomplete
+      .filter(todo => !tomorrowKeys.has(todoCarryKey(todo)))
+      .map((todo, index): Todo => ({
+        ...todo,
+        id: `carry-${Date.now()}-${index}`,
+        done: false,
+        date: tomorrow,
+      }))
+
+    const items = todayItems.map(t => ({ ...t, date: today }))
+    const completed = items.filter(t => t.done).length
+    const result: TodoDailyResult = {
+      date: today,
+      total: items.length,
+      done: completed,
+      completionRate: items.length === 0 ? 0 : Math.round((completed / items.length) * 100),
+      savedAt: new Date().toISOString(),
+      source: 'manual',
+      items,
+    }
+    const nextHistory = [result, ...todoHistory.filter(item => item.date !== today)]
+      .sort((a, b) => b.date.localeCompare(a.date))
+    const nextTrash = todoHistoryTrash.filter(item => item.date !== today)
+    const nextDeletedDates = todoHistoryDeletedDates.filter(date => date !== today)
+    const nextTodos = carried.length > 0 ? [...carried, ...todos] : todos
+
+    setTodos(nextTodos)
+    setTodoHistory(nextHistory)
+    setTodoHistoryTrash(nextTrash)
+    setTodoHistoryDeletedDates(nextDeletedDates)
+    await saveWithOverrides({
+      todos: nextTodos,
+      todoHistory: nextHistory,
+      todoHistoryTrash: nextTrash,
+      todoHistoryDeletedDates: nextDeletedDates,
+    })
+    setSaveMessage(carried.length > 0
+      ? `미완료 Todo ${carried.length}개를 내일로 넘겼습니다.`
+      : '이미 내일 Todo에 같은 항목이 있습니다.')
+    window.setTimeout(() => setSaveMessage(''), 2400)
+  }
+
+  const bringIncompleteFromHistory = async (result: TodoDailyResult) => {
+    const incomplete = result.items.filter(item => !item.done)
+    if (incomplete.length === 0) {
+      setSaveMessage('가져올 미완료 Todo가 없습니다.')
+      window.setTimeout(() => setSaveMessage(''), 2000)
+      return
+    }
+    const todayKeys = new Set(todayItems.map(todoCarryKey))
+    const carried = incomplete
+      .filter(todo => !todayKeys.has(todoCarryKey(todo)))
+      .map((todo, index): Todo => ({
+        ...todo,
+        id: `history-carry-${Date.now()}-${index}`,
+        done: false,
+        date: today,
+      }))
+    if (carried.length === 0) {
+      setSaveMessage('오늘 Todo에 이미 같은 미완료 항목이 있습니다.')
+      window.setTimeout(() => setSaveMessage(''), 2400)
+      return
+    }
+    const nextTodos = [...carried, ...todos]
+    setTodos(nextTodos)
+    await saveWithOverrides({ todos: nextTodos })
+    setSaveMessage(`${result.date} 미완료 Todo ${carried.length}개를 오늘로 가져왔습니다.`)
+    window.setTimeout(() => setSaveMessage(''), 2400)
   }
 
   const startCorrection = (result: TodoDailyResult) => {
@@ -362,9 +454,9 @@ export default function TodoPage() {
     <div style={{ maxWidth: 860, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
       {/* 헤더 */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.03em' }}>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', letterSpacing: 0 }}>
             오늘 할 일
           </h1>
           <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>
@@ -374,8 +466,22 @@ export default function TodoPage() {
             {new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' })}
           </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
           {saveMessage && <span style={{ fontSize: 12, color: 'var(--accent)' }}>{saveMessage}</span>}
+          <button
+            onClick={rolloverTodayIncomplete}
+            disabled={todayIncomplete.length === 0}
+            title="오늘 미완료 Todo를 내일 날짜로 복사하고 오늘 결과를 저장합니다."
+            style={{
+              fontSize: 12, padding: '7px 12px', borderRadius: 8,
+              border: '1px solid var(--border)', background: 'var(--bg3)',
+              color: todayIncomplete.length === 0 ? 'var(--muted)' : 'var(--text)',
+              cursor: todayIncomplete.length === 0 ? 'default' : 'pointer',
+              fontWeight: 600, opacity: todayIncomplete.length === 0 ? 0.55 : 1,
+            }}
+          >
+            미완료 내일로
+          </button>
           <button onClick={saveTodayResult} style={{
             fontSize: 12, padding: '7px 14px', borderRadius: 8,
             border: 'none', background: 'var(--accent)',
@@ -806,6 +912,23 @@ export default function TodoPage() {
                       >
                         기록 보정
                       </button>
+                      {result.date !== today && result.items.some(item => !item.done) && (
+                        <button
+                          onClick={() => bringIncompleteFromHistory(result)}
+                          disabled={correctionDate !== null}
+                          title="이 날짜의 미완료 Todo를 오늘 날짜로 복사합니다."
+                          style={{
+                            padding: '5px 10px', borderRadius: 6,
+                            border: '1px solid var(--accent)', background: 'var(--accent-soft)',
+                            color: 'var(--accent)', fontSize: 11,
+                            cursor: correctionDate !== null ? 'default' : 'pointer',
+                            opacity: correctionDate !== null ? 0.45 : 1,
+                            fontWeight: 700,
+                          }}
+                        >
+                          미완료 오늘로
+                        </button>
+                      )}
                       <button
                         onClick={() => moveHistoryToTrash(result)}
                         disabled={correctionDate !== null}

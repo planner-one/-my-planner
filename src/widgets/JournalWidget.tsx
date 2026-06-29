@@ -41,7 +41,7 @@ export const meta = {
   defaultH: 7,
   minW: 5,
   minH: 4,
-  order: 15,
+  order: 14,
   Actions: JournalActions,
   hideHeaderLabel: true,
 }

@@ -28,7 +28,7 @@ export const meta = {
   defaultH: 6,
   minW: 6,
   minH: 4,
-  order: 7,
+  order: 8,
 }
 
 export default function ChartWidget() {

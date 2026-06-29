@@ -2,8 +2,32 @@ import { useState, useEffect, type ReactNode, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { useWidgetSize } from '../hooks/useWidgetSize'
 import { useApp } from '../store/AppContext'
+import { useRouter } from '../store/RouterContext'
 import { fetchHolidays } from '../services/holidayService'
-import type { Todo, ScheduledTask, CareerEvent, CareerEventCategory, CareerEventStatus, Goal, Project } from '../types'
+import { CAREER_CATEGORY_LABELS, getCareerMilestones } from '../utils/careerEvents'
+import { getCalendarLinkedItems, makeCalendarDays } from '../utils/calendar'
+import type { Todo, ScheduledTask, CareerEvent, CareerEventCategory, CareerEventStatus, Goal, Project, Task } from '../types'
+
+export function CalendarActions() {
+  const { setPage } = useRouter()
+  return (
+    <button
+      type="button"
+      onClick={() => setPage('calendar')}
+      title="캘린더 관리"
+      aria-label="캘린더 관리"
+      style={{
+        width: 26, height: 26, padding: 0,
+        border: '1px solid var(--border)', borderRadius: 6,
+        background: 'transparent', color: 'var(--accent)',
+        fontSize: 14, fontWeight: 800, cursor: 'pointer',
+        display: 'grid', placeItems: 'center', flexShrink: 0,
+      }}
+    >
+      ↗
+    </button>
+  )
+}
 
 export const meta = {
   id: 'calendar',
@@ -78,32 +102,6 @@ const CAREER_DATE_FIELDS: Record<CareerEventCategory, { application: boolean; re
   support: { application: true, result: true, operation: true },
   corp_support: { application: true, result: true, operation: true },
   other: { application: true, result: true, operation: true },
-}
-
-function isWeekdayInRange(dateStr: string, start?: string, end?: string) {
-  if (!start || dateStr < start || dateStr > (end || start)) return false
-  const day = new Date(`${dateStr}T00:00:00`).getDay()
-  return day !== 0 && day !== 6
-}
-
-function getCareerMilestones(event: CareerEvent, dateStr: string) {
-  const labels: string[] = []
-  if (event.date === dateStr) labels.push('일정')
-  if (event.applicationDeadline === dateStr) labels.push('신청 마감')
-  if (event.resultDate === dateStr) labels.push('결과 발표')
-  if (isWeekdayInRange(dateStr, event.operationStartDate, event.operationEndDate)) labels.push('운영')
-  return labels
-}
-
-function getCalendarDays(year: number, month: number): Date[] {
-  const firstDay = new Date(year, month, 1).getDay()
-  const lastDate = new Date(year, month + 1, 0).getDate()
-  const totalCells = Math.ceil((firstDay + lastDate) / 7) * 7
-  const days: Date[] = []
-  for (let i = firstDay - 1; i >= 0; i--) days.push(new Date(year, month, -i))
-  for (let i = 1; i <= lastDate; i++) days.push(new Date(year, month, i))
-  while (days.length < totalCells) days.push(new Date(year, month + 1, days.length - firstDay - lastDate + 1))
-  return days
 }
 
 // ── 연/월 피커 ────────────────────────────────────────────
@@ -275,6 +273,7 @@ function ItemForm({
                   <option value="seminar">행사/세미나</option>
                   <option value="contest">공모전</option>
                   <option value="support">지원사업</option>
+                  <option value="corp_support">기업 지원</option>
                   <option value="other">기타</option>
                 </select>
                 <select value={form.careerStatus} onChange={e => set('careerStatus', e.target.value)} style={calendarSelectStyle}>
@@ -284,8 +283,8 @@ function ItemForm({
                   <option value="pending">결과 대기</option>
                   <option value="confirmed">선정/확정</option>
                   <option value="completed">완료</option>
-                  {initial.mode === 'edit' && form.careerStatus === 'rejected' && <option value="rejected">탈락</option>}
-                  {initial.mode === 'edit' && form.careerStatus === 'cancelled' && <option value="cancelled">취소</option>}
+                  {initial.mode === 'edit' && <option value="rejected">탈락</option>}
+                  {initial.mode === 'edit' && <option value="cancelled">취소</option>}
                 </select>
               </div>
             </>
@@ -480,6 +479,7 @@ interface ModalProps {
   todos: Todo[]
   scheduled: ScheduledTask[]
   career: CareerEvent[]
+  tasks: Task[]
   goals: Goal[]
   projects: Project[]
   onClose: () => void
@@ -495,7 +495,7 @@ interface ModalProps {
 }
 
 function DayModal(props: ModalProps) {
-  const { date, holiday, todos, scheduled, career, goals, projects, onClose } = props
+  const { date, holiday, todos, scheduled, career, tasks, goals, projects, onClose } = props
   const dateStr = toDateStr(date)
   const dateLabel = date.toLocaleDateString('ko-KR', { year:'numeric', month:'long', day:'numeric', weekday:'long' })
 
@@ -607,7 +607,7 @@ function DayModal(props: ModalProps) {
 
   const Section = ({ title, color, children }: { title: string; color: string; children: ReactNode }) => (
     <div style={{ marginBottom: 12 }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color, marginBottom: 6, letterSpacing:'0.02em' }}>{title}</div>
+      <div style={{ fontSize: 11, fontWeight: 700, color, marginBottom: 6, letterSpacing: 0 }}>{title}</div>
       <div style={{ display:'flex', flexDirection:'column', gap:4 }}>{children}</div>
     </div>
   )
@@ -660,7 +660,7 @@ function DayModal(props: ModalProps) {
     </div>
   )
 
-  const hasAnything = important.length + scheduled.length + career.length + normal.length + goals.length + projects.length > 0
+  const hasAnything = important.length + scheduled.length + career.length + tasks.length + normal.length + goals.length + projects.length > 0
 
   return createPortal(
     <div onClick={onClose} style={{
@@ -682,7 +682,7 @@ function DayModal(props: ModalProps) {
           display:'flex', flexDirection:'column', gap:2, flexShrink:0,
         }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-            <span style={{ fontSize:15, fontWeight:700, color:'var(--text)', letterSpacing:'-0.01em' }}>
+            <span style={{ fontSize:15, fontWeight:700, color:'var(--text)', letterSpacing:0 }}>
               {dateLabel}
             </span>
             <button onClick={onClose} style={{
@@ -750,10 +750,25 @@ function DayModal(props: ModalProps) {
                       : event.category === 'seminar' ? '행사/세미나'
                       : event.category === 'contest' ? '공모전'
                       : event.category === 'support' ? '지원사업'
-                      : '기타',
+                      : event.category === 'corp_support' ? '기업 지원'
+                      : CAREER_CATEGORY_LABELS[event.category],
                   ].filter(Boolean).join(' · ')}
                   detail={[event.organization, event.location, event.address].filter(Boolean).join(' · ') || event.note}
                   onEdit={() => startEditCareer(event)}
+                />
+              ))}
+            </Section>
+          )}
+
+          {tasks.length > 0 && (
+            <Section title="🗒 작업 관리" color="var(--text)">
+              {tasks.map(task => (
+                <ItemRow
+                  key={task.id}
+                  text={task.name}
+                  done={task.done}
+                  tag={[task.priority, task.status].filter(Boolean).join(' · ') || undefined}
+                  detail={task.owner || task.type}
                 />
               ))}
             </Section>
@@ -788,6 +803,8 @@ function DayModal(props: ModalProps) {
               initial={form}
               onSave={handleSave}
               onDelete={form.mode === 'edit' ? () => {
+                const label = form.type === 'todo' ? '할 일' : form.type === 'career' ? '신청·지원 일정' : '예정 작업'
+                if (!window.confirm(`이 ${label}을 삭제할까요?`)) return
                 if (form.type === 'todo') props.onDeleteTodo(form.id!)
                 else if (form.type === 'career') props.onDeleteCareer(form.id!)
                 else props.onDeleteScheduled(form.id!)
@@ -822,7 +839,7 @@ export default function CalendarWidget() {
   const { ref, w, h } = useWidgetSize()
   const {
     todos, setTodos, scheduledTasks, setScheduledTasks,
-    careerEvents, setCareerEvents, goals, projects,
+    careerEvents, setCareerEvents, tasks, goals, projects,
   } = useApp()
 
   const today = new Date()
@@ -839,8 +856,9 @@ export default function CalendarWidget() {
     })
   }, [year, month])
 
-  const days = getCalendarDays(year, month)
+  const days = makeCalendarDays(year, month)
   const todayStr = toDateStr(today)
+  const calendarSources = { todos, scheduledTasks, careerEvents, tasks, goals, projects }
 
   const compact = w < 300 || h < 330
   const HEADER_H = compact ? 38 : 44
@@ -857,20 +875,15 @@ export default function CalendarWidget() {
   }
   const goToday   = () => { setYear(today.getFullYear()); setMonth(today.getMonth()) }
 
-  const getItemsForDate = (dateStr: string) => ({
-    todos:     todos.filter(t => t.date === dateStr),
-    scheduled: scheduledTasks.filter(s => s.date === dateStr),
-    career:    careerEvents.filter(event => getCareerMilestones(event, dateStr).length > 0),
-    goals:     goals.filter(g => g.due === dateStr),
-    projects:  projects.filter(p => p.due === dateStr),
-  })
+  const getItemsForDate = (dateStr: string) =>
+    getCalendarLinkedItems(calendarSources, dateStr, todayStr)
 
   const getImportantCount = (dateStr: string) =>
-    todos.filter(t => t.date === dateStr && t.priority === 'high').length
+    getItemsForDate(dateStr).todos.filter(t => t.priority === 'high').length
 
   const getHasItems = (dateStr: string) => {
-    const { todos: t, scheduled: s, career: c, goals: g, projects: p } = getItemsForDate(dateStr)
-    return t.length + s.length + c.length + g.length + p.length > 0
+    const { todos: t, scheduled: s, career: c, tasks: work, goals: g, projects: p } = getItemsForDate(dateStr)
+    return t.length + s.length + c.length + work.length + g.length + p.length > 0
   }
 
   // CRUD handlers
@@ -986,9 +999,13 @@ export default function CalendarWidget() {
                 : 'var(--text)'
 
               // 이벤트 블록 (할일: 노란색, 예정작업: 파란색)
-              const dayTodos     = isCurMonth ? todos.filter(t => t.date === dateStr) : []
-              const dayScheduled = isCurMonth ? scheduledTasks.filter(s => s.date === dateStr) : []
-              const dayCareer = isCurMonth ? careerEvents.filter(event => getCareerMilestones(event, dateStr).length > 0) : []
+              const dayItems = isCurMonth ? getItemsForDate(dateStr) : null
+              const dayTodos = dayItems?.todos ?? []
+              const dayScheduled = dayItems?.scheduled ?? []
+              const dayCareer = dayItems?.career ?? []
+              const dayTasks = dayItems?.tasks ?? []
+              const dayGoals = dayItems?.goals ?? []
+              const dayProjects = dayItems?.projects ?? []
 
               const allEvents = [
                 ...dayScheduled.map(s => ({
@@ -1001,6 +1018,21 @@ export default function CalendarWidget() {
                   label: `${getCareerMilestones(event, dateStr).filter(label => label !== '일정').join(' · ')}${getCareerMilestones(event, dateStr).some(label => label !== '일정') ? ' ' : ''}${event.time && event.date === dateStr ? `${event.time} ` : ''}${event.title}`,
                   color: '#a855f7', bg: 'rgba(168,85,247,0.14)',
                   done: event.status === 'completed' || event.status === 'cancelled',
+                })),
+                ...dayTasks.map(task => ({
+                  key: task.id,
+                  label: `작업 ${task.name}`,
+                  color: '#64748b', bg: 'rgba(100,116,139,0.14)', done: task.done,
+                })),
+                ...dayGoals.map(goal => ({
+                  key: goal.id,
+                  label: `목표 ${goal.name}`,
+                  color: '#10b981', bg: 'rgba(16,185,129,0.14)', done: goal.pct >= 100,
+                })),
+                ...dayProjects.map(project => ({
+                  key: project.id,
+                  label: `프로젝트 ${project.name}`,
+                  color: '#0ea5e9', bg: 'rgba(14,165,233,0.14)', done: project.pct >= 100,
                 })),
                 ...dayTodos.map(t => ({ key: t.id, label: t.text, color: '#f59e0b', bg: 'rgba(245,158,11,0.15)', done: t.done })),
               ]
@@ -1091,6 +1123,7 @@ export default function CalendarWidget() {
               todos={selectedItems.todos}
               scheduled={selectedItems.scheduled}
               career={selectedItems.career}
+              tasks={selectedItems.tasks}
               goals={selectedItems.goals}
               projects={selectedItems.projects}
               onClose={() => setSelected(null)}

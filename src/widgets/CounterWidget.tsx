@@ -12,7 +12,7 @@ export const meta = {
   defaultH: 6,
   minW: 5,
   minH: 4,
-  order: 6,
+  order: 7,
 }
 
 const PERIOD_LABELS: Record<CounterPeriod, string> = {

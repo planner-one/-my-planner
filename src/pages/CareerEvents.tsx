@@ -2,33 +2,16 @@ import { useState } from 'react'
 import { useApp } from '../store/AppContext'
 import type { CareerEvent, CareerEventCategory, CareerEventStatus } from '../types'
 import { toLocalDateKey } from '../utils/date'
-
-const CATEGORY_LABELS: Record<CareerEventCategory, string> = {
-  briefing: '채용설명회',
-  interview: '면접',
-  camp: '직무캠프',
-  program: '교육/프로그램',
-  seminar: '행사/세미나',
-  contest: '공모전',
-  support: '지원사업',
-  corp_support: '기업 지원',
-  other: '기타',
-}
-
-const STATUS_LABELS: Record<CareerEventStatus, string> = {
-  interested: '관심',
-  planned: '신청 예정',
-  applied: '신청 완료',
-  pending: '결과 대기',
-  confirmed: '선정/확정',
-  completed: '완료',
-  rejected: '탈락',
-  cancelled: '취소',
-}
-
-const CREATION_STATUSES: CareerEventStatus[] = [
-  'interested', 'planned', 'applied', 'pending', 'confirmed', 'completed',
-]
+import {
+  CAREER_CATEGORY_LABELS as CATEGORY_LABELS,
+  CAREER_CREATION_STATUSES as CREATION_STATUSES,
+  CAREER_STATUS_LABELS as STATUS_LABELS,
+  formatCareerDday,
+  getCareerDaysUntil,
+  getCareerLastRelevantDate,
+  getCareerNextMilestone,
+  isCareerOpen,
+} from '../utils/careerEvents'
 
 const CATEGORY_FIELDS: Record<CareerEventCategory, {
   dateLabel: string
@@ -63,8 +46,6 @@ const TIME_PRESETS = [
 
 const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
 const weekdayOf = (date: string) => WEEKDAY_LABELS[new Date(`${date}T00:00:00`).getDay()]
-
-const lastRelevantDate = (item: CareerEvent) => item.date
 
 const mergePlace = (location?: string, address?: string) =>
   [location, address].filter((value, index, values): value is string => Boolean(value) && values.indexOf(value) === index).join(' · ')
@@ -106,6 +87,8 @@ export default function CareerEvents() {
   const [form, setForm] = useState(emptyForm)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | CareerEventStatus>('all')
+  const [categoryFilter, setCategoryFilter] = useState<'all' | CareerEventCategory>('all')
+  const [query, setQuery] = useState('')
   const [editorOpen, setEditorOpen] = useState(false)
   const [showPast, setShowPast] = useState(false)
 
@@ -203,6 +186,7 @@ export default function CareerEvents() {
   }
 
   const remove = (id: string) => {
+    if (!window.confirm('이 신청·지원 일정을 삭제할까요?')) return
     setCareerEvents(previous => previous.filter(item => item.id !== id))
     if (editingId === id) {
       setEditingId(null)
@@ -211,15 +195,65 @@ export default function CareerEvents() {
     }
   }
 
-  const today = toLocalDateKey()
+  const updateStatus = (id: string, status: CareerEventStatus) => {
+    setCareerEvents(previous => previous.map(item => item.id === id ? { ...item, status } : item))
+  }
 
-  const filtered = careerEvents.filter(item => filter === 'all' || item.status === filter)
+  const today = toLocalDateKey()
+  const normalizedQuery = query.trim().toLowerCase()
+
+  const matchesQuery = (item: CareerEvent) => {
+    if (!normalizedQuery) return true
+    return [
+      item.title,
+      item.organization,
+      CATEGORY_LABELS[item.category],
+      STATUS_LABELS[item.status],
+      item.location,
+      item.url,
+      item.note,
+    ].some(value => value?.toLowerCase().includes(normalizedQuery))
+  }
+
+  const baseFiltered = careerEvents.filter(item =>
+    (categoryFilter === 'all' || item.category === categoryFilter)
+    && matchesQuery(item)
+  )
+  const statusCounts = Object.fromEntries(
+    (Object.keys(STATUS_LABELS) as CareerEventStatus[]).map(status => [
+      status,
+      baseFiltered.filter(item => item.status === status).length,
+    ])
+  ) as Record<CareerEventStatus, number>
+  const totalCount = baseFiltered.length
+  const openCount = careerEvents.filter(item => isCareerOpen(item.status)).length
+  const urgentCount = careerEvents.filter(item => {
+    if (!isCareerOpen(item.status)) return false
+    const next = getCareerNextMilestone(item, today)
+    if (!next) return false
+    const days = getCareerDaysUntil(next.date, today)
+    return days >= 0 && days <= 7
+  }).length
+  const pendingCount = careerEvents.filter(item => item.status === 'pending').length
+  const confirmedCount = careerEvents.filter(item => item.status === 'confirmed').length
+
+  const nextDate = (item: CareerEvent) =>
+    getCareerNextMilestone(item, today)?.date ?? getCareerLastRelevantDate(item)
+
+  const filtered = baseFiltered.filter(item => filter === 'all' || item.status === filter)
   const upcoming = filtered
-    .filter(item => lastRelevantDate(item) >= today)
-    .sort((a, b) => a.date.localeCompare(b.date) || (a.time ?? '').localeCompare(b.time ?? ''))
+    .filter(item => getCareerLastRelevantDate(item) >= today)
+    .sort((a, b) => nextDate(a).localeCompare(nextDate(b)) || (a.time ?? '').localeCompare(b.time ?? ''))
   const past = filtered
-    .filter(item => lastRelevantDate(item) < today)
-    .sort((a, b) => b.date.localeCompare(a.date) || (b.time ?? '').localeCompare(a.time ?? ''))
+    .filter(item => getCareerLastRelevantDate(item) < today)
+    .sort((a, b) => getCareerLastRelevantDate(b).localeCompare(getCareerLastRelevantDate(a)) || (b.time ?? '').localeCompare(a.time ?? ''))
+  const urgentUpcoming = upcoming.filter(item => {
+    if (!isCareerOpen(item.status)) return false
+    const next = getCareerNextMilestone(item, today)
+    if (!next) return false
+    const days = getCareerDaysUntil(next.date, today)
+    return days >= 0 && days <= 7
+  })
 
   const fieldConfig = CATEGORY_FIELDS[form.category]
   const operationWeekdays = countWeekdays(form.operationStartDate, form.operationEndDate)
@@ -233,6 +267,13 @@ export default function CareerEvents() {
         </div>
         <button type="button" className="career-add-button" onClick={openNewEditor}>일정 추가</button>
       </header>
+
+      <section className="career-summary-grid" aria-label="신청·지원 일정 요약">
+        <SummaryCard label="진행 중" value={openCount} sub="관심~선정" />
+        <SummaryCard label="7일 이내" value={urgentCount} sub="다음 체크 필요" tone="urgent" />
+        <SummaryCard label="결과 대기" value={pendingCount} sub="확인 필요" />
+        <SummaryCard label="선정/확정" value={confirmedCount} sub="운영 준비" />
+      </section>
 
       {editorOpen && (
         <div className="career-modal-backdrop" role="presentation" onMouseDown={event => {
@@ -329,19 +370,54 @@ export default function CareerEvents() {
         </div>
       )}
 
+      <section className="career-toolbar" aria-label="신청·지원 일정 검색과 구분">
+        <input
+          value={query}
+          onChange={event => setQuery(event.target.value)}
+          placeholder="일정명, 기관, 메모, 링크 검색"
+        />
+        <select value={categoryFilter} onChange={event => setCategoryFilter(event.target.value as 'all' | CareerEventCategory)}>
+          <option value="all">전체 구분</option>
+          {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </select>
+        {(query || categoryFilter !== 'all' || filter !== 'all') && (
+          <button type="button" onClick={() => { setQuery(''); setCategoryFilter('all'); setFilter('all') }}>초기화</button>
+        )}
+        <span>{filtered.length}건 표시</span>
+      </section>
+
       <nav className="career-filters" aria-label="신청·지원 일정 상태">
         {(['all', 'interested', 'planned', 'applied', 'pending', 'confirmed', 'completed', 'rejected', 'cancelled'] as const).map(status => (
           <button key={status} type="button" className={filter === status ? 'active' : ''} onClick={() => setFilter(status)}>
-            {status === 'all' ? '전체' : STATUS_LABELS[status]}
+            {status === 'all' ? `전체 ${totalCount}` : `${STATUS_LABELS[status]} ${statusCounts[status]}`}
           </button>
         ))}
       </nav>
+
+      {urgentUpcoming.length > 0 && (
+        <section className="career-urgent-strip" aria-label="임박 일정">
+          <strong>곧 챙길 일정</strong>
+          <div>
+            {urgentUpcoming.slice(0, 4).map(item => {
+              const next = getCareerNextMilestone(item, today)
+              return (
+                <button key={item.id} type="button" onClick={() => edit(item)}>
+                  <b>{next ? formatCareerDday(next.date, today) : 'D-Day'}</b>
+                  <span>{item.title}</span>
+                </button>
+              )
+            })}
+          </div>
+        </section>
+      )}
 
       <section className="career-list">
         {upcoming.length === 0 ? (
           <div className="career-empty">예정된 신청·지원 일정이 없습니다.</div>
         ) : upcoming.map(item => (
-          <CareerEventCard key={item.id} item={item} onEdit={edit} onRemove={remove} />
+          <CareerEventCard key={item.id} item={item} today={today} onEdit={edit} onRemove={remove} onStatusChange={updateStatus} />
         ))}
       </section>
 
@@ -354,7 +430,7 @@ export default function CareerEvents() {
           {showPast && (
             <div className="career-list career-list-past">
               {past.map(item => (
-                <CareerEventCard key={item.id} item={item} onEdit={edit} onRemove={remove} muted />
+                <CareerEventCard key={item.id} item={item} today={today} onEdit={edit} onRemove={remove} onStatusChange={updateStatus} muted />
               ))}
             </div>
           )}
@@ -367,6 +443,16 @@ export default function CareerEvents() {
         .career-header h2 { margin: 0 0 5px; font-size: 24px; letter-spacing: 0; }
         .career-header p { margin: 0; color: var(--muted); font-size: 13px; }
         .career-add-button { flex: 0 0 auto; border: 1px solid var(--accent); border-radius: 7px; background: var(--accent); color: #fff; padding: 9px 14px; font-size: 12px; font-weight: 700; cursor: pointer; }
+        .career-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+        .career-summary-card { min-width: 0; padding: 12px 13px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); }
+        .career-summary-card span { display: block; color: var(--muted); font-size: 11px; font-weight: 800; }
+        .career-summary-card strong { display: block; margin-top: 5px; color: var(--text); font-size: 24px; line-height: 1.05; }
+        .career-summary-card small { color: var(--muted); font-size: 11px; }
+        .career-summary-card.urgent { border-color: rgba(224, 82, 82, 0.35); background: rgba(224, 82, 82, 0.08); }
+        .career-toolbar { display: grid; grid-template-columns: minmax(220px, 1fr) 170px auto auto; gap: 8px; align-items: center; }
+        .career-toolbar input, .career-toolbar select { min-width: 0; height: 36px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); padding: 0 10px; font-size: 13px; outline: none; }
+        .career-toolbar button { height: 36px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--muted); padding: 0 11px; cursor: pointer; font-size: 12px; }
+        .career-toolbar span { color: var(--muted); font-size: 12px; text-align: right; white-space: nowrap; }
         .career-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 18px; background: rgba(0, 0, 0, 0.52); }
         .career-editor { width: min(720px, 100%); max-height: min(820px, calc(100vh - 36px)); overflow-y: auto; padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.28); box-sizing: border-box; }
         .career-editor-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
@@ -384,37 +470,50 @@ export default function CareerEvents() {
         .career-form-actions .primary { border-color: var(--accent); background: var(--accent); color: #fff; font-weight: 700; }
         .career-filters { display: flex; flex-wrap: wrap; gap: 5px; }
         .career-filters button.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+        .career-urgent-strip { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid rgba(224, 82, 82, 0.3); border-radius: 8px; background: rgba(224, 82, 82, 0.08); }
+        .career-urgent-strip strong { color: #e05252; font-size: 12px; }
+        .career-urgent-strip div { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 1px; }
+        .career-urgent-strip button { min-width: 150px; max-width: 220px; display: flex; align-items: center; gap: 6px; border: 1px solid rgba(224, 82, 82, 0.25); border-radius: 7px; background: var(--bg2); color: var(--text); padding: 7px 9px; cursor: pointer; }
+        .career-urgent-strip b { color: #e05252; font-size: 11px; flex: 0 0 auto; }
+        .career-urgent-strip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
         .career-list { display: flex; flex-direction: column; gap: 8px; }
-        .career-item { display: grid; grid-template-columns: 88px minmax(0, 1fr) auto; gap: 15px; align-items: start; padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); }
+        .career-item { display: grid; grid-template-columns: 92px minmax(0, 1fr) 190px; gap: 15px; align-items: start; padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); }
         .career-date { display: flex; flex-direction: column; gap: 3px; color: var(--accent); }
         .career-date strong { font-size: 18px; }
         .career-date span { color: var(--muted); font-size: 12px; white-space: nowrap; }
         .career-date em { color: var(--muted); font-size: 11px; font-style: normal; }
+        .career-date b { width: fit-content; margin-top: 3px; padding: 3px 6px; border-radius: 5px; background: var(--accent-soft); color: var(--accent); font-size: 11px; }
         .career-main { min-width: 0; }
         .career-item-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
         .career-item-heading h3 { margin: 0; font-size: 17px; letter-spacing: 0; }
         .career-item-heading span { padding: 4px 7px; border-radius: 5px; background: var(--bg3); color: var(--muted); font-size: 12px; }
         .career-item-heading .status.confirmed, .career-item-heading .status.completed { color: var(--accent); background: var(--accent-soft); }
-        .career-item-heading .status.cancelled { color: var(--red); }
+        .career-item-heading .status.rejected, .career-item-heading .status.cancelled { color: var(--red); }
         .career-main p { margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+        .career-main .career-next { color: var(--accent); font-size: 12px; font-weight: 700; }
         .career-details { display: flex; flex-wrap: wrap; gap: 5px 10px; margin-top: 8px; color: var(--muted); font-size: 12px; }
         .career-milestones { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
         .career-milestones span { padding: 4px 7px; border-radius: 5px; background: var(--accent-soft); color: var(--accent); font-size: 11px; font-weight: 700; }
         .career-note { white-space: pre-wrap; }
         .career-main a { display: inline-block; margin-top: 7px; color: var(--accent); font-size: 11px; font-weight: 700; }
-        .career-actions { display: flex; gap: 4px; }
+        .career-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+        .career-actions select { grid-column: 1 / -1; min-width: 0; height: 34px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); padding: 0 8px; font-size: 12px; outline: none; }
         .career-actions .danger { color: var(--red); }
         .career-empty { padding: 45px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); color: var(--muted); text-align: center; }
         @media (max-width: 700px) {
           .career-header { align-items: center; }
           .career-header p { max-width: 250px; }
+          .career-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .career-toolbar { grid-template-columns: 1fr; }
+          .career-toolbar span { text-align: left; }
+          .career-urgent-strip { grid-template-columns: 1fr; }
           .career-modal-backdrop { align-items: end; padding: 10px; }
           .career-editor { max-height: calc(100vh - 20px); padding: 14px; }
           .career-form-grid { grid-template-columns: 1fr; }
           .career-form-grid .span-2 { grid-column: auto; }
           .career-item { grid-template-columns: 1fr; gap: 8px; }
           .career-date { flex-direction: row; align-items: baseline; gap: 8px; }
-          .career-actions { justify-content: flex-end; }
+          .career-actions { grid-template-columns: 1fr 1fr; }
         }
         .career-past { margin-top: 4px; }
         .career-past-toggle { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg3); color: var(--muted); font-size: 12px; font-weight: 700; cursor: pointer; }
@@ -426,18 +525,22 @@ export default function CareerEvents() {
   )
 }
 
-function CareerEventCard({ item, onEdit, onRemove, muted }: {
+function CareerEventCard({ item, today, onEdit, onRemove, onStatusChange, muted }: {
   item: CareerEvent
+  today: string
   onEdit: (item: CareerEvent) => void
   onRemove: (id: string) => void
+  onStatusChange: (id: string, status: CareerEventStatus) => void
   muted?: boolean
 }) {
+  const nextMilestone = getCareerNextMilestone(item, today)
   return (
     <article className={`career-item${muted ? ' is-past' : ''}`}>
       <div className="career-date">
         <strong>{item.date.slice(5).replace('-', '/')}</strong>
         <em>{weekdayOf(item.date)}요일</em>
         <span>{item.time ? `${item.time}${item.endTime ? `~${item.endTime}` : ''}` : '시간 미정'}</span>
+        {nextMilestone && <b>{formatCareerDday(nextMilestone.date, today)}</b>}
       </div>
       <div className="career-main">
         <div className="career-item-heading">
@@ -445,6 +548,11 @@ function CareerEventCard({ item, onEdit, onRemove, muted }: {
           <span>{CATEGORY_LABELS[item.category]}</span>
           <span className={`status ${item.status}`}>상태 · {STATUS_LABELS[item.status]}</span>
         </div>
+        {nextMilestone && (
+          <p className="career-next">
+            다음 체크 · {nextMilestone.label} {nextMilestone.date}
+          </p>
+        )}
         {item.organization && <p>{item.organization}</p>}
         <div className="career-details">
           {item.mode && <span>{item.mode === 'offline' ? '오프라인' : item.mode === 'online' ? '온라인' : '온·오프라인'}</span>}
@@ -460,9 +568,28 @@ function CareerEventCard({ item, onEdit, onRemove, muted }: {
         {item.url && <a href={item.url} target="_blank" rel="noreferrer">온라인 링크 열기</a>}
       </div>
       <div className="career-actions">
+        <select
+          value={item.status}
+          onChange={event => onStatusChange(item.id, event.target.value as CareerEventStatus)}
+          aria-label={`${item.title} 상태 변경`}
+        >
+          {Object.entries(STATUS_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </select>
         <button type="button" onClick={() => onEdit(item)}>수정</button>
         <button type="button" className="danger" onClick={() => onRemove(item.id)}>삭제</button>
       </div>
+    </article>
+  )
+}
+
+function SummaryCard({ label, value, sub, tone }: { label: string; value: number; sub: string; tone?: 'urgent' }) {
+  return (
+    <article className={tone === 'urgent' ? 'career-summary-card urgent' : 'career-summary-card'}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <small>{sub}</small>
     </article>
   )
 }

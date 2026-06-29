@@ -12,11 +12,13 @@ export const meta = {
 }
 
 const PAGES = [
+  { id: 'dashboard', icon: '🏠', name: '홈' },
+  { id: 'calendar', icon: '🗓', name: '캘린더' },
   { id: 'todos',   icon: '✅', name: '오늘 할 일' },
   { id: 'tasks',   icon: '🗒', name: '작업 관리' },
   { id: 'habits',  icon: '🏃', name: '습관 트래커' },
   { id: 'goals',   icon: '🎯', name: '목표 관리' },
-  { id: 'projects',icon: '📁', name: '프로젝트' },
+  { id: 'projects', icon: '📁', name: '프로젝트' },
   { id: 'weekly',  icon: '📅', name: '주간 플래너' },
   { id: 'daily',   icon: '⏰', name: '일일 플래너' },
   { id: 'notes',   icon: '📝', name: '노트' },

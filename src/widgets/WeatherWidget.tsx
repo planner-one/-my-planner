@@ -45,7 +45,7 @@ export const meta = {
   defaultH: 6,
   minW: 10,
   minH: 4,
-  order: 14,
+  order: 13,
 }
 
 const DAY_KO = ['일', '월', '화', '수', '목', '금', '토']

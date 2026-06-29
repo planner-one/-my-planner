@@ -47,7 +47,7 @@ export const meta = {
   defaultH: 7,
   minW: 5,
   minH: 4,
-  order: 8,
+  order: 9,
   Actions: GoalActions,
 }
 

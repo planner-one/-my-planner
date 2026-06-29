@@ -167,7 +167,7 @@ function DigitalClock({ w, h }: { w: number; h: number }) {
       }}>
         <span style={{
           fontSize: numSize, fontWeight: 700, lineHeight: 1,
-          color: 'var(--text)', letterSpacing: '-0.02em',
+          color: 'var(--text)', letterSpacing: 0,
           fontVariantNumeric: 'tabular-nums',
         }}>
           {val}
@@ -198,7 +198,7 @@ function DigitalClock({ w, h }: { w: number; h: number }) {
       </div>
       <div style={{
         fontSize: dateSize, color: 'var(--muted)',
-        lineHeight: 1, letterSpacing: '0.01em',
+        lineHeight: 1, letterSpacing: 0,
         alignSelf: 'flex-start', marginTop: GAP,
       }}>
         {dateStr}
@@ -283,7 +283,7 @@ export default function ClockWidget() {
               <div style={{
                 fontSize: dateFontSize, color: 'var(--muted)',
                 lineHeight: 1, userSelect: 'none',
-                letterSpacing: '0.01em',
+                letterSpacing: 0,
               }}>
                 {dateStr}
               </div>

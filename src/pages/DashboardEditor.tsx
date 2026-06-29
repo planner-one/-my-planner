@@ -11,11 +11,16 @@ const ROW_H = 40
 const GAP = 8
 
 const normalizeLayout = (layout: LayoutItem[]): LayoutItem[] =>
-  layout.map(item => ({
-    ...item,
-    x: Math.min(item.x, COLS - item.w),
-    w: Math.min(item.w, COLS),
-  }))
+  layout.map(item => {
+    const minW = Math.min(item.minW ?? 1, COLS)
+    const w = Math.min(Math.max(item.w, minW), COLS)
+    return {
+      ...item,
+      x: Math.min(Math.max(item.x, 0), COLS - w),
+      w,
+      h: Math.max(item.h, item.minH ?? 1),
+    }
+  })
 
 interface Props {
   onDone: () => void
@@ -130,7 +135,7 @@ export default function DashboardEditor({ onDone }: Props) {
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         marginBottom: 16,
       }}>
-        <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.02em' }}>나만의 플래너 편집</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', letterSpacing: 0 }}>나만의 플래너 편집</h2>
         <div className="editor-actions" style={{ display: 'flex', gap: 8 }}>
           <button type="button" onClick={() => setSidebarVisible(open => !open)} style={{
             padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)',
@@ -195,7 +200,7 @@ export default function DashboardEditor({ onDone }: Props) {
                       background: 'var(--bg2)', userSelect: 'none',
                     }}>
                       <span style={{ fontSize: 13, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ letterSpacing: 2 }}>⠿⠿</span>
+                        <span style={{ letterSpacing: 0 }}>⠿⠿</span>
                         <span>{meta.icon} {meta.name}</span>
                       </span>
                       <button

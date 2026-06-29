@@ -5,7 +5,7 @@ import { useRouter } from '../store/RouterContext'
 import { signOut } from '../services/authService'
 
 type PageId =
-  | 'dashboard' | 'habits' | 'tasks' | 'todos' | 'goals' | 'projects'
+  | 'dashboard' | 'calendar' | 'habits' | 'tasks' | 'todos' | 'goals' | 'projects'
   | 'weekly' | 'daily' | 'notes' | 'journal' | 'profile' | 'inquiries' | 'print' | 'career'
 
 interface NavItem {
@@ -30,6 +30,10 @@ const NAV_ITEMS: NavItem[] = [
   {
     id: 'dashboard', label: '홈',
     paths: ['M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z', 'M9 22V12h6v10'],
+  },
+  {
+    id: 'calendar', label: '캘린더',
+    paths: ['M8 2v4M16 2v4M3 10h18', 'M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z', 'M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01'],
   },
   {
     id: 'tasks', label: '작업 관리',
@@ -85,13 +89,14 @@ const NAV_ITEMS: NavItem[] = [
   },
 ]
 
-const BOTTOM_TABS: PageId[] = ['dashboard', 'tasks', 'goals', 'career', 'weekly', 'profile']
+const BOTTOM_TABS: PageId[] = ['dashboard', 'tasks', 'calendar', 'career', 'weekly', 'profile']
 
 export default function PageShell({ children }: { children: ReactNode }) {
   const { user } = useAuth()
   const { saveNow } = useApp()
   const { page, setPage } = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   type Theme = 'light' | 'dark' | 'coral' | 'blue'
   const [theme, setThemeState] = useState<Theme>(() => {
     const raw = localStorage.getItem('theme')
@@ -115,6 +120,12 @@ export default function PageShell({ children }: { children: ReactNode }) {
     setSidebarOpen(open => !open)
   }
 
+  const navigateToPage = (id: PageId) => {
+    setPage(id)
+    setSidebarOpen(false)
+    setMobileMenuOpen(false)
+  }
+
   const handleSignOut = async () => {
     await saveNow()
     await signOut()
@@ -135,14 +146,14 @@ export default function PageShell({ children }: { children: ReactNode }) {
           background: 'var(--bg2)', fontWeight: 600, fontSize: 13,
           color: 'var(--text)',
           display: showReturnHeader ? 'flex' : 'none',
-          alignItems: 'center', gap: 9, letterSpacing: '-0.01em',
+          alignItems: 'center', gap: 9, letterSpacing: 0,
           flexShrink: 0,
         }} className="page-return-header">
           {showReturnHeader ? (
             <>
               <button
                 type="button"
-                onClick={() => setPage('dashboard')}
+                onClick={() => navigateToPage('dashboard')}
                 title="홈으로 이동"
                 aria-label="홈으로 이동"
                 style={{
@@ -160,6 +171,14 @@ export default function PageShell({ children }: { children: ReactNode }) {
           ) : (
             <span>나만의 플래너</span>
           )}
+          <button
+            type="button"
+            className="mobile-page-menu-trigger"
+            onClick={() => setMobileMenuOpen(true)}
+            aria-label="전체 페이지 메뉴 열기"
+          >
+            전체 메뉴
+          </button>
         </header>
 
         <main style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
@@ -174,7 +193,7 @@ export default function PageShell({ children }: { children: ReactNode }) {
           {NAV_ITEMS.filter(i => BOTTOM_TABS.includes(i.id)).map(item => {
             const active = page === item.id
             return (
-              <button key={item.id} onClick={() => setPage(item.id)} style={{
+              <button key={item.id} onClick={() => navigateToPage(item.id)} style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
                 border: 'none', background: 'transparent', cursor: 'pointer',
                 color: active ? 'var(--accent)' : 'var(--muted)',
@@ -187,6 +206,45 @@ export default function PageShell({ children }: { children: ReactNode }) {
             )
           })}
         </nav>
+
+        {mobileMenuOpen && (
+          <div
+            className="mobile-page-menu-backdrop"
+            role="presentation"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            <section
+              className="mobile-page-menu"
+              role="dialog"
+              aria-modal="true"
+              aria-label="전체 페이지 메뉴"
+              onClick={event => event.stopPropagation()}
+            >
+              <div className="mobile-page-menu-head">
+                <strong>전체 메뉴</strong>
+                <button type="button" onClick={() => setMobileMenuOpen(false)} aria-label="전체 페이지 메뉴 닫기">
+                  닫기
+                </button>
+              </div>
+              <div className="mobile-page-menu-grid">
+                {NAV_ITEMS.map(item => {
+                  const active = page === item.id
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={active ? 'active' : ''}
+                      onClick={() => navigateToPage(item.id)}
+                    >
+                      <Icon paths={item.paths} />
+                      <span>{item.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </section>
+          </div>
+        )}
       </div>
 
       {/* 사이드바 토글 버튼 (닫혔을 때) */}
@@ -230,7 +288,7 @@ export default function PageShell({ children }: { children: ReactNode }) {
             </svg>
             <span style={{
               fontSize: 15, fontWeight: 700, color: 'var(--text)',
-              letterSpacing: '-0.03em', whiteSpace: 'nowrap',
+              letterSpacing: 0, whiteSpace: 'nowrap',
             }}>
               나만의 플래너
             </span>
@@ -254,7 +312,7 @@ export default function PageShell({ children }: { children: ReactNode }) {
             return (
               <button
                 key={item.id}
-                onClick={() => setPage(item.id)}
+                onClick={() => navigateToPage(item.id)}
                 className={`nav-item${active ? ' nav-active' : ''}`}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 10,
@@ -290,8 +348,8 @@ export default function PageShell({ children }: { children: ReactNode }) {
             {([
               { id: 'light',  label: '라이트', dot: '#eef0ef', accent: '#3a7d50' },
               { id: 'dark',   label: '다크',   dot: '#181818', accent: '#4ade80' },
-              { id: 'coral', label: '코랄', dot: '#fff1ea', accent: '#ff6f0f' },
-              { id: 'blue',  label: '블루', dot: '#f2f4f6', accent: '#3182f6' },
+              { id: 'coral', label: '코랄', dot: '#fff1ea', accent: '#c2410c' },
+              { id: 'blue',  label: '블루', dot: '#f2f4f6', accent: '#2563eb' },
             ] as const).map(t => {
               const active = theme === t.id
               return (
@@ -357,9 +415,98 @@ export default function PageShell({ children }: { children: ReactNode }) {
       </aside>
 
       <style>{`
+        .mobile-page-menu-trigger {
+          display: none;
+          margin-left: auto;
+          min-height: 32px;
+          border: 1px solid var(--border);
+          border-radius: 7px;
+          background: var(--bg3);
+          color: var(--text);
+          padding: 0 10px;
+          font-size: 12px;
+          font-weight: 700;
+          cursor: pointer;
+        }
+        .mobile-page-menu-backdrop {
+          position: fixed;
+          inset: 0;
+          z-index: 250;
+          display: none;
+          align-items: flex-end;
+          background: rgba(0, 0, 0, 0.32);
+        }
+        .mobile-page-menu {
+          width: 100%;
+          max-height: min(78vh, 620px);
+          overflow: auto;
+          border-radius: 14px 14px 0 0;
+          border: 1px solid var(--border);
+          border-bottom: 0;
+          background: var(--bg2);
+          padding: 14px;
+          box-sizing: border-box;
+          box-shadow: 0 -12px 32px rgba(0, 0, 0, 0.22);
+        }
+        .mobile-page-menu-head {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 12px;
+        }
+        .mobile-page-menu-head strong {
+          font-size: 15px;
+          color: var(--text);
+        }
+        .mobile-page-menu-head button {
+          min-height: 34px;
+          border: 1px solid var(--border);
+          border-radius: 7px;
+          background: var(--bg3);
+          color: var(--muted);
+          padding: 0 11px;
+          font-size: 12px;
+          font-weight: 700;
+          cursor: pointer;
+        }
+        .mobile-page-menu-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 8px;
+        }
+        .mobile-page-menu-grid button {
+          min-width: 0;
+          min-height: 46px;
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          background: var(--bg3);
+          color: var(--text);
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 0 11px;
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+        }
+        .mobile-page-menu-grid button.active {
+          border-color: var(--accent);
+          background: var(--accent-soft);
+          color: var(--accent);
+        }
+        .mobile-page-menu-grid span {
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
         @media (max-width: 767px) {
           .sidebar { display: none !important; }
+          .sidebar-fab { display: none !important; }
           .page-return-header { display: flex !important; }
+          .mobile-page-menu-trigger { display: flex !important; align-items: center; justify-content: center; }
+          .mobile-page-menu-backdrop { display: flex !important; }
           .bottom-nav { display: flex !important; }
         }
         .nav-item:hover {

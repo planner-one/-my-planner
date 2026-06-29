@@ -106,7 +106,7 @@ export const meta = {
   defaultH: 7,
   minW: 4,
   minH: 3,
-  order: 4,
+  order: 5,
   Actions: HabitActions,
 }
 

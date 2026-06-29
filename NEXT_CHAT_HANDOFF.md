@@ -1,14 +1,14 @@
 # 다음 채팅 인수인계
 
 _작성일: 2026-06-28_
-_갱신일: 2026-06-29 (HEAD `6c4e51f` 기준, 문서/정리 작업과 ai_agent 보완 미커밋 변경 포함)_
+_갱신일: 2026-06-30 (HEAD `6c4e51f` 기준, 플래너 완성 작업 미커밋 변경 포함)_
 
 이 파일은 새 Codex 또는 Claude Code 세션에서 바로 이어 작업하기 위한 현재 상태 메모입니다.
 새 세션에서는 먼저 이 파일과 `AGENTS.md`, `PROGRESS.md`, `REQUIREMENTS.md`, `SCENARIOS.md`를 읽고 시작하면 됩니다.
 
 ## 한 줄 요약
 
-플래너는 Firebase 기반 React/Vite/TypeScript 앱이며, SC-07 위젯 검토는 완료되었습니다. SC-08은 진행 중이고 현재 남은 스텁 페이지는 `projects`, `weekly`, `daily`, `journal`, `profile` 5개입니다. 이번 정리 작업에서 문서 기준을 현재 코드와 맞췄고, 빈 추적 파일/미사용 의존성/환경변수 예시/메뉴 위젯 누락을 정리했습니다. 2026-06-29에는 ai_agent 플래너 에이전트 체계를 보강했고, SC-10은 모바일뿐 아니라 태블릿도 포함하는 기준으로 문서화했습니다.
+플래너는 Firebase 기반 React/Vite/TypeScript 앱이며, SC-07 위젯 검토와 SC-08 사이드바 기능 페이지, SC-09 테마 정리, SC-10 태블릿/모바일 반응형 코드 QA까지 완료했습니다. 2026-06-29에는 `projects`, `weekly`, `daily`, `journal`, `profile`, `print`, `calendar` 페이지를 구현/보강했고, 2026-06-30에는 오늘 할 일의 미완료 Todo 이월 기능을 추가했습니다. 아직 커밋/푸시는 하지 않았습니다.
 
 ## 작업 위치와 원격
 
@@ -22,13 +22,29 @@ _갱신일: 2026-06-29 (HEAD `6c4e51f` 기준, 문서/정리 작업과 ai_agent 
 
 ## 현재 미커밋 변경
 
-사용자 요청으로 문제 파일 정리와 문서 최신화를 진행했습니다. 아직 커밋/푸시는 하지 않았습니다.
+사용자 요청으로 플래너 완성 작업과 문서 최신화를 진행했습니다. 아직 커밋/푸시는 하지 않았습니다.
 
 - `Formulae`, `Searching` 삭제: 0바이트 빈 추적 파일
 - `src/components/UI.tsx` 삭제: 현재 앱 진입점에서 참조되지 않는 미사용 공용 UI 파일
 - `react-router-dom` 제거: 현재 라우팅은 `RouterContext` 기반이며 코드에서 미사용
 - `.env.example` 수정: 실제 코드가 쓰는 `VITE_WEATHER_API_KEY`, `VITE_HOLIDAY_API_KEY` 반영
-- `src/widgets/MenuWidget.tsx` 수정: `신청 관리(career)` 바로가기 추가
+- `src/widgets/MenuWidget.tsx` 수정: `홈(dashboard)`, `캘린더(calendar)`, `신청 관리(career)` 포함 전체 page id 바로가기 연결
+- `src/pages/CalendarPage.tsx` 추가 및 `src/App.tsx`, `src/store/RouterContext.tsx`, `src/components/PageShell.tsx` 수정: 캘린더 관리 페이지와 사이드바/모바일 하단 탭/메뉴 위젯 연결
+- `src/store/AppContext.tsx` 수정: 사용자 전환 시 전체 상태 초기화, 저장 타이머 UID·계정 메타데이터 고정, 계정 전환 localStorage 정리 보강, 레거시 `careerEvents`/`projects` 보정
+- `src/components/PageShell.tsx` 수정: 모바일 전체 페이지 메뉴 추가, 사이드바 FAB 모바일 숨김, 테마 swatch 보정
+- `src/index.css` 수정: 코랄/블루 테마 보조/강조 텍스트 대비 보정
+- `src/pages/Projects.tsx`, `src/types/index.ts`, `src/utils/projects.ts` 수정/추가: 프로젝트 페이지 구현, 하위 작업 기반 진행률, 마감 정렬, 삭제 확인 흐름 추가
+- `src/pages/WeeklyPlanner.tsx` 수정: 주간 핵심 작업, 요일별 Todo/예정 일정/신청 일정/마감 흐름 연결, 날짜 없는 Todo 규칙 문구 보정
+- `src/pages/DailyPlanner.tsx` 수정: Todo, 예정 일정, 신청 일정, 루틴, 시간 블록 연결, 삭제 확인 추가
+- `src/pages/TodoPage.tsx` 수정: 오늘 미완료 Todo를 내일로 넘기고, 과거 기록의 미완료 Todo를 오늘로 가져오는 기능 추가
+- `src/pages/Journal.tsx` 수정: 사용자 작성 저널 구현, Todo/루틴/생산성 요약 연결, 날짜별 에너지 입력과 오늘 저널 삭제 시 전역 에너지 초기화 보정
+- `src/pages/ProfilePage.tsx` 수정: 계정 정보, 닉네임, 화면 밀도, 데이터 현황 구현
+- `src/pages/PrintPlanner.tsx` 수정: 일일/주간/빈 양식 인쇄 미리보기 구현
+- `src/widgets/CalendarWidget.tsx` 수정: 기업 지원 분류 선택/표시 보강, 삭제 확인 추가, 날짜 없는 Todo·작업 관리 마감·목표/프로젝트 마감 표시, 신청 상태 편집 옵션 정합성, 캘린더 관리 페이지 이동 액션, 자간 정리
+- `src/widgets/ScheduledTaskWidget.tsx` 수정: 체크박스 중복 토글 방지와 로컬 날짜 표시 보정
+- `src/pages/Dashboard.tsx`, `src/pages/DashboardEditor.tsx`, `src/pages/TodoPage.tsx`, `src/widgets/ClockWidget.tsx` 수정: 자간 제거, 모바일 전환 폭/빈 상태/레이아웃 클램프 보강
+- `src/utils/careerEvents.ts` 추가: 신청/지원 일정 날짜·상태·구분 공통 유틸
+- `src/utils/calendar.ts` 추가: 캘린더 위젯과 캘린더 관리 페이지가 공유하는 날짜 기반 항목 집계 유틸
 - `AGENTS.md`, `CLAUDE.md`, `REQUIREMENTS.md`, `SCENARIOS.md`, `PROGRESS.md`, `NEXT_CHAT_HANDOFF.md` 최신화
 - `/Users/minsujeong/Desktop/ai_agent`에 플래너 작업용 에이전트 정의서, 공통 운영 원칙 스니펫, 워크플로우 추가/보강
 
@@ -79,10 +95,22 @@ firebase deploy --only hosting
 - 2026-06-29 `git diff --check` 통과
 - 2026-06-29 충돌 마커 검색 통과
 - 2026-06-29 ai_agent 플래너 에이전트 8개 모두 공통 원칙 참조와 한글 작업 표시 확인
+- 2026-06-29 `projects` 구현 후 `npm run build`, `npx tsc --noEmit`, `git diff --check` 통과
+- 2026-06-29 SC-08~SC-10 보강 후 `npm run build`, `npx tsc --noEmit`, `git diff --check`, 충돌 마커 검색 통과
+- 2026-06-29 로컬 dev 서버 `http://127.0.0.1:5181/` 기동 및 HTTP 200 확인
+- 2026-06-29 테마 대비 계산 통과: light/dark/coral/blue의 text·muted·accent 대비 확인
+- 2026-06-29 에이전트 합동 연결 보강 후 page id 자동 점검 통과: `App.tsx`, `PageShell.tsx`, `MenuWidget.tsx`, `REQUIREMENTS.md` page id 일치
+- 2026-06-29 에이전트 합동 연결 보강 후 위젯 등록 자동 점검 통과: 14개 위젯, 문서 순서 W01~W14 일치
+- 2026-06-29 에이전트 합동 연결 보강 후 `npx tsc --noEmit`, `npm run build`, `git diff --check`, 충돌 마커 검색 통과
+- 2026-06-29 캘린더 관리 페이지 추가 후 page id 자동 점검 통과: 15개 page id 일치
+- 2026-06-29 캘린더 관리 페이지 추가 후 `npx tsc --noEmit`, `npm run build`, `git diff --check`, 충돌 마커 검색, 로컬 dev 서버 5181 HTTP 200 확인 통과
+- 2026-06-30 Todo 미완료 이월 기능 추가 후 `npx tsc --noEmit`, `npm run build`, `git diff --check`, 충돌 마커 검색, 로컬 dev 서버 5180 HTTP 200 확인 통과
 
 주의:
 
 - dev 서버 포트 `5173`이 사용 중이면 Vite가 다른 포트를 쓸 수 있습니다.
+- 현재 5173, 5174, 5175, 5180이 이미 사용 중이라 이번 세션에서는 5181 포트로 실행했습니다.
+- 인앱 브라우저 attach가 타임아웃되어 로그인 후 실제 화면 육안 QA는 사용자 세션에서 확인 권장입니다.
 - 배포 후 사용자가 실제 Firebase Hosting URL에서 확인하는 흐름이 자주 있었습니다.
 
 ## 현재 앱 구조
@@ -102,6 +130,7 @@ firebase deploy --only hosting
 - 일반 상태 변경은 1초 debounce 저장입니다.
 - 레이아웃 저장, 로그아웃 전 저장 등은 즉시 저장 함수가 있습니다.
 - 사용자별 화면 비율 `uiScale`은 Firestore에 저장됩니다.
+- 사용자 전환 시 이전 계정 pending save가 새 계정에 들어가지 않도록 저장 UID와 계정 메타데이터를 캡처하고, `weather_location`, `theme`, `clock_widget_mode` localStorage도 계정 전환 시 정리합니다.
 
 위젯 제목줄 액션 + 모달 패턴:
 
@@ -117,21 +146,22 @@ firebase deploy --only hosting
 | page id | 이름 | 구현 상태 |
 |---------|------|-----------|
 | `dashboard` | 홈 | ✅ 구현됨 |
+| `calendar` | 캘린더 | ✅ 구현됨 |
 | `tasks` | 작업 관리 | ✅ 구현됨 |
 | `todos` | 오늘 할 일 | ✅ 구현됨 |
 | `habits` | 습관 | ✅ 구현됨 |
 | `goals` | 목표 | ✅ 구현됨 |
-| `projects` | 프로젝트 | ⏳ 스텁 |
+| `projects` | 프로젝트 | ✅ 구현됨 |
 | `career` | 신청 관리 | ✅ 구현됨 |
-| `weekly` | 주간 | ⏳ 스텁 |
-| `daily` | 일일 | ⏳ 스텁 |
+| `weekly` | 주간 | ✅ 구현됨 |
+| `daily` | 일일 | ✅ 구현됨 |
 | `notes` | 노트 | ✅ 구현됨 |
-| `journal` | 저널 | ⏳ 스텁 |
-| `profile` | 프로필 | ⏳ 스텁 |
+| `journal` | 저널 | ✅ 구현됨 |
+| `profile` | 프로필 | ✅ 구현됨 |
 | `inquiries` | 문의 | ✅ 구현됨 |
-| `print` | 플래너 출력 | ✅ 안내 페이지 구현됨 |
+| `print` | 플래너 출력 | ✅ 인쇄 미리보기 구현됨 |
 
-**SC-08 다음 구현 순서**: `projects` → `weekly` → `daily` → `journal` → `profile`
+**SC-08 다음 구현 순서**: 없음. 구현과 코드 QA 보강은 완료되었습니다.
 
 **이름 혼동 주의**: `src/widgets/JournalWidget.tsx`는 n8n 웹훅으로 외부 RSS/피드를 받아 캐러셀로 보여주는 "저널 알림" 위젯이고, `src/pages/Journal.tsx`는 사용자가 직접 쓰는 저널/일기 페이지입니다.
 
@@ -198,10 +228,10 @@ SC-07 위젯 검토는 완료입니다.
 - 장소와 주소는 `장소 / 주소` 한 항목으로 통합
 - 관련 링크는 온라인/오프라인/혼합과 무관하게 항상 입력 가능
 - 캘린더는 신청 마감, 결과 발표, 운영, 대표 일정일을 구분 표시
-
-검토 여지:
-
-- `CareerEvents.tsx`의 지난 일정 분리는 대표 일정일 기준입니다. 운영 종료일이나 결과 발표일을 포함할지는 추후 검토할 수 있습니다.
+- 신청관리의 지난/예정 분리는 대표 일정일, 신청 마감, 결과 발표, 운영 시작/종료일 중 마지막 관련일 기준입니다.
+- 일일/주간 플래너도 같은 날짜 기준으로 신청/지원 일정을 표시합니다.
+- 신청관리 페이지는 검색, 구분/상태 필터, 요약 카드, 임박 일정, D-day, 카드 내 상태 변경을 제공합니다.
+- 캘린더 관리 페이지는 Todo, 예정 작업, 신청 일정, 작업 관리 마감, 목표/프로젝트 마감을 한 화면에서 필터링하고 선택일 agenda에서 확인/빠른 추가할 수 있습니다.
 
 ### 생산성 추이
 
@@ -216,6 +246,8 @@ SC-07 위젯 검토는 완료입니다.
 - 위젯: `src/widgets/TodoWidget.tsx`
 - 페이지: `src/pages/TodoPage.tsx`
 - 날짜별 기록 저장, 보정, 누락 항목 추가, 잘못된 항목 제거, 휴지통/복원/영구 삭제 구현
+- 오늘 미완료 항목은 오늘 결과를 저장한 뒤 다음날 Todo로 넘길 수 있습니다.
+- 과거 Todo 기록의 미완료 항목은 오늘 Todo로 다시 가져올 수 있습니다.
 
 ### 일일 루틴
 
@@ -245,21 +277,21 @@ SC-07 위젯 검토는 완료입니다.
 - 모바일 대시보드는 데스크톱 그리드 대신 세로 카드형 위젯 구조로 렌더링
 - 편집 화면에서 iPad/터치 환경에서도 위젯 추가 패널을 버튼으로 열고 닫도록 보완
 - 각 하위 페이지 상단에 홈으로 바로 돌아가는 버튼 제공
+- 모바일 상단 전체 메뉴에서 모든 페이지 접근 가능
+- 프로젝트/주간/일일/저널/프로필/출력 페이지에 모바일·태블릿 브레이크포인트 적용
+- 테마 4종의 텍스트 대비 재계산 및 코랄/블루 대비 보정
 
-남은 검토:
+남은 확인:
 
-- SC-10 태블릿/모바일 반응형은 정식 검토 전입니다.
-- 데스크톱, 태블릿 가로/세로, 모바일에서 각 페이지 입력 폼, 카드 폭, 테이블/캘린더, 하단 탭, 사이드바 숨김 구조를 실제 기기 기준으로 다시 봐야 합니다.
+- 코드/빌드/서버 기준 SC-10 검토는 완료했습니다.
+- 인앱 브라우저 attach 제한으로 실제 로그인 세션 육안 QA는 사용자 로컬 브라우저에서 최종 확인 권장입니다.
 
 ## 다음 작업 제안 순서
 
 1. 현재 미커밋 변경에 대해 사용자 확인
-2. 필요 시 커밋/푸시
-3. SC-08 남은 스텁 페이지 구현 시작: `projects`
-4. `projects` 확인 후 `weekly` → `daily` → `journal` → `profile`
-5. 이미 구현된 페이지는 데스크톱 → 태블릿 → 모바일 순서로 재검토
-6. SC-09 테마 최종 정리
-7. SC-10 태블릿/모바일 반응형 전체 QA
+2. 사용자 로컬 로그인 세션에서 주요 화면 육안 확인
+3. 사용자 지시가 있으면 커밋/푸시
+4. 필요 시 Firebase Hosting 배포
 
 ## 작업 시 주의
 

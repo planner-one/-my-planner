@@ -11,7 +11,7 @@ export const meta = {
   defaultH: 7,
   minW: 4,
   minH: 4,
-  order: 3,
+  order: 4,
 }
 
 type Category = 'work' | 'personal' | 'study'

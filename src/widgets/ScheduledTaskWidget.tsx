@@ -43,7 +43,7 @@ export const meta = {
   defaultH: 7,
   minW: 4,
   minH: 4,
-  order: 13,
+  order: 12,
   Actions: ScheduledTaskActions,
 }
 
@@ -89,8 +89,9 @@ export default function ScheduledTaskWidget() {
     .slice(0, 10)
 
   const formatDate = (date: string) => {
-    const d = new Date(date)
-    const diff = Math.round((d.getTime() - new Date(today).getTime()) / 86400000)
+    const d = new Date(`${date}T12:00:00`)
+    const todayDate = new Date(`${today}T12:00:00`)
+    const diff = Math.round((d.getTime() - todayDate.getTime()) / 86400000)
     if (diff === 0) return '오늘'
     if (diff === 1) return '내일'
     return `${d.getMonth() + 1}/${d.getDate()}`
@@ -113,7 +114,14 @@ export default function ScheduledTaskWidget() {
             background: 'var(--bg3)',
           }}
         >
-          <input type="checkbox" checked={t.done} onChange={() => toggle(t.id)} style={{ cursor: 'pointer', flexShrink: 0 }} />
+          <input
+            type="checkbox"
+            checked={t.done}
+            onClick={event => event.stopPropagation()}
+            onChange={() => toggle(t.id)}
+            aria-label={`${t.title} 완료`}
+            style={{ cursor: 'pointer', flexShrink: 0 }}
+          />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{
               fontSize: 13, color: t.done ? 'var(--muted)' : 'var(--text)',

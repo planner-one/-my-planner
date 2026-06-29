@@ -1,7 +1,7 @@
 import { type ComponentType } from 'react'
 import ClockWidget, { meta as clockMeta, ClockActions } from './ClockWidget'
 import MemoWidget, { meta as memoMeta, MemoActions } from './MemoWidget'
-import CalendarWidget, { meta as calendarMeta } from './CalendarWidget'
+import CalendarWidget, { meta as calendarMeta, CalendarActions } from './CalendarWidget'
 import TodoWidget, { meta as todoMeta } from './TodoWidget'
 import HabitWidget, { meta as habitMeta } from './HabitWidget'
 import PomodoroWidget, { meta as pomodoroMeta } from './PomodoroWidget'
@@ -31,7 +31,7 @@ export interface WidgetMeta {
 export const WIDGETS: WidgetMeta[] = [
   { ...clockMeta,    component: ClockWidget,         Actions: ClockActions },
   { ...memoMeta,     component: MemoWidget,           Actions: MemoActions },
-  { ...calendarMeta, component: CalendarWidget },
+  { ...calendarMeta, component: CalendarWidget, Actions: CalendarActions },
   { ...todoMeta,     component: TodoWidget },
   { ...habitMeta,    component: HabitWidget },
   { ...pomodoroMeta, component: PomodoroWidget },

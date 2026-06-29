@@ -10,7 +10,7 @@ import DashboardEditor from './DashboardEditor'
 const COLS = 48
 const ROW_H = 40
 const GAP = 8
-const MOBILE_BREAKPOINT = 640
+const MOBILE_BREAKPOINT = 768
 
 const MOBILE_WIDGET_HEIGHTS: Record<string, number> = {
   clock: 220,
@@ -26,14 +26,20 @@ const MOBILE_WIDGET_HEIGHTS: Record<string, number> = {
   goal: 260,
   menu: 240,
   review: 270,
+  journalFeed: 270,
 }
 
 const normalizeLayout = (layout: LayoutItem[]): LayoutItem[] =>
-  layout.map(item => ({
-    ...item,
-    x: Math.min(item.x, COLS - item.w),
-    w: Math.min(item.w, COLS),
-  }))
+  layout.map(item => {
+    const minW = Math.min(item.minW ?? 1, COLS)
+    const w = Math.min(Math.max(item.w, minW), COLS)
+    return {
+      ...item,
+      x: Math.min(Math.max(item.x, 0), COLS - w),
+      w,
+      h: Math.max(item.h, item.minH ?? 1),
+    }
+  })
 
 export default function Dashboard() {
   const {
@@ -139,7 +145,7 @@ export default function Dashboard() {
   return (
     <div className="dashboard-page" style={{ position: 'relative', padding: '0 24px 24px' }}>
       <div className="dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.02em' }}>나만의 플래너</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', letterSpacing: 0 }}>나만의 플래너</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div className="dashboard-scale-control" style={{
             display: 'flex', alignItems: 'center', height: 31,
@@ -247,7 +253,7 @@ export default function Dashboard() {
           </GridLayout>
         )}
 
-        {dashboardActive.length === 0 && (
+        {layout.length === 0 && (
           <div style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center',
             justifyContent: 'center', height: 300, color: 'var(--muted)', gap: 12,

@@ -75,9 +75,11 @@ export interface Project {
   id: string
   name: string
   icon?: string
+  description?: string
   pct: number
   due?: string
   status?: string
+  steps?: GoalStep[]
 }
 
 export interface TopGoal {
@@ -186,11 +188,17 @@ export interface CareerEvent {
 
 export interface JournalEntry {
   date: string
+  title?: string
+  mood?: string
+  content?: string
+  gratitude?: string
+  tomorrowFocus?: string
   habitPct?: number
   todoDone?: number
   todoTotal?: number
   energy?: number
   productivity?: number
+  updatedAt?: string
 }
 
 export interface LayoutItem {

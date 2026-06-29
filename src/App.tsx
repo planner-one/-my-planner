@@ -4,6 +4,7 @@ import { RouterProvider, useRouter } from './store/RouterContext'
 import LoginPage from './pages/LoginPage'
 import PageShell from './components/PageShell'
 import Dashboard from './pages/Dashboard'
+import CalendarPage from './pages/CalendarPage'
 import HabitTracker from './pages/HabitTracker'
 import TaskTracker from './pages/TaskTracker'
 import Goals from './pages/Goals'
@@ -20,11 +21,12 @@ import CareerEvents from './pages/CareerEvents'
 import type { ComponentType } from 'react'
 
 type PageId =
-  | 'dashboard' | 'habits' | 'tasks' | 'todos' | 'goals' | 'projects'
+  | 'dashboard' | 'calendar' | 'habits' | 'tasks' | 'todos' | 'goals' | 'projects'
   | 'weekly' | 'daily' | 'notes' | 'journal' | 'profile' | 'inquiries' | 'print' | 'career'
 
 const PAGE_MAP: Record<PageId, ComponentType> = {
   dashboard: Dashboard,
+  calendar:  CalendarPage,
   habits:    HabitTracker,
   tasks:     TaskTracker,
   todos:     TodoPage,
