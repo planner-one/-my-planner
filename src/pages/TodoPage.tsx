@@ -161,14 +161,22 @@ export default function TodoPage() {
   const todoCarryKey = (todo: Todo) =>
     `${todo.text.trim().toLowerCase()}::${cat(todo)}`
 
+  const getIncompleteItems = (items: Todo[]) =>
+    items.filter(item => !item.done)
+
+  const getImportableItems = (
+    items: Todo[],
+    existingKeys = new Set(todayItems.map(todoCarryKey))
+  ) => getIncompleteItems(items)
+    .filter(todo => !existingKeys.has(todoCarryKey(todo)))
+
   const getIncompleteHistoryItems = (result: TodoDailyResult) =>
-    result.items.filter(item => !item.done)
+    getIncompleteItems(result.items)
 
   const getImportableHistoryItems = (
     result: TodoDailyResult,
     existingKeys = new Set(todayItems.map(todoCarryKey))
-  ) => getIncompleteHistoryItems(result)
-    .filter(todo => !existingKeys.has(todoCarryKey(todo)))
+  ) => getImportableItems(result.items, existingKeys)
 
   const pastIncompleteResults = todoHistory
     .filter(result => result.date !== today)
@@ -239,15 +247,15 @@ export default function TodoPage() {
     window.setTimeout(() => setSaveMessage(''), 2400)
   }
 
-  const bringIncompleteFromHistory = async (result: TodoDailyResult) => {
-    const incomplete = getIncompleteHistoryItems(result)
+  const bringTodoItemsToToday = async (sourceDate: string, sourceItems: Todo[]) => {
+    const incomplete = getIncompleteItems(sourceItems)
     if (incomplete.length === 0) {
-      setSaveMessage('가져올 미완료 Todo가 없습니다.')
+      setSaveMessage('오늘로 올릴 체크 안 된 항목이 없습니다.')
       window.setTimeout(() => setSaveMessage(''), 2000)
       return
     }
     const todayKeys = new Set(todayItems.map(todoCarryKey))
-    const carried = getImportableHistoryItems(result, todayKeys)
+    const carried = getImportableItems(sourceItems, todayKeys)
       .map((todo, index): Todo => ({
         ...todo,
         id: `history-carry-${Date.now()}-${index}`,
@@ -255,7 +263,7 @@ export default function TodoPage() {
         date: today,
       }))
     if (carried.length === 0) {
-      setSaveMessage('오늘 Todo에 이미 같은 미완료 항목이 있습니다.')
+      setSaveMessage('오늘 할 일에 이미 같은 항목이 있습니다.')
       window.setTimeout(() => setSaveMessage(''), 2400)
       return
     }
@@ -264,8 +272,12 @@ export default function TodoPage() {
     setFilterCat('all')
     setFilterDate('today')
     await saveWithOverrides({ todos: nextTodos })
-    setSaveMessage(`${result.date} 미완료 Todo ${carried.length}개를 오늘로 가져왔습니다.`)
+    setSaveMessage(`${sourceDate} 체크 안 된 항목 ${carried.length}개를 오늘 할 일로 올렸습니다.`)
     window.setTimeout(() => setSaveMessage(''), 2400)
+  }
+
+  const bringIncompleteFromHistory = async (result: TodoDailyResult) => {
+    await bringTodoItemsToToday(result.date, result.items)
   }
 
   const bringAllPastIncompleteToToday = async () => {
@@ -818,7 +830,11 @@ export default function TodoPage() {
           }}>
             저장된 Todo 결과가 없습니다.
           </div>
-        ) : todoHistory.map(result => (
+        ) : todoHistory.map(result => {
+          const visibleItems = correctionDate === result.date ? correctionItems : result.items
+          const visibleIncomplete = getIncompleteItems(visibleItems)
+          const visibleImportable = getImportableItems(visibleItems)
+          return (
           <details key={result.date} style={{
             borderTop: '1px solid var(--border)',
             padding: '12px 4px 0',
@@ -846,7 +862,7 @@ export default function TodoPage() {
               </div>
             </summary>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7, padding: '12px 0 2px 136px' }}>
-              {result.date !== today && getIncompleteHistoryItems(result).length > 0 && (
+              {result.date !== today && visibleIncomplete.length > 0 && (
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -859,12 +875,12 @@ export default function TodoPage() {
                   background: 'var(--bg3)',
                 }}>
                   <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600 }}>
-                    이 날짜에 미완료 {getIncompleteHistoryItems(result).length}개가 남아 있습니다.
+                    이 날짜에 체크 안 된 항목 {visibleIncomplete.length}개가 남아 있습니다.
                   </span>
                   <button
                     type="button"
-                    onClick={() => bringIncompleteFromHistory(result)}
-                    disabled={getImportableHistoryItems(result).length === 0}
+                    onClick={() => bringTodoItemsToToday(result.date, visibleItems)}
+                    disabled={visibleImportable.length === 0}
                     style={{
                       padding: '6px 10px',
                       borderRadius: 7,
@@ -873,18 +889,18 @@ export default function TodoPage() {
                       color: 'var(--accent)',
                       fontSize: 11,
                       fontWeight: 800,
-                      cursor: getImportableHistoryItems(result).length === 0 ? 'default' : 'pointer',
-                      opacity: getImportableHistoryItems(result).length === 0 ? 0.55 : 1,
+                      cursor: visibleImportable.length === 0 ? 'default' : 'pointer',
+                      opacity: visibleImportable.length === 0 ? 0.55 : 1,
                     }}
                   >
-                    {getImportableHistoryItems(result).length === 0
-                      ? '오늘 Todo에 이미 있음'
-                      : `미완료 ${getImportableHistoryItems(result).length}개 오늘로 가져오기`}
+                    {visibleImportable.length === 0
+                      ? '오늘 할 일에 이미 있음'
+                      : `체크 안 된 항목 ${visibleImportable.length}개 오늘 할 일로 올리기`}
                   </button>
                 </div>
               )}
 
-              {(correctionDate === result.date ? correctionItems : result.items).length === 0 ? (
+              {visibleItems.length === 0 ? (
                 <div style={{
                   display: 'flex', alignItems: 'center',
                   justifyContent: 'space-between', gap: 12,
@@ -907,7 +923,9 @@ export default function TodoPage() {
                     </button>
                   )}
                 </div>
-              ) : (correctionDate === result.date ? correctionItems : result.items).map(item => (
+              ) : visibleItems.map(item => {
+                const itemImportable = getImportableItems([item]).length > 0
+                return (
                 <label key={item.id} style={{
                   display: 'flex', alignItems: 'center', gap: 8,
                   fontSize: 12, color: item.done ? 'var(--muted)' : 'var(--text)',
@@ -936,6 +954,34 @@ export default function TodoPage() {
                       보정 추가
                     </span>
                   )}
+                  {result.date !== today && !item.done && (
+                    <button
+                      type="button"
+                      onClick={event => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        bringTodoItemsToToday(result.date, [item])
+                      }}
+                      disabled={!itemImportable}
+                      title="이 체크 안 된 항목을 오늘 할 일로 올리기"
+                      aria-label={`${item.text} 오늘 할 일로 올리기`}
+                      style={{
+                        flexShrink: 0,
+                        border: '1px solid var(--accent)',
+                        borderRadius: 6,
+                        background: itemImportable ? 'var(--accent-soft)' : 'var(--bg3)',
+                        color: itemImportable ? 'var(--accent)' : 'var(--muted)',
+                        fontSize: 10,
+                        fontWeight: 800,
+                        lineHeight: 1,
+                        padding: '5px 7px',
+                        cursor: itemImportable ? 'pointer' : 'default',
+                        opacity: itemImportable ? 1 : 0.55,
+                      }}
+                    >
+                      {itemImportable ? '오늘로 올리기' : '이미 오늘에 있음'}
+                    </button>
+                  )}
                   {correctionDate === result.date && (
                     <button
                       type="button"
@@ -956,7 +1002,8 @@ export default function TodoPage() {
                     </button>
                   )}
                 </label>
-              ))}
+                )
+              })}
 
               {result.correctionNote && correctionDate !== result.date && (
                 <div style={{
@@ -1175,7 +1222,8 @@ export default function TodoPage() {
               )}
             </div>
           </details>
-        ))}
+          )
+        })}
       </section>
 
       {todoHistoryTrash.length > 0 && (
