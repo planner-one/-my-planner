@@ -1,5 +1,6 @@
 import { useAuth } from '../store/AuthContext'
 import { useApp } from '../store/AppContext'
+import { APP_RELEASE_DATE, APP_RELEASE_NAME, APP_RELEASE_NOTES, APP_VERSION } from '../version'
 
 export default function ProfilePage() {
   const { user } = useAuth()
@@ -82,6 +83,23 @@ export default function ProfilePage() {
         </div>
       </section>
 
+      <section className="profile-panel release-panel">
+        <div className="panel-heading">
+          <div>
+            <h3>플래너 버전</h3>
+            <p className="profile-note">현재 앱 기준과 이번 릴리즈에 포함된 핵심 업그레이드입니다.</p>
+          </div>
+          <span className="version-badge">v{APP_VERSION}</span>
+        </div>
+        <div className="release-summary">
+          <Stat label="릴리즈" value={APP_RELEASE_NAME} />
+          <Stat label="배포 기준일" value={APP_RELEASE_DATE} />
+        </div>
+        <ul className="release-list">
+          {APP_RELEASE_NOTES.map(note => <li key={note}>{note}</li>)}
+        </ul>
+      </section>
+
       <style>{`
         .profile-page { max-width: 960px; margin: 0 auto; color: var(--text); display: flex; flex-direction: column; gap: 16px; }
         .profile-header { display: flex; align-items: center; gap: 14px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; }
@@ -104,9 +122,16 @@ export default function ProfilePage() {
         .stat-card span { display: block; color: var(--muted); font-size: 11px; font-weight: 700; }
         .stat-card b { display: block; margin-top: 6px; color: var(--text); font-size: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .panel-heading { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+        .version-badge { flex-shrink: 0; border: 1px solid var(--accent); border-radius: 999px; background: var(--accent-soft); color: var(--accent); padding: 5px 10px; font-size: 12px; font-weight: 900; }
+        .release-panel .panel-heading { align-items: flex-start; }
+        .release-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+        .release-summary .stat-card b { font-size: 16px; }
+        .release-list { margin: 0; padding-left: 18px; color: var(--text); font-size: 13px; line-height: 1.7; }
+        .release-list li::marker { color: var(--accent); }
         @media (max-width: 760px) {
-          .profile-grid, .profile-stats, .storage-grid { grid-template-columns: 1fr; }
+          .profile-grid, .profile-stats, .storage-grid, .release-summary { grid-template-columns: 1fr; }
           .profile-header { align-items: flex-start; }
+          .release-panel .panel-heading { flex-direction: column; }
         }
       `}</style>
     </div>

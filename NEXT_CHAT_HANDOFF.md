@@ -1,14 +1,14 @@
 # 다음 채팅 인수인계
 
 _작성일: 2026-06-28_
-_갱신일: 2026-06-30 (HEAD `d9683df` 기준, Todo 기록 보정 화면 직접 올리기 미커밋 변경 포함)_
+_갱신일: 2026-06-30 (HEAD `ff31eef` 기준, v0.2.0 버전 정리 미커밋 변경 포함)_
 
 이 파일은 새 Codex 또는 Claude Code 세션에서 바로 이어 작업하기 위한 현재 상태 메모입니다.
-새 세션에서는 먼저 이 파일과 `AGENTS.md`, `PROGRESS.md`, `REQUIREMENTS.md`, `SCENARIOS.md`를 읽고 시작하면 됩니다.
+새 세션에서는 먼저 이 파일과 `AGENTS.md`, `PROGRESS.md`, `REQUIREMENTS.md`, `SCENARIOS.md`, `RELEASES.md`를 읽고 시작하면 됩니다.
 
 ## 한 줄 요약
 
-플래너는 Firebase 기반 React/Vite/TypeScript 앱이며, SC-07 위젯 검토와 SC-08 사이드바 기능 페이지, SC-09 테마 정리, SC-10 태블릿/모바일 반응형 코드 QA까지 완료했습니다. 2026-06-30에는 오늘 할 일의 미완료 Todo 이월 기능, 데스크톱 사이드바 UX 개선, 과거 Todo 기록의 미완료 항목을 오늘로 가져오는 빠른 액션을 보강해 `d9683df`까지 push했습니다. 이후 Todo 기록 보정 화면에서 체크 안 된 항목을 바로 오늘 할 일로 올리는 수정이 미커밋 상태입니다.
+플래너는 Firebase 기반 React/Vite/TypeScript 앱이며, SC-07 위젯 검토와 SC-08 사이드바 기능 페이지, SC-09 테마 정리, SC-10 태블릿/모바일 반응형 코드 QA까지 완료했습니다. 2026-06-30에는 Todo 기록 보정 화면에서 체크 안 된 항목을 오늘 할 일로 올리는 기능까지 `ff31eef`로 push하고 Firebase Hosting 배포를 완료했습니다. 이후 현재 작업에서는 플래너를 v0.2.0 Core Planner로 올리고, 앱 내 버전 표시와 릴리즈 문서 체계를 추가했습니다.
 
 ## 작업 위치와 원격
 
@@ -18,21 +18,27 @@ _갱신일: 2026-06-30 (HEAD `d9683df` 기준, Todo 기록 보정 화면 직접 
 - 배포: Firebase Hosting
 - 배포 URL: `https://my-planner-487bd.web.app`
 - GitHub Pages는 사용하지 않습니다.
-- 현재 HEAD: `d9683df feat: improve sidebar and todo carryover`
-- 현재 로컬 브랜치 상태: Todo 기록 보정 화면 직접 올리기 수정이 미커밋 상태
-- 최근 push는 `planner-one` 계정으로 성공했습니다.
+- 현재 HEAD: `ff31eef fix: add direct todo carryover from history`
+- 현재 앱 버전: `v0.2.0 Core Planner`
+- 현재 로컬 브랜치 상태: v0.2.0 버전 정리 변경 검증 완료, 미커밋 상태
+- 최근 push와 Firebase Hosting 배포는 `planner-one` 계정으로 성공했습니다.
 
 ## 현재 미커밋 변경
 
-HEAD `d9683df` 위에 Todo 기록 보정 화면 직접 올리기 개선과 문서 최신화가 미커밋 상태로 남아 있습니다.
+HEAD `ff31eef` 위에 v0.2.0 버전 정리와 문서 최신화가 미커밋 상태로 남아 있습니다.
 
-- `src/pages/TodoPage.tsx`: Todo 기록 보정 화면에서 현재 보이는 체크 안 된 항목을 날짜 전체 또는 항목별로 오늘 할 일에 바로 올리는 액션 추가. 보정 중인 항목 배열 기준으로 중복 제외 후 오늘 날짜 Todo로 복사
-- `PROGRESS.md`: 2026-06-30 Todo 기록 보정 화면 직접 올리기 변경 이력 추가
-- `NEXT_CHAT_HANDOFF.md`: 현재 HEAD와 미커밋 변경 상태 갱신
+- `package.json`, `package-lock.json`: 앱 버전 `0.2.0`으로 상향
+- `src/version.ts`: 현재 앱 버전, 릴리즈 날짜, 릴리즈 이름, 핵심 변경 메타 추가
+- `src/pages/ProfilePage.tsx`: 프로필 화면에 플래너 버전 패널 추가
+- `RELEASES.md`: v0.1.x~v0.4.x 버전 기준과 v0.2.0 릴리즈 노트 추가
+- `AGENTS.md`, `CLAUDE.md`: 새 세션 문서 확인 목록에 `RELEASES.md` 반영
+- `REQUIREMENTS.md`, `SCENARIOS.md`, `PROGRESS.md`: 버전 관리 요구사항/SC-11/진행 이력 추가
+- `NEXT_CHAT_HANDOFF.md`: 현재 HEAD와 v0.2.0 미커밋 변경 상태 갱신
 
 ## 최근 커밋 흐름
 
 ```text
+ff31eef fix: add direct todo carryover from history
 d9683df feat: improve sidebar and todo carryover
 09ab803 feat: complete planner workflows
 6c4e51f docs: 인수인계 문서 최신 커밋·SC-08 진행 상태로 갱신
@@ -92,6 +98,7 @@ firebase deploy --only hosting
 - 2026-06-30 데스크톱 사이드바 UX 개선 후 `npx tsc --noEmit`, `npm run build`, `git diff --check`, 충돌 마커 검색, 로컬 dev 서버 5182 HTTP 200 확인 통과
 - 2026-06-30 Todo 과거 미완료 가져오기 개선 후 `npx tsc --noEmit`, `npm run build`, `git diff --check`, 충돌 마커 검색, 로컬 dev 서버 5182 HTTP 200 확인 통과
 - 2026-06-30 Todo 기록 보정 화면 직접 올리기 개선 후 `npx tsc --noEmit`, `npm run build`, `git diff --check`, 충돌 마커 검색, 로컬 dev 서버 5182 HTTP 200 확인 통과
+- 2026-06-30 v0.2.0 버전 정리 후 `npx tsc --noEmit`, `npm run build`, `git diff --check`, 충돌 마커 검색, 로컬 dev 서버 5182 HTTP 200 확인 통과
 
 주의:
 
@@ -110,6 +117,7 @@ firebase deploy --only hosting
 - `src/store/RouterContext.tsx`: URL 라우터 대신 page 상태로 화면 전환
 - `src/types/index.ts`: 앱 데이터 타입
 - `src/widgets/index.ts`: 위젯 등록 목록
+- `src/version.ts`: 앱 버전, 릴리즈 날짜, 릴리즈 이름, 프로필 표시용 릴리즈 노트
 
 데이터 저장:
 
