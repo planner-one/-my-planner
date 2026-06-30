@@ -161,6 +161,26 @@ export default function TodoPage() {
   const todoCarryKey = (todo: Todo) =>
     `${todo.text.trim().toLowerCase()}::${cat(todo)}`
 
+  const getIncompleteHistoryItems = (result: TodoDailyResult) =>
+    result.items.filter(item => !item.done)
+
+  const getImportableHistoryItems = (
+    result: TodoDailyResult,
+    existingKeys = new Set(todayItems.map(todoCarryKey))
+  ) => getIncompleteHistoryItems(result)
+    .filter(todo => !existingKeys.has(todoCarryKey(todo)))
+
+  const pastIncompleteResults = todoHistory
+    .filter(result => result.date !== today)
+    .map(result => ({
+      result,
+      incomplete: getIncompleteHistoryItems(result),
+      importable: getImportableHistoryItems(result),
+    }))
+    .filter(item => item.incomplete.length > 0)
+  const pastIncompleteTotal = pastIncompleteResults.reduce((sum, item) => sum + item.incomplete.length, 0)
+  const pastImportableTotal = pastIncompleteResults.reduce((sum, item) => sum + item.importable.length, 0)
+
   const rolloverTodayIncomplete = async () => {
     if (todayIncomplete.length === 0) {
       setSaveMessage('내일로 넘길 미완료 Todo가 없습니다.')
@@ -220,15 +240,14 @@ export default function TodoPage() {
   }
 
   const bringIncompleteFromHistory = async (result: TodoDailyResult) => {
-    const incomplete = result.items.filter(item => !item.done)
+    const incomplete = getIncompleteHistoryItems(result)
     if (incomplete.length === 0) {
       setSaveMessage('가져올 미완료 Todo가 없습니다.')
       window.setTimeout(() => setSaveMessage(''), 2000)
       return
     }
     const todayKeys = new Set(todayItems.map(todoCarryKey))
-    const carried = incomplete
-      .filter(todo => !todayKeys.has(todoCarryKey(todo)))
+    const carried = getImportableHistoryItems(result, todayKeys)
       .map((todo, index): Todo => ({
         ...todo,
         id: `history-carry-${Date.now()}-${index}`,
@@ -242,9 +261,57 @@ export default function TodoPage() {
     }
     const nextTodos = [...carried, ...todos]
     setTodos(nextTodos)
+    setFilterCat('all')
+    setFilterDate('today')
     await saveWithOverrides({ todos: nextTodos })
     setSaveMessage(`${result.date} 미완료 Todo ${carried.length}개를 오늘로 가져왔습니다.`)
     window.setTimeout(() => setSaveMessage(''), 2400)
+  }
+
+  const bringAllPastIncompleteToToday = async () => {
+    if (pastIncompleteTotal === 0) {
+      setSaveMessage('가져올 지난 미완료 Todo가 없습니다.')
+      window.setTimeout(() => setSaveMessage(''), 2000)
+      return
+    }
+
+    const todayKeys = new Set(todayItems.map(todoCarryKey))
+    const timestamp = Date.now()
+    const carried: Todo[] = []
+    let duplicateCount = 0
+
+    pastIncompleteResults.forEach(({ incomplete }) => {
+      incomplete.forEach(todo => {
+        const key = todoCarryKey(todo)
+        if (todayKeys.has(key)) {
+          duplicateCount += 1
+          return
+        }
+        todayKeys.add(key)
+        carried.push({
+          ...todo,
+          id: `history-carry-${timestamp}-${carried.length}`,
+          done: false,
+          date: today,
+        })
+      })
+    })
+
+    if (carried.length === 0) {
+      setSaveMessage(duplicateCount > 0
+        ? '지난 미완료 항목이 이미 오늘 Todo에 있습니다.'
+        : '오늘로 가져올 미완료 Todo가 없습니다.')
+      window.setTimeout(() => setSaveMessage(''), 2400)
+      return
+    }
+
+    const nextTodos = [...carried, ...todos]
+    setTodos(nextTodos)
+    setFilterCat('all')
+    setFilterDate('today')
+    await saveWithOverrides({ todos: nextTodos })
+    setSaveMessage(`지난 미완료 Todo ${carried.length}개를 오늘로 가져왔습니다.`)
+    window.setTimeout(() => setSaveMessage(''), 2600)
   }
 
   const startCorrection = (result: TodoDailyResult) => {
@@ -661,6 +728,89 @@ export default function TodoPage() {
           </p>
         </div>
 
+        {pastIncompleteResults.length > 0 && (
+          <div style={{
+            border: '1px solid var(--accent)',
+            background: 'var(--accent-soft)',
+            borderRadius: 12,
+            padding: '12px 14px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 10,
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+              flexWrap: 'wrap',
+            }}>
+              <div style={{ minWidth: 0 }}>
+                <strong style={{ display: 'block', fontSize: 13, color: 'var(--text)' }}>
+                  지난 기록에 미완료 Todo {pastIncompleteTotal}개가 남아 있어요.
+                </strong>
+                <span style={{ display: 'block', marginTop: 2, fontSize: 11, color: 'var(--muted)' }}>
+                  오늘 Todo에 없는 항목만 오늘 날짜로 가져옵니다. 지난 기록은 그대로 보존됩니다.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={bringAllPastIncompleteToToday}
+                disabled={pastImportableTotal === 0}
+                style={{
+                  flexShrink: 0,
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: 'var(--accent)',
+                  color: '#fff',
+                  fontSize: 12,
+                  fontWeight: 800,
+                  cursor: pastImportableTotal === 0 ? 'default' : 'pointer',
+                  opacity: pastImportableTotal === 0 ? 0.55 : 1,
+                }}
+              >
+                모두 오늘로 가져오기
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {pastIncompleteResults.slice(0, 6).map(({ result, importable }) => (
+                <button
+                  key={result.date}
+                  type="button"
+                  onClick={() => bringIncompleteFromHistory(result)}
+                  disabled={importable.length === 0}
+                  title={`${result.date} 미완료 Todo를 오늘 날짜로 가져오기`}
+                  style={{
+                    padding: '5px 8px',
+                    borderRadius: 999,
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg2)',
+                    color: importable.length === 0 ? 'var(--muted)' : 'var(--accent)',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: importable.length === 0 ? 'default' : 'pointer',
+                    opacity: importable.length === 0 ? 0.6 : 1,
+                  }}
+                >
+                  {result.date} · {importable.length === 0 ? '이미 있음' : `${importable.length}개`}
+                </button>
+              ))}
+              {pastIncompleteResults.length > 6 && (
+                <span style={{
+                  padding: '5px 8px',
+                  borderRadius: 999,
+                  color: 'var(--muted)',
+                  fontSize: 11,
+                  fontWeight: 700,
+                }}>
+                  외 {pastIncompleteResults.length - 6}일
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
         {todoHistory.length === 0 ? (
           <div style={{
             padding: '22px 18px', borderTop: '1px solid var(--border)',
@@ -696,6 +846,44 @@ export default function TodoPage() {
               </div>
             </summary>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7, padding: '12px 0 2px 136px' }}>
+              {result.date !== today && getIncompleteHistoryItems(result).length > 0 && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 10,
+                  flexWrap: 'wrap',
+                  padding: '9px 10px',
+                  borderRadius: 8,
+                  border: '1px solid var(--border)',
+                  background: 'var(--bg3)',
+                }}>
+                  <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600 }}>
+                    이 날짜에 미완료 {getIncompleteHistoryItems(result).length}개가 남아 있습니다.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => bringIncompleteFromHistory(result)}
+                    disabled={getImportableHistoryItems(result).length === 0}
+                    style={{
+                      padding: '6px 10px',
+                      borderRadius: 7,
+                      border: '1px solid var(--accent)',
+                      background: 'var(--accent-soft)',
+                      color: 'var(--accent)',
+                      fontSize: 11,
+                      fontWeight: 800,
+                      cursor: getImportableHistoryItems(result).length === 0 ? 'default' : 'pointer',
+                      opacity: getImportableHistoryItems(result).length === 0 ? 0.55 : 1,
+                    }}
+                  >
+                    {getImportableHistoryItems(result).length === 0
+                      ? '오늘 Todo에 이미 있음'
+                      : `미완료 ${getImportableHistoryItems(result).length}개 오늘로 가져오기`}
+                  </button>
+                </div>
+              )}
+
               {(correctionDate === result.date ? correctionItems : result.items).length === 0 ? (
                 <div style={{
                   display: 'flex', alignItems: 'center',
