@@ -54,8 +54,13 @@ const mergeTokens = (current: string | string[] | undefined, next: string[]) => 
 
 const COMPANY_SLUG_LABELS: Record<string, string> = {
   kdb: 'KDB',
-  nextsystem: 'Nextsystem',
 }
+
+const JOB_CONTENT_HINTS =
+  /기업명|회사명|기관명|채용\s*직무|모집\s*직무|세부\s*업무|담당업무|기술스택|기술\s*스택|채용\s*인원|연봉|급여|고용형태|지원\s*자격|자격요건|우대사항|소재지|근무지|사업내용/
+
+const hasUsefulJobText = (text: string) =>
+  normalizeLine(text).length > 40 && JOB_CONTENT_HINTS.test(text)
 
 const emptyForm = () => ({
   company: '',
@@ -204,8 +209,13 @@ const sortPostings = (items: JobPosting[]) =>
     return dateDistance(a.deadline ?? a.resultDate) - dateDistance(b.deadline ?? b.resultDate)
   })
 
-const stripFieldLabel = (value: string) =>
-  value.replace(/^(기업명|회사명|기관명|채용\s*직무\s*\/?\s*분야|모집\s*직무|포지션|직무|분야)\s*[:：-]?\s*/i, '').trim()
+const stripFieldLabel = (value: string) => {
+  const stripped = value.replace(
+    /^(기업명|회사명|기관명|소재지|주소|근무지|근무\s*지역|사업내용|홈페이지|연혁|재직\s*인원|채용\s*직무\s*\/?\s*분야|모집\s*직무|포지션|직무|분야|세부\s*업무\s*내용\s*및\s*기술스택|세부\s*업무|담당업무|기술스택|기술\s*스택|채용\s*인원|모집\s*인원|연봉|급여|고용형태|근무형태|채용\s*우대사항|우대사항|지원\s*자격|자격요건|복리후생|기업문화)(?:\s*\([^)]*\))?\s*[:：-]?\s*/i,
+    '',
+  ).trim()
+  return /^\([^)]{1,30}\)$/.test(stripped) ? '' : stripped
+}
 
 const normalizeLine = (value: string) =>
   value
@@ -267,12 +277,12 @@ const inferFromText = (text: string) => {
     .filter(isRoleLine)
     .slice(0, 3)
   const location = findLabeledValue(lines, /소재지|주소|근무지|근무\s*지역/)
-  const employmentType = findSectionValue(lines, /고용형태|근무형태/)
+  const employmentType = findLabeledValue(lines, /고용형태|근무형태/) || findSectionValue(lines, /고용형태|근무형태/)
   const business = findLabeledValue(lines, /사업내용/)
-  const headcount = findSectionValue(lines, /채용\s*인원|모집\s*인원/)
-  const salary = findSectionValue(lines, /연봉|급여/)
-  const requirements = findSectionValue(lines, /지원\s*자격|자격요건/)
-  const preference = findSectionValue(lines, /채용\s*우대사항|우대사항/)
+  const headcount = findLabeledValue(lines, /채용\s*인원|모집\s*인원/) || findSectionValue(lines, /채용\s*인원|모집\s*인원/)
+  const salary = findLabeledValue(lines, /연봉|급여/) || findSectionValue(lines, /연봉|급여/)
+  const requirements = findLabeledValue(lines, /지원\s*자격|자격요건/) || findSectionValue(lines, /지원\s*자격|자격요건/)
+  const preference = findLabeledValue(lines, /채용\s*우대사항|우대사항/) || findSectionValue(lines, /채용\s*우대사항|우대사항/)
   const note = [
     business ? `사업내용: ${business}` : '',
     headcount ? `채용 인원: ${headcount}` : '',
@@ -296,10 +306,10 @@ const buildLinkDraft = (url: string, text = '') => {
   const textDraft = text.trim()
     ? inferFromText(text)
     : { company: '', position: '', deadline: '', location: '', employmentType: '', keywords: [], note: '' }
+  const isGoogleSitesCompanyPage = urlDraft.normalizedUrl.includes('sites.google.com')
   const allowUrlCompanyFallback =
-    Boolean(text.trim()) ||
     urlDraft.platform !== 'company' ||
-    !urlDraft.normalizedUrl.includes('sites.google.com')
+    (!isGoogleSitesCompanyPage && !/\/cor\//i.test(urlDraft.normalizedUrl))
   return {
     sourceUrl: urlDraft.normalizedUrl,
     platform: urlDraft.platform,
@@ -312,6 +322,13 @@ const buildLinkDraft = (url: string, text = '') => {
     note: textDraft.note,
   }
 }
+
+type TextDraft = ReturnType<typeof inferFromText>
+type LinkDraft = ReturnType<typeof buildLinkDraft>
+type JobDraft = TextDraft | LinkDraft
+
+const isLinkDraft = (draft: JobDraft): draft is LinkDraft =>
+  'sourceUrl' in draft
 
 const getPageTextFromUrl = async (url: string) => {
   const controller = new AbortController()
@@ -358,7 +375,9 @@ export default function JobPostings() {
     try {
       const normalizedUrl = normalizeLinkUrl(linkDraftUrl)
       const pageText = await getPageTextFromUrl(normalizedUrl)
-      const draft = buildLinkDraft(normalizedUrl, [pageText, linkDraftText, form.imageText].filter(Boolean).join('\n'))
+      const usefulPageText = hasUsefulJobText(pageText) ? pageText : ''
+      const manualText = [linkDraftText, form.imageText].filter(Boolean).join('\n')
+      const draft = buildLinkDraft(normalizedUrl, [usefulPageText, manualText].filter(Boolean).join('\n'))
       setForm(previous => ({
         ...previous,
         sourceUrl: draft.sourceUrl,
@@ -373,10 +392,10 @@ export default function JobPostings() {
         note: previous.note || draft.note,
         nextAction: previous.nextAction || '공고 확인 후 지원서 맞춤 수정',
       }))
-      const source = pageText ? '링크 본문과 보조 텍스트' : linkDraftText || form.imageText ? '붙여넣은 공고 내용과 링크 주소' : '링크 주소'
+      const source = usefulPageText ? '링크 본문과 보조 텍스트' : manualText ? '붙여넣은 공고 내용과 링크 주소' : '링크 주소'
       setLinkDraftStatus(draft.company || draft.position || draft.deadline || draft.location || draft.employmentType || draft.keywords.length
         ? `${source}를 바탕으로 초안을 반영했습니다.`
-        : '링크를 공고로 저장할 수 있게 반영했습니다. 본문을 못 읽은 경우 아래에 페이지 내용을 붙여넣으면 기업명, 직무, 기술스택까지 반영합니다.')
+        : '링크 본문을 자동으로 읽지 못했습니다. 아래 페이지 내용 붙여넣기 칸에 공고 내용을 넣고 다시 반영하면 기업명, 직무, 기술스택까지 채웁니다.')
     } catch {
       setLinkDraftStatus('올바른 공고 링크를 입력해 주세요.')
     } finally {
@@ -401,6 +420,29 @@ export default function JobPostings() {
       })
     } catch {
       window.alert('올바른 공고 링크를 입력해 주세요.')
+    }
+  }
+
+  const applyTextDraftToForm = () => {
+    const url = form.sourceUrl || linkDraftUrl
+    if (!url && !form.imageText.trim()) return
+    try {
+      const draft = url ? buildLinkDraft(url, form.imageText) : inferFromText(form.imageText)
+      setForm(previous => ({
+        ...previous,
+        sourceUrl: isLinkDraft(draft) ? draft.sourceUrl : previous.sourceUrl,
+        platform: isLinkDraft(draft) ? draft.platform : previous.platform,
+        company: previous.company && !['기업 미정', '회사 미정'].includes(previous.company) ? previous.company : draft.company || previous.company,
+        position: previous.position && !['공고 확인 필요', '포지션 미정'].includes(previous.position) ? previous.position : draft.position || previous.position,
+        deadline: previous.deadline || draft.deadline,
+        location: previous.location || draft.location,
+        employmentType: previous.employmentType || draft.employmentType,
+        keywords: joinTokens(mergeTokens(previous.keywords, draft.keywords)),
+        note: previous.note || draft.note,
+      }))
+      setOcrStatus('붙여넣은 공고 내용을 폼에 반영했습니다.')
+    } catch {
+      setOcrStatus('공고 내용 반영 실패')
     }
   }
 
@@ -569,6 +611,7 @@ export default function JobPostings() {
         </div>
         <div className="job-add-media">
           {form.sourceUrl ? <small>원본 링크 저장됨: {form.sourceUrl}</small> : <small>공고 링크는 위의 접힌 링크 초안 영역에서 넣습니다.</small>}
+          <button type="button" className="secondary-action" onClick={applyTextDraftToForm}>붙여넣은 내용 반영</button>
           <label>
             이미지 OCR
             <input type="file" accept="image/*" onChange={event => runOcr(event.target.files?.[0])} disabled={ocrBusy} />
@@ -663,13 +706,14 @@ export default function JobPostings() {
         .job-link-assist-body small { grid-column: 1 / -1; color: var(--accent); font-size: 11px; font-weight: 800; }
         .job-add { padding: 12px; display: flex; flex-direction: column; gap: 9px; }
         .job-add-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) 120px 120px 138px; gap: 8px; }
-        .job-add-media { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 8px; align-items: center; }
+        .job-add-media { display: grid; grid-template-columns: minmax(0, 1fr) 150px 150px; gap: 8px; align-items: center; }
         .job-add-media small { min-width: 0; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .job-add-extra { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 8px; }
         .job-add input, .job-add select, .job-add textarea, .job-tools input, .job-card input, .job-card select, .job-card textarea { min-width: 0; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); font-family: inherit; font-size: 13px; outline: none; }
         .job-add input, .job-add select, .job-tools input, .job-card input, .job-card select { height: 34px; padding: 0 9px; }
         .job-add textarea, .job-card textarea { padding: 9px; resize: vertical; line-height: 1.5; }
         .job-add button { height: 34px; border: 0; border-radius: 7px; background: var(--accent); color: #fff; padding: 0 13px; font-size: 12px; font-weight: 800; cursor: pointer; }
+        .job-add button.secondary-action { border: 1px solid var(--border); background: var(--bg3); color: var(--text); }
         .job-add-media label { height: 34px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); display: grid; place-items: center; font-size: 12px; font-weight: 800; cursor: pointer; overflow: hidden; }
         .job-add-media input[type="file"] { display: none; }
         .ocr-status { color: var(--muted); font-size: 11px; }
