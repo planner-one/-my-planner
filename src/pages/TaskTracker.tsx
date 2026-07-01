@@ -126,7 +126,7 @@ export default function TaskTracker() {
               <span>상태</span>
               <span>담당자</span>
               <span>마감</span>
-              <span></span>
+              <span>링크</span>
             </div>
             {visible.map(task => (
               <div key={task.id} className={`task-row${task.done ? ' done' : ''}`}>
@@ -162,7 +162,10 @@ export default function TaskTracker() {
                   />
                   <small>{getGoalDueText(task.due)}</small>
                 </div>
-                <button type="button" className="ghost-button" onClick={() => removeTask(task.id)}>삭제</button>
+                <div className="task-actions">
+                  {task.sourceUrl && <a href={task.sourceUrl} target="_blank" rel="noreferrer">열기</a>}
+                  <button type="button" className="ghost-button" onClick={() => removeTask(task.id)}>삭제</button>
+                </div>
               </div>
             ))}
           </>
@@ -180,7 +183,7 @@ export default function TaskTracker() {
         .task-filters button { border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); padding: 7px 12px; cursor: pointer; font-size: 12px; }
         .task-filters button.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 700; }
         .task-table { display: flex; flex-direction: column; gap: 6px; }
-        .task-row { display: grid; grid-template-columns: 28px minmax(0,1.6fr) 100px 90px 100px minmax(0,0.8fr) 150px 56px; gap: 8px; align-items: center; padding: 9px 10px; border-radius: 8px; background: var(--bg2); border: 1px solid var(--border); }
+        .task-row { display: grid; grid-template-columns: 28px minmax(0,1.6fr) 100px 90px 100px minmax(0,0.8fr) 150px 68px; gap: 8px; align-items: center; padding: 9px 10px; border-radius: 8px; background: var(--bg2); border: 1px solid var(--border); }
         .task-row-head { background: transparent; border: none; color: var(--muted); font-size: 11px; font-weight: 700; padding: 0 10px; }
         .task-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
         .task-row input[type="text"], .task-row input:not([type]), .task-row select { min-width: 0; height: 32px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg3); color: var(--text); padding: 0 8px; font-family: inherit; font-size: 12px; outline: none; }
@@ -189,6 +192,8 @@ export default function TaskTracker() {
         .task-due { display: flex; flex-direction: column; gap: 2px; }
         .task-due input { height: 32px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg3); color: var(--text); padding: 0 8px; font-size: 12px; }
         .task-due small { color: var(--muted); font-size: 10px; white-space: nowrap; }
+        .task-actions { display: flex; align-items: center; justify-content: flex-end; gap: 5px; }
+        .task-actions a { color: var(--accent); font-size: 11px; font-weight: 700; text-decoration: none; }
         .ghost-button { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; padding: 5px; }
         .task-empty { padding: 40px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); color: var(--muted); text-align: center; }
         @media (max-width: 900px) {

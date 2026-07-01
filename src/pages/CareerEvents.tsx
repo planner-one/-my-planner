@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useApp } from '../store/AppContext'
 import type { CareerEvent, CareerEventCategory, CareerEventStatus } from '../types'
+import LinkOrganizerModal from '../components/LinkOrganizerModal'
+import type { LinkAnalysisDraft } from '../services/linkAnalysisService'
 import { toLocalDateKey } from '../utils/date'
 import {
   CAREER_CATEGORY_LABELS as CATEGORY_LABELS,
@@ -79,6 +81,7 @@ const emptyForm = (): Omit<CareerEvent, 'id'> => ({
   location: '',
   address: '',
   url: '',
+  sourceUrl: '',
   note: '',
 })
 
@@ -90,6 +93,7 @@ export default function CareerEvents() {
   const [categoryFilter, setCategoryFilter] = useState<'all' | CareerEventCategory>('all')
   const [query, setQuery] = useState('')
   const [editorOpen, setEditorOpen] = useState(false)
+  const [linkImportOpen, setLinkImportOpen] = useState(false)
   const [showPast, setShowPast] = useState(false)
 
   const closeEditor = () => {
@@ -102,6 +106,29 @@ export default function CareerEvents() {
     setEditingId(null)
     setForm(emptyForm())
     setEditorOpen(true)
+  }
+
+  const openLinkImportForNew = () => {
+    setEditingId(null)
+    setForm(emptyForm())
+    setEditorOpen(true)
+    setLinkImportOpen(true)
+  }
+
+  const applyLinkDraft = (draft: LinkAnalysisDraft) => {
+    setForm(previous => ({
+      ...previous,
+      title: previous.title || draft.title,
+      organization: previous.organization || draft.hostname,
+      category: draft.category,
+      status: draft.status,
+      date: draft.date || previous.date,
+      applicationDeadline: draft.deadline || previous.applicationDeadline,
+      mode: 'online',
+      url: draft.url,
+      sourceUrl: draft.url,
+      note: [previous.note, draft.summary].filter(Boolean).join('\n\n'),
+    }))
   }
 
   const updateForm = <K extends keyof Omit<CareerEvent, 'id'>>(key: K, value: Omit<CareerEvent, 'id'>[K]) =>
@@ -150,6 +177,7 @@ export default function CareerEvents() {
       location: form.mode === 'online' ? undefined : form.location?.trim() || undefined,
       address: undefined,
       url: form.url?.trim() || undefined,
+      sourceUrl: form.sourceUrl?.trim() || form.url?.trim() || undefined,
       note: form.note?.trim() || undefined,
     }
     if (editingId) {
@@ -180,6 +208,7 @@ export default function CareerEvents() {
       location: mergePlace(item.location, item.address),
       address: '',
       url: item.url ?? '',
+      sourceUrl: item.sourceUrl ?? item.url ?? '',
       note: item.note ?? '',
     })
     setEditorOpen(true)
@@ -265,7 +294,10 @@ export default function CareerEvents() {
           <h2>신청·지원 일정</h2>
           <p>채용, 교육, 행사, 공모전과 각종 프로그램 신청 결과를 한곳에서 관리합니다.</p>
         </div>
-        <button type="button" className="career-add-button" onClick={openNewEditor}>일정 추가</button>
+        <div className="career-header-actions">
+          <button type="button" className="career-link-button" onClick={openLinkImportForNew}>링크에서 추가</button>
+          <button type="button" className="career-add-button" onClick={openNewEditor}>일정 추가</button>
+        </div>
       </header>
 
       <section className="career-summary-grid" aria-label="신청·지원 일정 요약">
@@ -285,7 +317,10 @@ export default function CareerEvents() {
                 <h3 id="career-editor-title">{editingId ? '일정 수정' : '새 일정 추가'}</h3>
                 <p>필요한 항목만 입력해도 저장할 수 있습니다.</p>
               </div>
-              <button type="button" className="career-close-button" aria-label="닫기" onClick={closeEditor}>×</button>
+              <div className="career-editor-actions">
+                <button type="button" className="career-link-button" onClick={() => setLinkImportOpen(true)}>링크에서 불러오기</button>
+                <button type="button" className="career-close-button" aria-label="닫기" onClick={closeEditor}>×</button>
+              </div>
             </div>
             <div className="career-form-grid">
           <label className="span-2">일정명
@@ -370,6 +405,14 @@ export default function CareerEvents() {
         </div>
       )}
 
+      <LinkOrganizerModal
+        open={linkImportOpen}
+        onClose={() => setLinkImportOpen(false)}
+        defaultTarget="career"
+        lockTarget
+        applyToCareerForm={applyLinkDraft}
+      />
+
       <section className="career-toolbar" aria-label="신청·지원 일정 검색과 구분">
         <input
           value={query}
@@ -442,7 +485,9 @@ export default function CareerEvents() {
         .career-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
         .career-header h2 { margin: 0 0 5px; font-size: 24px; letter-spacing: 0; }
         .career-header p { margin: 0; color: var(--muted); font-size: 13px; }
+        .career-header-actions, .career-editor-actions { display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
         .career-add-button { flex: 0 0 auto; border: 1px solid var(--accent); border-radius: 7px; background: var(--accent); color: #fff; padding: 9px 14px; font-size: 12px; font-weight: 700; cursor: pointer; }
+        .career-link-button { flex: 0 0 auto; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); padding: 9px 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
         .career-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
         .career-summary-card { min-width: 0; padding: 12px 13px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); }
         .career-summary-card span { display: block; color: var(--muted); font-size: 11px; font-weight: 800; }
@@ -502,6 +547,7 @@ export default function CareerEvents() {
         .career-empty { padding: 45px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); color: var(--muted); text-align: center; }
         @media (max-width: 700px) {
           .career-header { align-items: center; }
+          .career-header-actions { flex-direction: column; align-items: stretch; }
           .career-header p { max-width: 250px; }
           .career-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .career-toolbar { grid-template-columns: 1fr; }

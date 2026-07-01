@@ -5,6 +5,7 @@ export interface Todo {
   priority: 'high' | 'medium' | 'low'
   category?: 'work' | 'personal' | 'study'
   date?: string
+  sourceUrl?: string
 }
 
 export interface TodoDailyResult {
@@ -53,6 +54,7 @@ export interface Task {
   priority?: string
   status?: string
   owner?: string
+  sourceUrl?: string
   done: boolean
 }
 
@@ -123,6 +125,7 @@ export interface QuickMemoEntry {
   createdAt: string
   updatedAt: string
   archivedAt?: string
+  sourceUrl?: string
   convertedTo?: 'todo' | 'note'
   convertedId?: string
 }
@@ -137,6 +140,7 @@ export interface Note {
   createdAt?: string
   updatedAt?: string
   sourceMemoId?: string
+  sourceUrl?: string
 }
 
 export interface WeekTask {
@@ -156,6 +160,7 @@ export interface ScheduledTask {
   location?: string
   address?: string
   note?: string
+  sourceUrl?: string
   done: boolean
 }
 
@@ -183,6 +188,7 @@ export interface CareerEvent {
   location?: string
   address?: string
   url?: string
+  sourceUrl?: string
   note?: string
 }
 

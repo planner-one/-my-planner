@@ -259,6 +259,7 @@ export default function Notes() {
                   <button type="button" aria-label="노트 삭제" title="노트 삭제" onClick={() => removeNote(note.id)}>×</button>
                 </div>
                 <p>{note.content || '내용 없음'}</p>
+                {note.sourceUrl && <a href={note.sourceUrl} target="_blank" rel="noreferrer">원본 링크 열기</a>}
                 <time>
                   {note.createdAt
                     ? new Intl.DateTimeFormat('ko-KR', { year: 'numeric', month: 'short', day: 'numeric' }).format(new Date(note.createdAt))
@@ -304,6 +305,7 @@ export default function Notes() {
         .note-card h2 { margin: 0 0 10px; font-size: 15px; }
         .note-card-heading button { width: 25px; height: 25px; border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 17px; }
         .note-card p { margin: 0; color: var(--muted); line-height: 1.55; font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; flex: 1; }
+        .note-card a { margin-top: 10px; color: var(--accent); font-size: 11px; font-weight: 700; text-decoration: none; }
         .note-card time { margin-top: 12px; color: var(--muted); font-size: 10px; }
         .notes-empty { grid-column: 1 / -1; padding: 44px 16px; border: 1px solid var(--border); border-radius: 8px; color: var(--muted); text-align: center; font-size: 13px; }
         @media (max-width: 700px) {

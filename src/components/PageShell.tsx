@@ -3,6 +3,7 @@ import { useAuth } from '../store/AuthContext'
 import { useApp } from '../store/AppContext'
 import { useRouter } from '../store/RouterContext'
 import { signOut } from '../services/authService'
+import LinkOrganizerModal from './LinkOrganizerModal'
 
 type PageId =
   | 'dashboard' | 'calendar' | 'habits' | 'tasks' | 'todos' | 'goals' | 'projects'
@@ -23,6 +24,10 @@ const SIDEBAR_OPEN_KEY = 'planner_sidebar_open'
 const SIDEBAR_WIDTH = 236
 const SIDEBAR_RAIL_WIDTH = 72
 const SIGN_OUT_PATHS = ['M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4', 'M16 17l5-5-5-5', 'M21 12H9']
+const LINK_IMPORT_PATHS = [
+  'M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71',
+  'M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71',
+]
 
 function Icon({ paths }: { paths: string[] }) {
   return (
@@ -120,6 +125,7 @@ export default function PageShell({ children }: { children: ReactNode }) {
   const { page, setPage } = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(() => localStorage.getItem(SIDEBAR_OPEN_KEY) !== 'false')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [linkModalOpen, setLinkModalOpen] = useState(false)
   const [theme, setThemeState] = useState<Theme>(() => {
     const raw = localStorage.getItem('theme')
     const saved = raw === 'karrot' ? 'coral' : raw === 'toss' ? 'blue' : raw
@@ -196,6 +202,13 @@ export default function PageShell({ children }: { children: ReactNode }) {
           ) : (
             <span>나만의 플래너</span>
           )}
+          <button
+            type="button"
+            className="header-link-tool"
+            onClick={() => setLinkModalOpen(true)}
+          >
+            링크 정리
+          </button>
           <button
             type="button"
             className="mobile-page-menu-trigger"
@@ -382,6 +395,19 @@ export default function PageShell({ children }: { children: ReactNode }) {
           })}
         </nav>
 
+        <div className="sidebar-link-tool-wrap">
+          <button
+            type="button"
+            className="sidebar-link-tool"
+            onClick={() => setLinkModalOpen(true)}
+            title="링크 정리"
+            aria-label="링크 정리"
+          >
+            <Icon paths={LINK_IMPORT_PATHS} />
+            {sidebarOpen && <span>링크 정리</span>}
+          </button>
+        </div>
+
         {/* 테마 선택 */}
         <div style={{
           padding: sidebarOpen ? '8px 10px 6px' : '8px 12px 6px',
@@ -471,6 +497,8 @@ export default function PageShell({ children }: { children: ReactNode }) {
           </button>
         </div>
       </aside>
+
+      <LinkOrganizerModal open={linkModalOpen} onClose={() => setLinkModalOpen(false)} />
 
       <style>{`
         .sidebar-brand {
@@ -579,6 +607,48 @@ export default function PageShell({ children }: { children: ReactNode }) {
           font-weight: 700;
           cursor: pointer;
         }
+        .header-link-tool {
+          min-height: 32px;
+          border: 1px solid var(--border);
+          border-radius: 7px;
+          background: var(--bg3);
+          color: var(--text);
+          padding: 0 10px;
+          font-size: 12px;
+          font-weight: 700;
+          cursor: pointer;
+          margin-left: auto;
+        }
+        .header-link-tool + .mobile-page-menu-trigger {
+          margin-left: 0;
+        }
+        .sidebar-link-tool-wrap {
+          padding: 8px 10px 6px;
+          border-top: 1px solid var(--border);
+          flex-shrink: 0;
+        }
+        .sidebar-link-tool {
+          width: 100%;
+          min-height: 34px;
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          background: var(--bg3);
+          color: var(--text);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 0 10px;
+          font-size: 12px;
+          font-weight: 800;
+          cursor: pointer;
+        }
+        .sidebar-link-tool span {
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
         .mobile-page-menu-backdrop {
           position: fixed;
           inset: 0;
@@ -669,6 +739,11 @@ export default function PageShell({ children }: { children: ReactNode }) {
           color: var(--text) !important;
         }
         .nav-active:hover {
+          color: var(--accent) !important;
+        }
+        .header-link-tool:hover,
+        .sidebar-link-tool:hover {
+          border-color: var(--accent) !important;
           color: var(--accent) !important;
         }
         .signout-btn:hover {
