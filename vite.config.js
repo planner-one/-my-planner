@@ -1,8 +1,233 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { Buffer } from 'node:buffer'
+
+const READER_FIRST_HOSTS = ['sites.google.com', 'saramin.co.kr']
+
+const normalizeTargetUrl = (raw) => {
+  const value = String(raw ?? '').trim()
+  if (!value) throw new Error('EMPTY_URL')
+  const withScheme = /^https?:\/\//i.test(value) ? value : `https://${value}`
+  const parsed = new URL(withScheme)
+  if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('INVALID_URL')
+  parsed.hash = ''
+  return parsed.toString()
+}
+
+const isReaderFirstHost = (url) => {
+  const parsed = new URL(url)
+  return READER_FIRST_HOSTS.some(host => parsed.hostname === host || parsed.hostname.endsWith(`.${host}`))
+}
+
+const toReaderUrl = (url) =>
+  `https://r.jina.ai/http://r.jina.ai/http://${url}`
+
+const compactText = (value) =>
+  String(value ?? '')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+const jsonValueToText = (value, results = []) => {
+  if (!value || results.length >= 80) return results
+  if (typeof value === 'string') {
+    const cleaned = compactText(value)
+    if (cleaned && cleaned.length >= 2) results.push(cleaned)
+    return results
+  }
+  if (Array.isArray(value)) {
+    value.forEach(item => jsonValueToText(item, results))
+    return results
+  }
+  if (typeof value === 'object') {
+    for (const [key, item] of Object.entries(value)) {
+      if (/(@context|@type|url|logo|image|sameAs|identifier)/i.test(key)) continue
+      jsonValueToText(item, results)
+    }
+  }
+  return results
+}
+
+const extractStructuredHtmlText = (html) => {
+  const results = []
+  const push = (value) => {
+    const cleaned = compactText(decodeHtmlAttribute(value))
+    if (cleaned && !results.includes(cleaned)) results.push(cleaned)
+  }
+
+  for (const match of html.matchAll(/<title[^>]*>([\s\S]*?)<\/title>/gi)) {
+    push(match[1])
+  }
+  for (const match of html.matchAll(/<meta\b[^>]*(?:property|name)=["'](?:og:title|og:description|title|description|twitter:title|twitter:description)["'][^>]*content=["']([^"']+)["'][^>]*>/gi)) {
+    push(match[1])
+  }
+  for (const match of html.matchAll(/<meta\b[^>]*content=["']([^"']+)["'][^>]*(?:property|name)=["'](?:og:title|og:description|title|description|twitter:title|twitter:description)["'][^>]*>/gi)) {
+    push(match[1])
+  }
+  for (const match of html.matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
+    try {
+      jsonValueToText(JSON.parse(decodeHtmlAttribute(match[1]))).forEach(push)
+    } catch {
+      // Ignore malformed structured data.
+    }
+  }
+  return results.join('\n')
+}
+
+const htmlToText = (html) =>
+  [
+    extractStructuredHtmlText(html),
+    html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|li|h[1-6]|tr|section|article)>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim(),
+  ]
+    .filter(Boolean)
+    .join('\n')
+    .slice(0, 30000)
+
+const decodeHtmlAttribute = (value) =>
+  value
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+
+const resolveImageUrl = (raw, baseUrl) => {
+  try {
+    const value = decodeHtmlAttribute(String(raw ?? '').trim())
+    if (!value || value.startsWith('data:') || value.startsWith('blob:')) return ''
+    return new URL(value, baseUrl).toString()
+  } catch {
+    return ''
+  }
+}
+
+const isLikelyContentImage = (url) => {
+  const lower = url.toLowerCase()
+  if (/\/(icon|favicon|logo|sprite|blank|pixel|tracking|spacer|loading|close|btn_|button)[^/]*\.(png|jpe?g|webp|gif)/.test(lower)) return false
+  if (lower.includes('/sri/common/') || lower.includes('/js/libs/images/') || lower.includes('saraminbanner.co.kr') || lower.includes('/store/product/') || lower.includes('/sri/recruit/ai_pass') || lower.includes('/sri/recruit/img_graphic')) return false
+  if (lower.includes('googleusercontent.com') || lower.includes('/sitesv/')) return true
+  if (lower.includes('saraminimage.co.kr') || lower.includes('pds.saramin.co.kr')) return true
+  if (!/\.(png|jpe?g|webp|gif)(\?|$)/.test(lower)) return false
+  if (/\/(icon|favicon|logo|sprite|blank|pixel|tracking|spacer)[^/]*\.(png|jpe?g|webp|gif)/.test(lower)) return false
+  return true
+}
+
+const extractImageUrls = (text, baseUrl) => {
+  const urls = []
+  const pushUrl = (raw) => {
+    const imageUrl = resolveImageUrl(raw, baseUrl)
+    if (imageUrl && isLikelyContentImage(imageUrl) && !urls.includes(imageUrl)) urls.push(imageUrl)
+  }
+
+  for (const match of text.matchAll(/<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi)) {
+    pushUrl(match[1])
+  }
+  for (const match of text.matchAll(/!\[[^\]]*]\(([^)\s]+)[^)]*\)/g)) {
+    pushUrl(match[1])
+  }
+  return urls.slice(0, 8)
+}
+
+const fetchText = async (url, source) => {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), source === 'reader' ? 12000 : 6000)
+  try {
+    const response = await fetch(source === 'reader' ? toReaderUrl(url) : url, {
+      signal: controller.signal,
+      headers: {
+        'user-agent': 'Mozilla/5.0 (compatible; PlannerLinkReader/1.0)',
+        accept: source === 'reader' ? 'text/plain,*/*' : 'text/html,text/plain,*/*',
+      },
+    })
+    if (!response.ok) return { text: '', imageUrls: [] }
+    const text = await response.text()
+    return {
+      text: source === 'reader' ? text.slice(0, 30000) : htmlToText(text),
+      imageUrls: extractImageUrls(text, url),
+    }
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
+const readJobPostingPage = async (url) => {
+  const readers = isReaderFirstHost(url) ? ['reader'] : ['direct', 'reader']
+  for (const source of readers) {
+    try {
+      const result = await fetchText(url, source)
+      if (result.text.trim() || result.imageUrls.length) return { ...result, source }
+    } catch {
+      // Try the next reader strategy.
+    }
+  }
+  return { text: '', imageUrls: [], source: 'none' }
+}
+
+const jobPostingPageApi = () => ({
+  name: 'planner-job-posting-page-api',
+  configureServer(server) {
+    server.middlewares.use('/api/job-posting-page', async (req, res) => {
+      try {
+        const requestUrl = new URL(req.url ?? '/', 'http://localhost')
+        const targetUrl = normalizeTargetUrl(requestUrl.searchParams.get('url'))
+        const result = await readJobPostingPage(targetUrl)
+        res.statusCode = 200
+        res.setHeader('content-type', 'application/json; charset=utf-8')
+        res.end(JSON.stringify(result))
+      } catch {
+        res.statusCode = 400
+        res.setHeader('content-type', 'application/json; charset=utf-8')
+        res.end(JSON.stringify({ text: '', source: 'none' }))
+      }
+    })
+    server.middlewares.use('/api/job-posting-image', async (req, res) => {
+      try {
+        const requestUrl = new URL(req.url ?? '/', 'http://localhost')
+        const targetUrl = normalizeTargetUrl(requestUrl.searchParams.get('url'))
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), 10000)
+        try {
+          const response = await fetch(targetUrl, {
+            signal: controller.signal,
+            headers: {
+              'user-agent': 'Mozilla/5.0 (compatible; PlannerImageReader/1.0)',
+              accept: 'image/avif,image/webp,image/png,image/jpeg,image/*,*/*',
+            },
+          })
+          const contentType = response.headers.get('content-type') ?? ''
+          if (!response.ok || !contentType.startsWith('image/')) throw new Error('NOT_IMAGE')
+          const bytes = await response.arrayBuffer()
+          res.statusCode = 200
+          res.setHeader('content-type', contentType)
+          res.setHeader('cache-control', 'no-store')
+          res.end(Buffer.from(bytes))
+        } finally {
+          clearTimeout(timeout)
+        }
+      } catch {
+        res.statusCode = 400
+        res.setHeader('content-type', 'text/plain; charset=utf-8')
+        res.end('image fetch failed')
+      }
+    })
+  },
+})
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), jobPostingPageApi()],
   build: {
     rollupOptions: {
       output: {

@@ -11,6 +11,7 @@ import {
   normalizeJobUrl,
   type JobPostingDraft,
 } from '../utils/jobPostingDraft'
+import { getJobPostingImageBlob, getJobPostingPageText } from '../services/jobPostingPageReader'
 
 const PLATFORMS: JobPostingPlatform[] = ['saramin', 'jobplanet', 'wanted', 'jumpit', 'groupby', 'incruit', 'company', 'other']
 const STATUSES: JobPostingStatus[] = ['saved', 'preparing', 'applied', 'interview', 'offer', 'rejected', 'closed']
@@ -36,6 +37,8 @@ const STATUS_LABELS: Record<JobPostingStatus, string> = {
   closed: '마감',
 }
 
+const APPLIED_STATUSES: JobPostingStatus[] = ['applied', 'interview', 'offer']
+
 type Filter = 'all' | JobPostingStatus
 
 const splitTokens = (value: string) =>
@@ -47,6 +50,14 @@ const mergeTokens = (current: string | string[] | undefined, next: string[]) => 
   const base = Array.isArray(current) ? current : splitTokens(current ?? '')
   return mergeTokenLists(base, next)
 }
+
+const hasValue = (value?: string) => Boolean(value?.trim())
+
+const isPlaceholderCompany = (value?: string) =>
+  !value?.trim() || ['기업 미정', '회사 미정', '사람인', '원티드', '잡플래닛', '점핏', '그룹바이', 'saramin', 'wanted', 'jobplanet', 'jumpit', 'groupby'].includes(value.trim().toLowerCase())
+
+const isPlaceholderPosition = (value?: string) =>
+  !value?.trim() || ['공고 확인 필요', '포지션 미정'].includes(value.trim())
 
 const emptyForm = () => ({
   company: '',
@@ -84,6 +95,12 @@ const dateBadge = (date?: string) => {
 const isOpen = (status: JobPostingStatus) =>
   !['rejected', 'closed'].includes(status)
 
+const needsAppliedDate = (status: JobPostingStatus) =>
+  APPLIED_STATUSES.includes(status)
+
+const shouldShowAppliedDate = (item: Pick<JobPosting, 'status' | 'appliedDate'>) =>
+  needsAppliedDate(item.status) || Boolean(item.appliedDate)
+
 const sortPostings = (items: JobPosting[]) =>
   [...items].sort((a, b) => {
     const aOpen = isOpen(a.status)
@@ -91,34 +108,6 @@ const sortPostings = (items: JobPosting[]) =>
     if (aOpen !== bOpen) return aOpen ? -1 : 1
     return dateDistance(a.deadline ?? a.resultDate) - dateDistance(b.deadline ?? b.resultDate)
   })
-
-const getPageTextFromUrl = async (url: string) => {
-  const controller = new AbortController()
-  const timeout = window.setTimeout(() => controller.abort(), 5000)
-  try {
-    const response = await fetch(url, { signal: controller.signal, credentials: 'omit' })
-    if (!response.ok) return ''
-    const html = await response.text()
-    const doc = new DOMParser().parseFromString(html, 'text/html')
-    const title = doc.querySelector('title')?.textContent ?? ''
-    const metaTitle =
-      doc.querySelector('meta[property="og:title"]')?.getAttribute('content') ??
-      doc.querySelector('meta[name="title"]')?.getAttribute('content') ??
-      ''
-    const description =
-      doc.querySelector('meta[property="og:description"]')?.getAttribute('content') ??
-      doc.querySelector('meta[name="description"]')?.getAttribute('content') ??
-      ''
-    return [title, metaTitle, description, doc.body?.innerText ?? '']
-      .filter(Boolean)
-      .join('\n')
-      .slice(0, 20000)
-  } catch {
-    return ''
-  } finally {
-    window.clearTimeout(timeout)
-  }
-}
 
 export default function JobPostings() {
   const { jobPostings, setJobPostings } = useApp()
@@ -131,61 +120,85 @@ export default function JobPostings() {
   const [linkDraftText, setLinkDraftText] = useState('')
   const [linkDraftStatus, setLinkDraftStatus] = useState('')
   const [linkDraftBusy, setLinkDraftBusy] = useState(false)
+  const [showManualLinkText, setShowManualLinkText] = useState(false)
+  const [linkImageUrls, setLinkImageUrls] = useState<string[]>([])
+  const [selectedPostingId, setSelectedPostingId] = useState<string | null>(null)
 
   const applyLinkDraftToForm = async () => {
     setLinkDraftBusy(true)
     try {
       const normalizedUrl = normalizeJobUrl(linkDraftUrl)
-      const pageText = await getPageTextFromUrl(normalizedUrl)
-      const usefulPageText = hasUsefulJobText(pageText) ? pageText : ''
+      const pageTextResult = await getJobPostingPageText(normalizedUrl)
+      setLinkImageUrls(pageTextResult.imageUrls)
+      const usefulPageText = hasUsefulJobText(pageTextResult.text) ? pageTextResult.text : ''
       const manualText = [linkDraftText, form.imageText].filter(Boolean).join('\n')
       const draft = buildJobPostingLinkDraft(normalizedUrl, [usefulPageText, manualText].filter(Boolean).join('\n'))
+      const hasDraft = Boolean(draft.company || draft.position || draft.deadline || draft.location || draft.employmentType || draft.keywords.length)
       setForm(previous => ({
         ...previous,
         sourceUrl: draft.sourceUrl ?? previous.sourceUrl,
         platform: draft.platform ?? previous.platform,
         status: previous.status === 'saved' ? 'preparing' : previous.status,
-        company: previous.company && !['기업 미정', '회사 미정'].includes(previous.company)
+        company: !isPlaceholderCompany(previous.company)
           ? previous.company
           : draft.company || previous.company || '기업 미정',
-        position: previous.position && !['공고 확인 필요', '포지션 미정'].includes(previous.position)
+        position: !isPlaceholderPosition(previous.position)
           ? previous.position
           : draft.position || previous.position || '공고 확인 필요',
         deadline: previous.deadline || draft.deadline,
         location: previous.location || draft.location,
         employmentType: previous.employmentType || draft.employmentType,
         keywords: joinTokens(mergeTokens(previous.keywords, draft.keywords)),
-        note: previous.note || draft.note,
+        note: previous.note.trim() ? previous.note : draft.note,
         nextAction: previous.nextAction || '공고 확인 후 지원서 맞춤 수정',
       }))
-      const source = usefulPageText ? '링크 본문과 보조 텍스트' : manualText ? '붙여넣은 공고 내용과 링크 주소' : '링크 주소'
-      setLinkDraftStatus(draft.company || draft.position || draft.deadline || draft.location || draft.employmentType || draft.keywords.length
-        ? `${source}를 바탕으로 초안을 반영했습니다.`
-        : '링크 본문을 자동으로 읽지 못했습니다. 아래 페이지 내용 붙여넣기 칸에 공고 내용을 넣고 다시 반영하면 기업명, 직무, 기술스택까지 채웁니다.')
+      const source = usefulPageText
+        ? pageTextResult.source === 'reader' ? 'Reader로 읽은 링크 본문과 보조 텍스트' : '링크 본문과 보조 텍스트'
+        : manualText ? '붙여넣은 공고 내용과 링크 주소' : '링크 주소'
+      const imageNotice = pageTextResult.imageUrls.length ? ` 페이지 이미지 후보 ${pageTextResult.imageUrls.length}개도 찾았습니다.` : ''
+      setShowManualLinkText(!hasDraft || Boolean(linkDraftText.trim()))
+      setLinkDraftStatus(hasDraft
+        ? `${source}를 바탕으로 초안을 반영했습니다.${imageNotice}`
+        : pageTextResult.imageUrls.length
+          ? '링크 본문은 공고 텍스트로 읽지 못했지만 페이지 이미지 후보를 찾았습니다. 페이지 이미지 OCR을 시도해 보세요.'
+          : '링크 본문을 자동으로 읽지 못했습니다. 아래 페이지 내용 붙여넣기 칸에 공고 내용을 넣고 다시 반영하면 기업명, 직무, 기술스택까지 채웁니다.')
     } catch {
+      setLinkImageUrls([])
+      setShowManualLinkText(false)
       setLinkDraftStatus('올바른 공고 링크를 입력해 주세요.')
     } finally {
       setLinkDraftBusy(false)
     }
   }
 
-  const applyDraftToPosting = (item: JobPosting) => {
+  const applyDraftToPosting = async (item: JobPosting) => {
     if (!item.sourceUrl) return
+    setLinkDraftBusy(true)
     try {
-      const draft = buildJobPostingLinkDraft(item.sourceUrl, item.imageText ?? '')
+      const normalizedUrl = normalizeJobUrl(item.sourceUrl)
+      const pageTextResult = await getJobPostingPageText(normalizedUrl)
+      setLinkImageUrls(pageTextResult.imageUrls)
+      const usefulPageText = hasUsefulJobText(pageTextResult.text) ? pageTextResult.text : ''
+      const draft = buildJobPostingLinkDraft(normalizedUrl, [usefulPageText, item.imageText ?? ''].filter(Boolean).join('\n'))
       updatePosting(item.id, {
         sourceUrl: draft.sourceUrl,
         platform: draft.platform,
-        company: item.company && !['회사 미정', '기업 미정'].includes(item.company) ? item.company : draft.company || item.company || '기업 미정',
-        position: item.position && !['포지션 미정', '공고 확인 필요'].includes(item.position) ? item.position : draft.position || item.position || '공고 확인 필요',
+        company: !isPlaceholderCompany(item.company) ? item.company : draft.company || item.company || '기업 미정',
+        position: !isPlaceholderPosition(item.position) ? item.position : draft.position || item.position || '공고 확인 필요',
         deadline: item.deadline || draft.deadline || undefined,
         location: item.location || draft.location || undefined,
         employmentType: item.employmentType || draft.employmentType || undefined,
         keywords: mergeTokens(item.keywords, draft.keywords),
         note: item.note || draft.note || undefined,
       })
+      const source = usefulPageText
+        ? pageTextResult.source === 'reader' ? 'Reader로 저장 공고 링크를 다시 분석했습니다.' : '저장 공고 링크 본문을 다시 분석했습니다.'
+        : '저장 공고 링크 주소와 기존 OCR 텍스트를 기준으로 다시 반영했습니다.'
+      setLinkDraftStatus(pageTextResult.imageUrls.length ? `${source} 페이지 이미지 후보 ${pageTextResult.imageUrls.length}개도 찾았습니다.` : source)
     } catch {
       window.alert('올바른 공고 링크를 입력해 주세요.')
+    } finally {
+      setLinkDraftBusy(false)
     }
   }
 
@@ -200,13 +213,13 @@ export default function JobPostings() {
         ...previous,
         sourceUrl: draft.sourceUrl ?? previous.sourceUrl,
         platform: draft.platform ?? previous.platform,
-        company: previous.company && !['기업 미정', '회사 미정'].includes(previous.company) ? previous.company : draft.company || previous.company,
-        position: previous.position && !['공고 확인 필요', '포지션 미정'].includes(previous.position) ? previous.position : draft.position || previous.position,
+        company: !isPlaceholderCompany(previous.company) ? previous.company : draft.company || previous.company,
+        position: !isPlaceholderPosition(previous.position) ? previous.position : draft.position || previous.position,
         deadline: previous.deadline || draft.deadline,
         location: previous.location || draft.location,
         employmentType: previous.employmentType || draft.employmentType,
         keywords: joinTokens(mergeTokens(previous.keywords, draft.keywords)),
-        note: previous.note || draft.note,
+        note: previous.note.trim() ? previous.note : draft.note,
       }))
       setOcrStatus('붙여넣은 공고 내용을 폼에 반영했습니다.')
     } catch {
@@ -245,12 +258,59 @@ export default function JobPostings() {
     }
   }
 
+  const runPageImageOcr = async (imageUrl = linkImageUrls[0]) => {
+    if (!imageUrl) return
+    setOcrBusy(true)
+    setOcrStatus('페이지 이미지 불러오는 중')
+    let worker: Awaited<ReturnType<typeof import('tesseract.js')['createWorker']>> | null = null
+    try {
+      const imageBlob = await getJobPostingImageBlob(imageUrl)
+      setOcrStatus('페이지 이미지 OCR 준비 중')
+      const { createWorker } = await import('tesseract.js')
+      worker = await createWorker('kor+eng', 1, {
+        logger: message => setOcrStatus(message.status),
+      })
+      await worker.setParameters({ preserve_interword_spaces: '1' })
+      const result = await worker.recognize(imageBlob)
+      const text = result.data.text.trim()
+      if (!text) {
+        setOcrStatus('페이지 이미지에서 읽힌 텍스트 없음')
+        return
+      }
+      const url = form.sourceUrl || linkDraftUrl
+      const draft: JobPostingDraft = url
+        ? buildJobPostingLinkDraft(url, [form.imageText, text].filter(Boolean).join('\n'))
+        : inferJobPostingFromText([form.imageText, text].filter(Boolean).join('\n'))
+      setForm(previous => ({
+        ...previous,
+        imageText: previous.imageText.trim() ? `${previous.imageText.trim()}\n\n${text}` : text,
+        sourceUrl: draft.sourceUrl ?? previous.sourceUrl,
+        platform: draft.platform ?? previous.platform,
+        company: !isPlaceholderCompany(previous.company) ? previous.company : draft.company || previous.company,
+        position: !isPlaceholderPosition(previous.position) ? previous.position : draft.position || previous.position,
+        deadline: previous.deadline || draft.deadline,
+        location: previous.location || draft.location,
+        employmentType: previous.employmentType || draft.employmentType,
+        keywords: joinTokens(mergeTokens(previous.keywords, draft.keywords)),
+        note: previous.note.trim() ? previous.note : draft.note,
+      }))
+      setOcrStatus('페이지 이미지 OCR 완료, 폼에 반영했습니다.')
+    } catch (error) {
+      console.error(error)
+      setOcrStatus('페이지 이미지 OCR 실패')
+    } finally {
+      if (worker) await worker.terminate()
+      setOcrBusy(false)
+    }
+  }
+
   const addPosting = () => {
     const position = form.position.trim()
     const company = form.company.trim()
     const sourceUrl = form.sourceUrl.trim()
     if (!position && !company && !sourceUrl) return
     const now = new Date().toISOString()
+    const appliedDate = form.appliedDate || (needsAppliedDate(form.status) ? toLocalDateKey() : '')
     const posting: JobPosting = {
       id: `job-posting-${Date.now()}`,
       company: company || '기업 미정',
@@ -258,7 +318,7 @@ export default function JobPostings() {
       platform: form.platform,
       status: form.status,
       deadline: form.deadline || undefined,
-      appliedDate: form.appliedDate || undefined,
+      appliedDate: appliedDate || undefined,
       resultDate: form.resultDate || undefined,
       location: form.location.trim() || undefined,
       employmentType: form.employmentType.trim() || undefined,
@@ -271,22 +331,33 @@ export default function JobPostings() {
       updatedAt: now,
     }
     setJobPostings(previous => [posting, ...previous])
+    setSelectedPostingId(posting.id)
     setForm(emptyForm())
     setLinkDraftUrl('')
     setLinkDraftText('')
     setLinkDraftStatus('')
+    setShowManualLinkText(false)
+    setLinkImageUrls([])
     setOcrStatus('')
   }
 
   const updatePosting = (id: string, patch: Partial<JobPosting>) => {
-    setJobPostings(previous => previous.map(item =>
-      item.id === id ? { ...item, ...patch, updatedAt: new Date().toISOString() } : item,
-    ))
+    setJobPostings(previous => previous.map(item => {
+      if (item.id !== id) return item
+      const patchIncludesAppliedDate = Object.prototype.hasOwnProperty.call(patch, 'appliedDate')
+      const appliedDate = patchIncludesAppliedDate
+        ? patch.appliedDate
+        : patch.status && needsAppliedDate(patch.status) && !item.appliedDate
+          ? toLocalDateKey()
+          : item.appliedDate
+      return { ...item, ...patch, appliedDate, updatedAt: new Date().toISOString() }
+    }))
   }
 
   const removePosting = (id: string) => {
     if (!window.confirm('이 지원 공고 기록을 삭제할까요?')) return
     setJobPostings(previous => previous.filter(item => item.id !== id))
+    setSelectedPostingId(previous => previous === id ? null : previous)
   }
 
   const sorted = useMemo(() => sortPostings(jobPostings), [jobPostings])
@@ -303,6 +374,9 @@ export default function JobPostings() {
   const interviewItems = jobPostings.filter(item => item.status === 'interview')
   const upcoming = sorted.filter(item => isOpen(item.status) && item.deadline).slice(0, 3)
   const nextAction = sorted.find(item => isOpen(item.status) && item.nextAction)
+  const selectedPosting = selectedPostingId
+    ? jobPostings.find(item => item.id === selectedPostingId) ?? null
+    : null
 
   return (
     <div className="job-page">
@@ -345,7 +419,12 @@ export default function JobPostings() {
         <div className="job-link-assist-body">
           <input
             value={linkDraftUrl}
-            onChange={event => setLinkDraftUrl(event.target.value)}
+            onChange={event => {
+              setLinkDraftUrl(event.target.value)
+              setLinkDraftStatus('')
+              setLinkImageUrls([])
+              if (!linkDraftText.trim()) setShowManualLinkText(false)
+            }}
             placeholder="기업 채용 페이지, 인크루트, 사람인, 원티드 등 공고 링크"
           />
           <button type="button" onClick={applyLinkDraftToForm} disabled={linkDraftBusy}>
@@ -355,12 +434,22 @@ export default function JobPostings() {
             기업 자체 채용 페이지와 인크루트 기업 도메인도 공고로 저장합니다.
             브라우저가 본문을 읽을 수 있으면 기업명과 직무를 함께 반영하고, 막히면 링크와 붙여넣은/OCR 텍스트를 기준으로 정리합니다.
           </p>
-          <textarea
-            value={linkDraftText}
-            onChange={event => setLinkDraftText(event.target.value)}
-            placeholder="페이지에 보이는 공고 내용을 그대로 붙여넣으면 기업명, 채용 직무/분야, 기술스택, 소재지, 고용형태, 연봉을 함께 반영합니다."
-            rows={5}
-          />
+          {showManualLinkText && (
+            <textarea
+              value={linkDraftText}
+              onChange={event => setLinkDraftText(event.target.value)}
+              placeholder="자동 분석이 부족하면 페이지에 보이는 공고 내용을 그대로 붙여넣으세요."
+              rows={4}
+            />
+          )}
+          {linkImageUrls.length > 0 && (
+            <div className="job-link-images">
+              <span>페이지 이미지 후보 {linkImageUrls.length}개</span>
+              <button type="button" onClick={() => runPageImageOcr()} disabled={ocrBusy}>
+                {ocrBusy ? 'OCR 중' : '첫 이미지 OCR'}
+              </button>
+            </div>
+          )}
           {linkDraftStatus && <small>{linkDraftStatus}</small>}
         </div>
       </details>
@@ -372,11 +461,26 @@ export default function JobPostings() {
           <select value={form.platform} onChange={event => setForm(prev => ({ ...prev, platform: event.target.value as JobPostingPlatform }))}>
             {PLATFORMS.map(platform => <option key={platform} value={platform}>{PLATFORM_LABELS[platform]}</option>)}
           </select>
-          <select value={form.status} onChange={event => setForm(prev => ({ ...prev, status: event.target.value as JobPostingStatus }))}>
+          <select
+            value={form.status}
+            onChange={event => {
+              const status = event.target.value as JobPostingStatus
+              setForm(prev => ({
+                ...prev,
+                status,
+                appliedDate: prev.appliedDate || (needsAppliedDate(status) ? toLocalDateKey() : ''),
+              }))
+            }}
+          >
             {STATUSES.map(status => <option key={status} value={status}>{STATUS_LABELS[status]}</option>)}
           </select>
           <input type="date" value={form.deadline} onChange={event => setForm(prev => ({ ...prev, deadline: event.target.value }))} />
         </div>
+        {(needsAppliedDate(form.status) || form.appliedDate) && (
+          <div className="job-add-dates">
+            <label>지원일<input type="date" value={form.appliedDate} onChange={event => setForm(prev => ({ ...prev, appliedDate: event.target.value }))} /></label>
+          </div>
+        )}
         <div className="job-add-media">
           {form.sourceUrl ? <small>원본 링크 저장됨: {form.sourceUrl}</small> : <small>공고 링크는 위의 접힌 링크 초안 영역에서 넣습니다.</small>}
           <button type="button" className="secondary-action" onClick={applyTextDraftToForm}>붙여넣은 내용 반영</button>
@@ -385,7 +489,16 @@ export default function JobPostings() {
             <input type="file" accept="image/*" onChange={event => runOcr(event.target.files?.[0])} disabled={ocrBusy} />
           </label>
         </div>
-        <textarea value={form.imageText} onChange={event => setForm(prev => ({ ...prev, imageText: event.target.value }))} placeholder="공고 이미지 OCR 텍스트나 주요 내용을 붙여넣으세요." rows={4} />
+        <label className="job-detail-field">
+          <span>추출 상세 / 메모</span>
+          <textarea
+            value={form.note}
+            onChange={event => setForm(prev => ({ ...prev, note: event.target.value }))}
+            placeholder="분석된 공고 상세 내용이 여기에 표시됩니다. 주요 업무, 기술스택, 소재지, 고용형태, 연봉/급여, 자격요건 등을 확인하고 보정하세요."
+            rows={6}
+          />
+        </label>
+        <textarea value={form.imageText} onChange={event => setForm(prev => ({ ...prev, imageText: event.target.value }))} placeholder="공고 원문, 이미지 OCR 텍스트, 직접 붙여넣은 주요 내용을 입력하세요." rows={4} />
         <div className="job-add-extra">
           <input value={form.keywords} onChange={event => setForm(prev => ({ ...prev, keywords: event.target.value }))} placeholder="키워드: React, UI, 신입" />
           <input value={form.nextAction} onChange={event => setForm(prev => ({ ...prev, nextAction: event.target.value }))} placeholder="다음 행동: 이력서 수정" />
@@ -405,44 +518,120 @@ export default function JobPostings() {
         </div>
       </section>
 
-      <section className="job-list">
-        {visible.length === 0 ? (
-          <p className="empty-text">모아둘 지원 공고를 추가하세요.</p>
-        ) : visible.map(item => (
-          <article key={item.id} className={`job-card ${item.status}`}>
-            <div className="job-card-top">
-              <input value={item.company} onChange={event => updatePosting(item.id, { company: event.target.value })} />
-              <input value={item.position} onChange={event => updatePosting(item.id, { position: event.target.value })} />
-              <span>{STATUS_LABELS[item.status]}</span>
-            </div>
-            <div className="job-card-grid">
-              <label>플랫폼<select value={item.platform} onChange={event => updatePosting(item.id, { platform: event.target.value as JobPostingPlatform })}>{PLATFORMS.map(platform => <option key={platform} value={platform}>{PLATFORM_LABELS[platform]}</option>)}</select></label>
-              <label>상태<select value={item.status} onChange={event => updatePosting(item.id, { status: event.target.value as JobPostingStatus })}>{STATUSES.map(status => <option key={status} value={status}>{STATUS_LABELS[status]}</option>)}</select></label>
-              <label>마감<input type="date" value={item.deadline ?? ''} onChange={event => updatePosting(item.id, { deadline: event.target.value })} /></label>
-              <label>지원일<input type="date" value={item.appliedDate ?? ''} onChange={event => updatePosting(item.id, { appliedDate: event.target.value })} /></label>
-              <label>결과일<input type="date" value={item.resultDate ?? ''} onChange={event => updatePosting(item.id, { resultDate: event.target.value })} /></label>
-              <label>지역<input value={item.location ?? ''} onChange={event => updatePosting(item.id, { location: event.target.value })} /></label>
-            </div>
-            <div className="job-card-grid two">
-              <label>고용형태<input value={item.employmentType ?? ''} onChange={event => updatePosting(item.id, { employmentType: event.target.value })} /></label>
-              <label>키워드<input value={joinTokens(item.keywords)} onChange={event => updatePosting(item.id, { keywords: splitTokens(event.target.value) })} /></label>
-            </div>
-            <label className="wide-label">다음 행동<input value={item.nextAction ?? ''} onChange={event => updatePosting(item.id, { nextAction: event.target.value })} placeholder="예: 자기소개서 2번 문항 수정" /></label>
-            <label className="wide-label">공고 링크</label>
-            <div className="job-card-link-row">
-              <input value={item.sourceUrl ?? ''} onChange={event => updatePosting(item.id, { sourceUrl: event.target.value, platform: detectJobPlatform(event.target.value) })} />
-              <button type="button" onClick={() => applyDraftToPosting(item)}>분석 반영</button>
-            </div>
-            <textarea value={item.imageText ?? ''} onChange={event => updatePosting(item.id, { imageText: event.target.value })} placeholder="공고 이미지/OCR 텍스트" rows={3} />
-            <textarea value={item.note ?? ''} onChange={event => updatePosting(item.id, { note: event.target.value })} placeholder="메모" rows={3} />
-            <div className="job-card-actions">
-              {item.sourceUrl && <a href={item.sourceUrl} target="_blank" rel="noreferrer">공고 열기</a>}
-              <small>{PLATFORM_LABELS[item.platform]} · {dateBadge(item.deadline)}</small>
-              <button type="button" onClick={() => removePosting(item.id)}>삭제</button>
-            </div>
-          </article>
-        ))}
+      <section className="job-list-shell">
+        <div className="job-list-heading">
+          <div>
+            <h3>공고 목록</h3>
+            <p>목록에는 입력된 핵심 정보만 보여주고, 항목을 열면 오른쪽에서 넓게 편집합니다.</p>
+          </div>
+          <small>{visible.length}개 표시</small>
+        </div>
+        <div className="job-list">
+          {visible.length === 0 ? (
+            <p className="empty-text">모아둘 지원 공고를 추가하세요.</p>
+          ) : visible.map(item => {
+            const keywords = item.keywords ?? []
+            const selected = selectedPostingId === item.id
+            return (
+              <article key={item.id} className={`job-card job-card-compact ${item.status} ${selected ? 'selected' : ''}`}>
+                <button type="button" className="job-card-open" onClick={() => setSelectedPostingId(item.id)}>
+                  <div className="job-card-compact-top">
+                    <div>
+                      <h3>{item.company}</h3>
+                      <strong>{item.position}</strong>
+                    </div>
+                    <span>{STATUS_LABELS[item.status]}</span>
+                  </div>
+                  <div className="job-card-tags">
+                    <small>{PLATFORM_LABELS[item.platform]}</small>
+                    {item.deadline && <small>{dateBadge(item.deadline)}</small>}
+                    {item.appliedDate && <small>지원 {item.appliedDate}</small>}
+                    {item.location && <small>{item.location}</small>}
+                    {item.employmentType && <small>{item.employmentType}</small>}
+                    {keywords.slice(0, 4).map(keyword => <small key={keyword}>{keyword}</small>)}
+                  </div>
+                  {item.nextAction && <p><b>다음 행동</b>{item.nextAction}</p>}
+                  {item.note && <p className="job-card-note-preview">{item.note}</p>}
+                </button>
+                <div className="job-card-actions">
+                  {item.sourceUrl && <a href={item.sourceUrl} target="_blank" rel="noreferrer">공고 열기</a>}
+                  <button type="button" onClick={() => setSelectedPostingId(item.id)}>자세히</button>
+                  <button type="button" onClick={() => removePosting(item.id)}>삭제</button>
+                </div>
+              </article>
+            )
+          })}
+        </div>
       </section>
+
+      {selectedPosting && (
+        <div className="job-detail-backdrop" onMouseDown={() => setSelectedPostingId(null)}>
+          <aside className="job-detail-panel" onMouseDown={event => event.stopPropagation()}>
+            <header className="job-detail-header">
+              <div>
+                <span>{STATUS_LABELS[selectedPosting.status]}</span>
+                <h3>{selectedPosting.company}</h3>
+                <p>{selectedPosting.position}</p>
+              </div>
+              <button type="button" onClick={() => setSelectedPostingId(null)}>닫기</button>
+            </header>
+
+            <div className="job-detail-form">
+              <label>회사<input value={selectedPosting.company} onChange={event => updatePosting(selectedPosting.id, { company: event.target.value })} /></label>
+              <label>포지션<input value={selectedPosting.position} onChange={event => updatePosting(selectedPosting.id, { position: event.target.value })} /></label>
+              <label>플랫폼<select value={selectedPosting.platform} onChange={event => updatePosting(selectedPosting.id, { platform: event.target.value as JobPostingPlatform })}>{PLATFORMS.map(platform => <option key={platform} value={platform}>{PLATFORM_LABELS[platform]}</option>)}</select></label>
+              <label>상태<select value={selectedPosting.status} onChange={event => updatePosting(selectedPosting.id, { status: event.target.value as JobPostingStatus })}>{STATUSES.map(status => <option key={status} value={status}>{STATUS_LABELS[status]}</option>)}</select></label>
+              <label>마감<input type="date" value={selectedPosting.deadline ?? ''} onChange={event => updatePosting(selectedPosting.id, { deadline: event.target.value || undefined })} /></label>
+              {shouldShowAppliedDate(selectedPosting) && <label>지원일<input type="date" value={selectedPosting.appliedDate ?? ''} onChange={event => updatePosting(selectedPosting.id, { appliedDate: event.target.value || undefined })} /></label>}
+              {selectedPosting.resultDate && <label>결과일<input type="date" value={selectedPosting.resultDate} onChange={event => updatePosting(selectedPosting.id, { resultDate: event.target.value || undefined })} /></label>}
+              {hasValue(selectedPosting.location) && <label>지역<input value={selectedPosting.location ?? ''} onChange={event => updatePosting(selectedPosting.id, { location: event.target.value || undefined })} /></label>}
+              {hasValue(selectedPosting.employmentType) && <label>고용형태<input value={selectedPosting.employmentType ?? ''} onChange={event => updatePosting(selectedPosting.id, { employmentType: event.target.value || undefined })} /></label>}
+              {(selectedPosting.keywords?.length ?? 0) > 0 && <label className="wide-label">키워드<input value={joinTokens(selectedPosting.keywords)} onChange={event => updatePosting(selectedPosting.id, { keywords: splitTokens(event.target.value) })} /></label>}
+              {hasValue(selectedPosting.nextAction) && <label className="wide-label">다음 행동<input value={selectedPosting.nextAction ?? ''} onChange={event => updatePosting(selectedPosting.id, { nextAction: event.target.value || undefined })} /></label>}
+              {hasValue(selectedPosting.sourceUrl) && (
+                <label className="wide-label">공고 링크
+                  <div className="job-card-link-row">
+                    <input value={selectedPosting.sourceUrl ?? ''} onChange={event => updatePosting(selectedPosting.id, { sourceUrl: event.target.value || undefined, platform: detectJobPlatform(event.target.value) })} />
+                    <button type="button" onClick={() => applyDraftToPosting(selectedPosting)} disabled={linkDraftBusy}>
+                      {linkDraftBusy ? '분석 중' : '분석 반영'}
+                    </button>
+                  </div>
+                </label>
+              )}
+              {hasValue(selectedPosting.note) && (
+                <label className="wide-label">추출 상세 / 메모
+                  <textarea value={selectedPosting.note ?? ''} onChange={event => updatePosting(selectedPosting.id, { note: event.target.value || undefined })} rows={8} />
+                </label>
+              )}
+              {hasValue(selectedPosting.imageText) && (
+                <label className="wide-label">공고 원문/OCR
+                  <textarea value={selectedPosting.imageText ?? ''} onChange={event => updatePosting(selectedPosting.id, { imageText: event.target.value || undefined })} rows={5} />
+                </label>
+              )}
+
+              <details className="job-detail-empty-fields">
+                <summary>비어 있는 항목 추가</summary>
+                <div>
+                  {!shouldShowAppliedDate(selectedPosting) && <label>지원일<input type="date" value="" onChange={event => updatePosting(selectedPosting.id, { appliedDate: event.target.value || undefined })} /></label>}
+                  {!selectedPosting.resultDate && <label>결과일<input type="date" value="" onChange={event => updatePosting(selectedPosting.id, { resultDate: event.target.value || undefined })} /></label>}
+                  {!hasValue(selectedPosting.location) && <label>지역<input value="" onChange={event => updatePosting(selectedPosting.id, { location: event.target.value || undefined })} placeholder="예: 서울 강남구" /></label>}
+                  {!hasValue(selectedPosting.employmentType) && <label>고용형태<input value="" onChange={event => updatePosting(selectedPosting.id, { employmentType: event.target.value || undefined })} placeholder="예: 정규직" /></label>}
+                  {(selectedPosting.keywords?.length ?? 0) === 0 && <label>키워드<input value="" onChange={event => updatePosting(selectedPosting.id, { keywords: splitTokens(event.target.value) })} placeholder="React, 신입" /></label>}
+                  {!hasValue(selectedPosting.nextAction) && <label>다음 행동<input value="" onChange={event => updatePosting(selectedPosting.id, { nextAction: event.target.value || undefined })} placeholder="예: 지원서 수정" /></label>}
+                  {!hasValue(selectedPosting.sourceUrl) && <label className="wide-label">공고 링크<input value="" onChange={event => updatePosting(selectedPosting.id, { sourceUrl: event.target.value || undefined, platform: detectJobPlatform(event.target.value) })} /></label>}
+                  {!hasValue(selectedPosting.note) && <label className="wide-label">추출 상세 / 메모<textarea value="" onChange={event => updatePosting(selectedPosting.id, { note: event.target.value || undefined })} rows={5} /></label>}
+                  {!hasValue(selectedPosting.imageText) && <label className="wide-label">공고 원문/OCR<textarea value="" onChange={event => updatePosting(selectedPosting.id, { imageText: event.target.value || undefined })} rows={4} /></label>}
+                </div>
+              </details>
+            </div>
+
+            <footer className="job-detail-footer">
+              {selectedPosting.sourceUrl && <a href={selectedPosting.sourceUrl} target="_blank" rel="noreferrer">공고 열기</a>}
+              <button type="button" onClick={() => removePosting(selectedPosting.id)}>삭제</button>
+            </footer>
+          </aside>
+        </div>
+      )}
 
       <style>{`
         .job-page { max-width: 1180px; margin: 0 auto; color: var(--text); display: flex; flex-direction: column; gap: 16px; }
@@ -467,52 +656,92 @@ export default function JobPostings() {
         .job-link-assist-body { border-top: 1px solid var(--border); padding: 11px 12px 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
         .job-link-assist-body input, .job-link-assist-body textarea { min-width: 0; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); font-family: inherit; font-size: 13px; outline: none; }
         .job-link-assist-body input { height: 34px; padding: 0 9px; }
-        .job-link-assist-body textarea { grid-column: 1 / -1; min-height: 112px; padding: 9px; resize: vertical; line-height: 1.5; }
+        .job-link-assist-body textarea { grid-column: 1 / -1; min-height: 84px; padding: 9px; resize: vertical; line-height: 1.5; }
         .job-link-assist-body button, .job-card-link-row button { min-height: 34px; border: 0; border-radius: 7px; background: var(--accent); color: #fff; padding: 0 12px; font-size: 12px; font-weight: 900; cursor: pointer; white-space: nowrap; }
         .job-link-assist-body button:disabled { opacity: 0.65; cursor: wait; }
         .job-link-assist-body p { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
         .job-link-assist-body small { grid-column: 1 / -1; color: var(--accent); font-size: 11px; font-weight: 800; }
+        .job-link-images { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); padding: 8px 9px; }
+        .job-link-images span { min-width: 0; color: var(--muted); font-size: 11px; font-weight: 800; }
+        .job-link-images button { min-height: 30px; background: var(--bg2); color: var(--text); border: 1px solid var(--border); }
         .job-add { padding: 12px; display: flex; flex-direction: column; gap: 9px; }
         .job-add-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) 120px 120px 138px; gap: 8px; }
+        .job-add-dates { display: grid; grid-template-columns: minmax(160px, 220px); gap: 8px; }
+        .job-add-dates label { min-width: 0; display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 900; }
         .job-add-media { display: grid; grid-template-columns: minmax(0, 1fr) 150px 150px; gap: 8px; align-items: center; }
         .job-add-media small { min-width: 0; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .job-add-extra { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 8px; }
-        .job-add input, .job-add select, .job-add textarea, .job-tools input, .job-card input, .job-card select, .job-card textarea { min-width: 0; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); font-family: inherit; font-size: 13px; outline: none; }
-        .job-add input, .job-add select, .job-tools input, .job-card input, .job-card select { height: 34px; padding: 0 9px; }
-        .job-add textarea, .job-card textarea { padding: 9px; resize: vertical; line-height: 1.5; }
+        .job-add input, .job-add select, .job-add textarea, .job-tools input, .job-detail-form input, .job-detail-form select, .job-detail-form textarea { min-width: 0; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); font-family: inherit; font-size: 13px; outline: none; }
+        .job-add input, .job-add select, .job-tools input, .job-detail-form input, .job-detail-form select { height: 34px; padding: 0 9px; }
+        .job-add textarea, .job-detail-form textarea { padding: 9px; resize: vertical; line-height: 1.5; }
         .job-add button { height: 34px; border: 0; border-radius: 7px; background: var(--accent); color: #fff; padding: 0 13px; font-size: 12px; font-weight: 800; cursor: pointer; }
         .job-add button.secondary-action { border: 1px solid var(--border); background: var(--bg3); color: var(--text); }
         .job-add-media label { height: 34px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); display: grid; place-items: center; font-size: 12px; font-weight: 800; cursor: pointer; overflow: hidden; }
         .job-add-media input[type="file"] { display: none; }
+        .job-detail-field { display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 800; }
+        .job-detail-field textarea { min-height: 132px; }
+        .job-detail-field span { color: var(--accent); }
         .ocr-status { color: var(--muted); font-size: 11px; }
         .job-tools { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
         .job-tools > div { display: flex; flex-wrap: wrap; gap: 6px; }
         .job-tools button { min-height: 31px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg3); color: var(--muted); padding: 0 11px; font-size: 12px; cursor: pointer; }
         .job-tools button.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); font-weight: 800; }
+        .job-list-shell { display: flex; flex-direction: column; gap: 10px; }
+        .job-list-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+        .job-list-heading h3 { margin: 0 0 4px; font-size: 17px; letter-spacing: 0; }
+        .job-list-heading p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+        .job-list-heading small { color: var(--muted); font-size: 11px; font-weight: 800; white-space: nowrap; }
         .job-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
         .job-card { padding: 13px; display: flex; flex-direction: column; gap: 10px; border-left: 4px solid var(--accent); }
         .job-card.rejected, .job-card.closed { border-left-color: var(--muted); opacity: 0.82; }
-        .job-card-top { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr) auto; gap: 8px; align-items: center; }
-        .job-card-top input { border-color: transparent; background: transparent; padding-left: 0; font-weight: 900; font-size: 15px; }
-        .job-card-top span { border-radius: 999px; background: var(--accent-soft); color: var(--accent); padding: 4px 8px; font-size: 10px; font-weight: 900; white-space: nowrap; }
-        .job-card-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-        .job-card-grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        .job-card label { min-width: 0; display: flex; flex-direction: column; gap: 5px; color: var(--muted); font-size: 11px; font-weight: 800; }
+        .job-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-soft); }
+        .job-card-open { width: 100%; border: 0; background: transparent; color: inherit; padding: 0; text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 10px; }
+        .job-card-compact-top { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: start; }
+        .job-card-compact-top h3 { margin: 0 0 5px; font-size: 17px; line-height: 1.3; letter-spacing: 0; overflow-wrap: anywhere; }
+        .job-card-compact-top strong { display: block; font-size: 13px; line-height: 1.45; color: var(--text); overflow-wrap: anywhere; }
+        .job-card-compact-top span { border-radius: 999px; background: var(--accent-soft); color: var(--accent); padding: 5px 9px; font-size: 10px; font-weight: 900; white-space: nowrap; }
+        .job-card-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+        .job-card-tags small { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-radius: 999px; background: var(--bg3); color: var(--muted); padding: 5px 8px; font-size: 10px; font-weight: 800; }
+        .job-card-open p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; display: flex; gap: 8px; overflow-wrap: anywhere; }
+        .job-card-open p b { color: var(--accent); white-space: nowrap; }
+        .job-card-note-preview { display: -webkit-box !important; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
         .wide-label { width: 100%; }
         .job-card-link-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
         .job-card-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
         .job-card-actions a { color: var(--accent); font-size: 12px; font-weight: 800; text-decoration: none; }
         .job-card-actions small { color: var(--muted); font-size: 11px; }
         .job-card-actions button { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; padding: 6px; }
+        .job-detail-backdrop { position: fixed; inset: 0; z-index: 50; background: rgba(0, 0, 0, 0.32); display: flex; justify-content: flex-end; }
+        .job-detail-panel { width: min(760px, calc(100vw - 32px)); height: 100%; background: var(--bg2); color: var(--text); border-left: 1px solid var(--border); box-shadow: -18px 0 40px rgba(0, 0, 0, 0.22); display: flex; flex-direction: column; }
+        .job-detail-header { padding: 18px 20px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+        .job-detail-header span { display: inline-flex; margin-bottom: 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); padding: 5px 9px; font-size: 10px; font-weight: 900; }
+        .job-detail-header h3 { margin: 0 0 6px; font-size: 22px; line-height: 1.3; letter-spacing: 0; overflow-wrap: anywhere; }
+        .job-detail-header p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+        .job-detail-header button, .job-detail-footer button { border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); min-height: 34px; padding: 0 12px; font-size: 12px; font-weight: 800; cursor: pointer; white-space: nowrap; }
+        .job-detail-form { padding: 16px 20px 20px; overflow: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        .job-detail-form label { min-width: 0; display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 900; }
+        .job-detail-form .wide-label, .job-detail-empty-fields { grid-column: 1 / -1; }
+        .job-detail-form textarea { min-height: 132px; }
+        .job-detail-empty-fields { border: 1px solid var(--border); border-radius: 8px; background: var(--bg3); overflow: hidden; }
+        .job-detail-empty-fields summary { min-height: 38px; padding: 0 12px; display: flex; align-items: center; cursor: pointer; color: var(--muted); font-size: 12px; font-weight: 900; }
+        .job-detail-empty-fields > div { border-top: 1px solid var(--border); padding: 12px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+        .job-detail-footer { margin-top: auto; border-top: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .job-detail-footer a { color: var(--accent); font-size: 12px; font-weight: 900; text-decoration: none; }
+        .job-detail-footer button { color: var(--muted); }
         .empty-text { grid-column: 1 / -1; margin: 0; padding: 36px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); color: var(--muted); text-align: center; }
         @media (max-width: 980px) {
           .job-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .job-board, .job-list { grid-template-columns: 1fr; }
-          .job-add-main, .job-add-media, .job-add-extra, .job-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .job-add-main, .job-add-media, .job-add-extra { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
         @media (max-width: 560px) {
-          .job-summary, .job-link-assist-body, .job-add-main, .job-add-media, .job-add-extra, .job-card-grid, .job-card-grid.two, .job-card-top, .job-card-link-row { grid-template-columns: 1fr; }
+          .job-summary, .job-link-assist-body, .job-add-main, .job-add-media, .job-add-extra, .job-card-link-row, .job-detail-form, .job-detail-empty-fields > div { grid-template-columns: 1fr; }
+          .job-list-heading { align-items: flex-start; flex-direction: column; }
           .job-card-actions { align-items: flex-start; flex-direction: column; }
+          .job-detail-panel { width: 100vw; }
+          .job-detail-header { padding: 16px; }
+          .job-detail-form { padding: 14px 16px 18px; }
+          .job-detail-footer { padding: 12px 16px; }
         }
       `}</style>
     </div>

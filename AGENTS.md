@@ -28,6 +28,7 @@
 - [RELEASES.md](RELEASES.md) — 버전 기준과 릴리즈 노트
 - [COPYRIGHT_AND_SERVICE_NOTES.md](COPYRIGHT_AND_SERVICE_NOTES.md) — 저작권, 서비스 보호, 약관/개인정보 문서화 메모
 - [LINK_IMPORT_GUIDE.md](LINK_IMPORT_GUIDE.md) — 링크 자동 정리에 적합한 링크와 제한 사항
+- [JOB_POSTING_LINK_READER.md](JOB_POSTING_LINK_READER.md) — 지원 공고 링크 Reader 동작 방식과 검증 기준
 
 ## GitHub
 
@@ -35,7 +36,7 @@ https://github.com/planner-one/-my-planner.git
 
 ## 작업 방식
 
-1. 새 세션 시작 시 `NEXT_CHAT_HANDOFF.md`, `REQUIREMENTS.md`, `SCENARIOS.md`, `PROGRESS.md`, `RELEASES.md`, `COPYRIGHT_AND_SERVICE_NOTES.md`, `LINK_IMPORT_GUIDE.md`를 먼저 확인합니다.
+1. 새 세션 시작 시 `NEXT_CHAT_HANDOFF.md`, `REQUIREMENTS.md`, `SCENARIOS.md`, `PROGRESS.md`, `RELEASES.md`, `COPYRIGHT_AND_SERVICE_NOTES.md`, `LINK_IMPORT_GUIDE.md`, `JOB_POSTING_LINK_READER.md`를 먼저 확인합니다.
 2. 프롬프트 수신 → 요구사항 분석 → 필요 시 `REQUIREMENTS.md` 업데이트
 3. 시나리오 도출/변경 → 필요 시 `SCENARIOS.md` 업데이트
 4. 기능 하나 검토 → 문제 의논 → 수정 → 사용자 확인 → 커밋/푸시 순서로 진행합니다.
