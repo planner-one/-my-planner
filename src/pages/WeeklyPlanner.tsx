@@ -28,7 +28,7 @@ const makeWeekDates = (start: Date) =>
 export default function WeeklyPlanner() {
   const {
     weekTasks, setWeekTasks,
-    todos, scheduledTasks, goals, projects, careerEvents,
+    todos, scheduledTasks, goals, projects, careerEvents, tasks: managedTasks,
   } = useApp()
   const [weekStart, setWeekStart] = useState(() => getWeekStart())
   const [newTask, setNewTask] = useState('')
@@ -52,6 +52,7 @@ export default function WeeklyPlanner() {
   const weekCareerEvents = careerEvents.filter(event =>
     weekDates.some(date => getCareerMilestones(event, date).length > 0),
   )
+  const weekManagedTasks = managedTasks.filter(task => task.due && weekDates.includes(task.due) && !task.done && task.status !== '완료')
   const weekGoals = goals.filter(goal => goal.due && weekDates.includes(goal.due))
   const weekProjects = projects.filter(project => project.due && weekDates.includes(project.due))
 
@@ -108,7 +109,7 @@ export default function WeeklyPlanner() {
           sub={selectedWeekIncludesToday ? '오늘 미지정 포함' : '날짜 지정 항목'}
         />
         <SummaryCard label="예정" value={String(weekScheduled.length + weekCareerEvents.length)} sub="캘린더 일정" />
-        <SummaryCard label="마감" value={String(weekGoals.length + weekProjects.length)} sub="목표/프로젝트" />
+        <SummaryCard label="마감" value={String(weekManagedTasks.length + weekGoals.length + weekProjects.length)} sub="작업/목표/프로젝트" />
       </section>
 
       <section className="weekly-grid">
@@ -163,7 +164,9 @@ export default function WeeklyPlanner() {
               const dayTodos = todos.filter(todo => belongsToDate(todo, date))
               const dayScheduled = scheduledTasks.filter(task => task.date === date)
               const dayCareerEvents = careerEvents.filter(event => getCareerMilestones(event, date).length > 0)
+              const dayManagedTasks = managedTasks.filter(task => task.due === date && !task.done && task.status !== '완료')
               const dayDue = [
+                ...dayManagedTasks.map(task => `작업 · ${task.name}`),
                 ...goals.filter(goal => goal.due === date).map(goal => goal.name),
                 ...projects.filter(project => project.due === date).map(project => project.name),
               ]
@@ -180,7 +183,7 @@ export default function WeeklyPlanner() {
                       </p>
                     )
                   })}
-                  {dayDue.slice(0, 2).map(title => <p key={title} className="due-text">마감 · {title}</p>)}
+                  {dayDue.slice(0, 3).map(title => <p key={title} className="due-text">마감 · {title}</p>)}
                   {dayTodos.length + dayScheduled.length + dayCareerEvents.length + dayDue.length === 0 && <p className="muted">비어 있음</p>}
                 </article>
               )

@@ -77,15 +77,40 @@ export default function Projects() {
   }
 
   const sortedProjects = sortProjects(projects)
+  const activeProjects = projects.filter(project => project.status !== '완료' && project.pct < 100)
+  const completedProjects = projects.filter(project => project.status === '완료' || project.pct >= 100)
+  const avgPct = activeProjects.length === 0
+    ? 0
+    : Math.round(activeProjects.reduce((sum, project) => sum + project.pct, 0) / activeProjects.length)
+  const urgentProjects = sortedProjects.filter(project => project.due && project.status !== '완료' && project.pct < 100).slice(0, 3)
+  const nextProject = sortedProjects.find(project => project.status !== '완료' && project.pct < 100)
+  const nextStep = nextProject?.steps?.find(step => !step.done)
 
   return (
     <div className="projects-page">
       <section className="projects-heading">
         <div>
           <h2>프로젝트</h2>
-          <p>여러 작업을 묶어서 진행하는 프로젝트 단위로 관리합니다. 진행률은 하위 작업 완료 비율로 자동 계산됩니다.</p>
+          <p>프로젝트는 여러 작업을 묶어 결과물을 만드는 공간입니다. 실행할 일은 작업 관리, 진행 묶음은 프로젝트로 나눠서 봅니다.</p>
         </div>
       </section>
+
+      <section className="project-summary-grid">
+        <ProjectSummary label="진행 프로젝트" value={`${activeProjects.length}개`} sub={`완료 ${completedProjects.length}개`} />
+        <ProjectSummary label="평균 진행률" value={`${avgPct}%`} sub="진행 중 프로젝트 기준" />
+        <ProjectSummary label="마감 있는 항목" value={`${urgentProjects.length}개`} sub={urgentProjects[0]?.name ?? '마감 등록 없음'} />
+      </section>
+
+      {nextProject && (
+        <section className="project-next-focus">
+          <div>
+            <span>다음 실행</span>
+            <strong>{nextProject.name}</strong>
+            <p>{nextStep ? nextStep.text : '하위 작업을 추가하면 다음 실행이 더 분명해집니다.'}</p>
+          </div>
+          <b>{nextProject.pct}%</b>
+        </section>
+      )}
 
       <section className="project-panel">
         <div className="inline-add">
@@ -181,9 +206,20 @@ export default function Projects() {
       </section>
 
       <style>{`
-        .projects-page { max-width: 760px; margin: 0 auto; color: var(--text); display: flex; flex-direction: column; gap: 18px; }
+        .projects-page { max-width: 920px; margin: 0 auto; color: var(--text); display: flex; flex-direction: column; gap: 18px; }
         .projects-heading h2 { font-size: 24px; margin: 0 0 6px; letter-spacing: 0; }
         .projects-heading p { color: var(--muted); margin: 0; font-size: 13px; line-height: 1.5; }
+        .project-summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+        .project-summary-card, .project-next-focus { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; }
+        .project-summary-card { padding: 13px; }
+        .project-summary-card span { color: var(--muted); font-size: 11px; font-weight: 800; }
+        .project-summary-card b { display: block; margin: 5px 0 3px; font-size: 22px; color: var(--text); }
+        .project-summary-card small { color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+        .project-next-focus { padding: 14px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+        .project-next-focus span { color: var(--accent); font-size: 11px; font-weight: 900; }
+        .project-next-focus strong { display: block; margin-top: 4px; font-size: 16px; overflow-wrap: anywhere; }
+        .project-next-focus p { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+        .project-next-focus b { color: var(--accent); font-size: 24px; }
         .project-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
         .inline-add { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
         .inline-add input, .project-card input, .project-card select, .project-description { min-width: 0; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); padding: 0 10px; font-family: inherit; font-size: 13px; outline: none; }
@@ -211,6 +247,7 @@ export default function Projects() {
         .subtle-button { background: var(--bg4); color: var(--text); }
         @media (max-width: 760px) {
           .projects-page { gap: 14px; }
+          .project-summary-grid { grid-template-columns: 1fr; }
           .project-panel { padding: 14px; }
           .project-meta-row { grid-template-columns: 1fr; }
           .project-progress-row { grid-template-columns: 1fr auto; }
@@ -218,5 +255,15 @@ export default function Projects() {
         }
       `}</style>
     </div>
+  )
+}
+
+function ProjectSummary({ label, value, sub }: { label: string; value: string; sub: string }) {
+  return (
+    <article className="project-summary-card">
+      <span>{label}</span>
+      <b>{value}</b>
+      <small>{sub}</small>
+    </article>
   )
 }

@@ -1,10 +1,10 @@
-export const APP_VERSION = '0.2.0'
-export const APP_RELEASE_DATE = '2026-06-30'
-export const APP_RELEASE_NAME = 'Core Planner'
+export const APP_VERSION = '0.3.0'
+export const APP_RELEASE_DATE = '2026-07-01'
+export const APP_RELEASE_NAME = 'Workflow Visibility'
 
 export const APP_RELEASE_NOTES = [
-  '사이드바 접힘 레일과 상태 유지',
-  'Todo 기록 보정과 오늘 할 일 재등록',
-  '신청 관리와 캘린더 연결 강화',
-  '주간/일일/저널/프로필/출력 페이지 정리',
+  '작업 흐름 대시보드 위젯 추가',
+  '작업·프로젝트·목표 역할과 요약 지표 강화',
+  '일일/주간 플래너에 작업·목표·프로젝트 마감 연결',
+  '정식 노트, 링크 정리, 이미지 포스터 OCR 기반 기능 정리',
 ] as const

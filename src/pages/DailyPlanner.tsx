@@ -20,6 +20,7 @@ export default function DailyPlanner() {
     timeBlockData, setTimeBlockData,
     habits, habitHistory, setHabitHistory,
     careerEvents,
+    tasks, goals, projects,
   } = useApp()
   const [selectedDate, setSelectedDate] = useState(toLocalDateKey())
   const [todoText, setTodoText] = useState('')
@@ -36,6 +37,10 @@ export default function DailyPlanner() {
     .filter(event => getCareerMilestones(event, selectedDate).length > 0)
     .sort((a, b) => (a.time ?? '').localeCompare(b.time ?? '') || a.title.localeCompare(b.title))
   const activeHabits = habits.filter(habit => isHabitScheduled(habit, dateObj))
+  const dueTasks = tasks.filter(task => task.due === selectedDate && !task.done && task.status !== '완료')
+  const dueGoals = goals.filter(goal => goal.due === selectedDate && goal.status !== '완료' && goal.pct < 100)
+  const dueProjects = projects.filter(project => project.due === selectedDate && project.status !== '완료' && project.pct < 100)
+  const deadlineTotal = dueTasks.length + dueGoals.length + dueProjects.length
   const todayRecord = habitHistory[selectedDate] ?? {}
   const todoDone = dayTodos.filter(todo => todo.done).length
   const todoPct = dayTodos.length === 0 ? 0 : Math.round((todoDone / dayTodos.length) * 100)
@@ -137,6 +142,7 @@ export default function DailyPlanner() {
         <Summary label="Todo" value={`${todoDone}/${dayTodos.length}`} pct={todoPct} />
         <Summary label="루틴" value={`${habitDone}/${activeHabits.length}`} pct={habitPct} />
         <Summary label="일정" value={String(scheduleTotal)} pct={schedulePct} />
+        <Summary label="마감" value={String(deadlineTotal)} pct={deadlineTotal > 0 ? 100 : 0} />
       </section>
 
       <section className="daily-grid">
@@ -220,6 +226,21 @@ export default function DailyPlanner() {
           </div>
         </div>
 
+        <div className="daily-panel deadline-panel">
+          <h3>오늘 마감/연결</h3>
+          <div className="deadline-list">
+            {deadlineTotal === 0 ? (
+              <p className="empty-text">오늘 마감인 작업, 목표, 프로젝트가 없습니다.</p>
+            ) : (
+              <>
+                {dueTasks.map(task => <DeadlineItem key={task.id} label="작업" title={task.name} meta={task.priority ?? task.status ?? ''} />)}
+                {dueProjects.map(project => <DeadlineItem key={project.id} label="프로젝트" title={project.name} meta={`${project.pct}%`} />)}
+                {dueGoals.map(goal => <DeadlineItem key={goal.id} label="목표" title={goal.name} meta={`${goal.pct}%`} />)}
+              </>
+            )}
+          </div>
+        </div>
+
         <div className="daily-panel time-panel">
           <h3>시간 블록</h3>
           <div className="time-blocks">
@@ -245,7 +266,7 @@ export default function DailyPlanner() {
         .daily-date-controls { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
         .daily-date-controls button, .daily-add button { height: 34px; border: 0; border-radius: 7px; background: var(--accent); color: #fff; padding: 0 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
         .daily-date-controls input, .daily-add input, .daily-add select, .daily-row input:not([type]), .schedule-row input { min-width: 0; height: 34px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); padding: 0 9px; font-size: 13px; outline: none; }
-        .daily-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+        .daily-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
         .daily-summary-card, .daily-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; }
         .daily-summary-card { padding: 13px; }
         .daily-summary-card span { color: var(--muted); font-size: 11px; font-weight: 700; }
@@ -271,6 +292,11 @@ export default function DailyPlanner() {
         .empty-text { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; text-align: center; padding: 12px; }
         .habit-chip { border: 1px solid var(--border); border-radius: 8px; background: var(--bg3); color: var(--text); padding: 10px; text-align: left; cursor: pointer; font-size: 13px; }
         .habit-chip.done { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 800; }
+        .deadline-list { display: flex; flex-direction: column; gap: 7px; }
+        .deadline-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 9px; border-radius: 8px; background: var(--bg3); }
+        .deadline-item span { padding: 3px 7px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 10px; font-weight: 900; white-space: nowrap; }
+        .deadline-item strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+        .deadline-item small { color: var(--muted); font-size: 11px; white-space: nowrap; }
         .time-panel { grid-column: 1 / -1; }
         .time-blocks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
         .time-block-row { display: grid; grid-template-columns: 54px minmax(0, 1fr); align-items: center; gap: 7px; }
@@ -298,5 +324,15 @@ function Summary({ label, value, pct }: { label: string; value: string; pct: num
       <b>{value}</b>
       <div className="daily-mini-progress"><i style={{ width: `${pct}%` }} /></div>
     </article>
+  )
+}
+
+function DeadlineItem({ label, title, meta }: { label: string; title: string; meta: string }) {
+  return (
+    <div className="deadline-item">
+      <span>{label}</span>
+      <strong>{title}</strong>
+      <small>{meta}</small>
+    </div>
   )
 }

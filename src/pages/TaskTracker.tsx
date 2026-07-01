@@ -64,15 +64,27 @@ export default function TaskTracker() {
   const removeTask = (id: string) => setTasks(prev => prev.filter(task => task.id !== id))
 
   const visible = sortTasks(tasks).filter(task => filter === 'all' || task.status === filter)
+  const activeTasks = tasks.filter(task => !task.done && task.status !== '완료')
+  const waitingTasks = tasks.filter(task => task.status === '대기')
+  const doneTasks = tasks.filter(task => task.done || task.status === '완료')
+  const highPriority = activeTasks.filter(task => task.priority === '높음')
+  const nextTask = sortTasks(activeTasks).find(task => task.due)
 
   return (
     <div className="task-page">
       <header className="task-header">
         <div>
           <h2>작업 관리</h2>
-          <p>마감일, 우선순위, 상태와 담당자를 기준으로 장기 작업을 관리합니다.</p>
+          <p>작업 관리는 바로 실행할 개별 항목을 다룹니다. 여러 작업을 묶는 진행률 관리는 프로젝트에서 봅니다.</p>
         </div>
       </header>
+
+      <section className="task-summary-grid">
+        <TaskSummary label="진행 작업" value={`${activeTasks.length}개`} sub={`완료 ${doneTasks.length}개`} />
+        <TaskSummary label="높은 우선순위" value={`${highPriority.length}개`} sub={highPriority[0]?.name ?? '긴급 항목 없음'} />
+        <TaskSummary label="대기" value={`${waitingTasks.length}개`} sub="시작 전 상태" />
+        <TaskSummary label="다음 마감" value={nextTask ? getGoalDueText(nextTask.due) : '-'} sub={nextTask?.name ?? '마감 등록 없음'} />
+      </section>
 
       <section className="task-add">
         <input
@@ -175,7 +187,12 @@ export default function TaskTracker() {
       <style>{`
         .task-page { max-width: 1100px; margin: 0 auto; color: var(--text); display: flex; flex-direction: column; gap: 16px; }
         .task-header h2 { margin: 0 0 5px; font-size: 24px; letter-spacing: 0; }
-        .task-header p { margin: 0; color: var(--muted); font-size: 13px; }
+        .task-header p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+        .task-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+        .task-summary-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 13px; }
+        .task-summary-card span { color: var(--muted); font-size: 11px; font-weight: 800; }
+        .task-summary-card b { display: block; margin: 5px 0 3px; color: var(--text); font-size: 20px; }
+        .task-summary-card small { display: block; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .task-add { display: grid; grid-template-columns: minmax(0,1.6fr) 130px 100px 90px 100px minmax(0,0.8fr) auto; gap: 8px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
         .task-add input, .task-add select { min-width: 0; height: 34px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); padding: 0 9px; font-family: inherit; font-size: 13px; outline: none; }
         .task-add button { height: 34px; border: 0; border-radius: 7px; background: var(--accent); color: #fff; padding: 0 14px; font-size: 12px; font-weight: 700; cursor: pointer; }
@@ -197,12 +214,26 @@ export default function TaskTracker() {
         .ghost-button { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; padding: 5px; }
         .task-empty { padding: 40px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); color: var(--muted); text-align: center; }
         @media (max-width: 900px) {
+          .task-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .task-add { grid-template-columns: 1fr 1fr; }
           .task-row, .task-row-head { grid-template-columns: 1fr; }
           .task-row-head { display: none; }
           .task-row { gap: 6px; }
         }
+        @media (max-width: 560px) {
+          .task-summary-grid { grid-template-columns: 1fr; }
+        }
       `}</style>
     </div>
+  )
+}
+
+function TaskSummary({ label, value, sub }: { label: string; value: string; sub: string }) {
+  return (
+    <article className="task-summary-card">
+      <span>{label}</span>
+      <b>{value}</b>
+      <small>{sub}</small>
+    </article>
   )
 }

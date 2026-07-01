@@ -72,6 +72,13 @@ export default function Goals() {
 
   const sortedGoals = sortPriorityGoals(goals)
   const activeTopGoals = topGoals.slice(0, 3)
+  const focusDone = topGoals.filter(goal => goal.done).length
+  const activeGoals = goals.filter(goal => goal.status !== '완료' && goal.pct < 100)
+  const completedGoals = goals.filter(goal => goal.status === '완료' || goal.pct >= 100)
+  const avgGoalPct = activeGoals.length === 0
+    ? 0
+    : Math.round(activeGoals.reduce((sum, goal) => sum + goal.pct, 0) / activeGoals.length)
+  const nextGoal = sortedGoals.find(goal => goal.status !== '완료' && goal.pct < 100)
 
   return (
     <div className="goals-page">
@@ -86,6 +93,13 @@ export default function Goals() {
         <GuideCard title="Todo" text="오늘 끝낼 수 있는 구체적인 작업" example="강의 1개 듣기" />
         <GuideCard title="오늘 집중" text="오늘 흐트러지지 않게 잡는 핵심 방향" example="시험 준비 흐름 만들기" />
         <GuideCard title="장기 목표" text="마감일과 단계가 있는 진행 목표" example="자격증 합격 45%" />
+      </section>
+
+      <section className="goal-stats">
+        <GoalStat label="오늘 집중" value={`${focusDone}/${topGoals.length}`} sub="완료한 방향" />
+        <GoalStat label="장기 목표 평균" value={`${avgGoalPct}%`} sub={`진행 ${activeGoals.length}개`} />
+        <GoalStat label="완료 목표" value={`${completedGoals.length}개`} sub="누적 완료" />
+        <GoalStat label="다음 목표" value={nextGoal ? `${nextGoal.pct}%` : '-'} sub={nextGoal?.name ?? '목표 없음'} />
       </section>
 
       <section className="goals-grid">
@@ -238,8 +252,13 @@ export default function Goals() {
         .goals-heading h2 { font-size: 24px; margin: 0 0 6px; letter-spacing: 0; }
         .goals-heading p, .panel-heading p { color: var(--muted); margin: 0; font-size: 13px; line-height: 1.5; }
         .goal-guide { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-        .guide-card, .goal-panel, .goal-summary { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; }
+        .goal-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+        .guide-card, .goal-panel, .goal-summary, .goal-stat { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; }
         .guide-card { padding: 14px; }
+        .goal-stat { padding: 13px; }
+        .goal-stat span { color: var(--muted); font-size: 11px; font-weight: 800; }
+        .goal-stat b { display: block; margin: 5px 0 3px; font-size: 21px; color: var(--text); }
+        .goal-stat small { display: block; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .guide-card h3, .panel-heading h3, .goal-summary h3 { margin: 0; font-size: 15px; letter-spacing: 0; }
         .guide-card p { margin: 7px 0 9px; color: var(--muted); font-size: 12px; line-height: 1.5; }
         .guide-card small { color: var(--accent); font-size: 11px; font-weight: 700; }
@@ -277,13 +296,27 @@ export default function Goals() {
         @media (max-width: 760px) {
           .goals-page { gap: 14px; }
           .goal-guide, .goals-grid { grid-template-columns: 1fr; }
+          .goal-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .goal-panel { padding: 14px; }
           .goal-meta-row { grid-template-columns: 1fr; }
           .goal-progress-row { grid-template-columns: 1fr auto; }
           .goal-progress-row small { grid-column: 1 / -1; }
         }
+        @media (max-width: 520px) {
+          .goal-stats { grid-template-columns: 1fr; }
+        }
       `}</style>
     </div>
+  )
+}
+
+function GoalStat({ label, value, sub }: { label: string; value: string; sub: string }) {
+  return (
+    <article className="goal-stat">
+      <span>{label}</span>
+      <b>{value}</b>
+      <small>{sub}</small>
+    </article>
   )
 }
 
