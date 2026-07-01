@@ -18,9 +18,9 @@ _갱신일: 2026-07-01 (v0.3.7 Job Draft Verification 보강 기준)_
 - 배포: Firebase Hosting
 - 배포 URL: `https://my-planner-487bd.web.app`
 - GitHub Pages는 사용하지 않습니다.
-- 현재 HEAD: 마지막 커밋은 v0.3.6 기준이며, v0.3.7 Job Draft Verification 변경은 작업/검증 완료 후 커밋 전 상태
+- 현재 HEAD: v0.3.7 Job Draft Verification 커밋/푸시 완료 기준
 - 현재 앱 버전: `v0.3.7 Job Draft Verification`
-- 현재 로컬 브랜치 상태: v0.3.7 Job Draft Verification 작업 중, 커밋/푸시 전 확인 필요
+- 현재 로컬 브랜치 상태: v0.3.7 Job Draft Verification 커밋/푸시 완료 기준
 - 최근 push와 Firebase Hosting 배포는 `planner-one` 계정으로 성공했습니다.
 
 ## 2026-07-01 v0.3.0 반영 변경
