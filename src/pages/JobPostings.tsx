@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useApp } from '../store/AppContext'
 import type { JobPosting, JobPostingPlatform, JobPostingStatus } from '../types'
 import { toLocalDateKey } from '../utils/date'
+import { normalizeLinkUrl } from '../services/linkAnalysisService'
 
 const PLATFORMS: JobPostingPlatform[] = ['saramin', 'jobplanet', 'wanted', 'jumpit', 'groupby', 'other']
 const STATUSES: JobPostingStatus[] = ['saved', 'preparing', 'applied', 'interview', 'offer', 'rejected', 'closed']
@@ -32,10 +33,20 @@ const TECH_KEYWORDS = [
   'Firebase', 'Figma', 'UI', 'UX', '프론트엔드', '백엔드', 'PM', '기획',
 ]
 
+const ROLE_HINTS = [
+  '프론트엔드', 'frontend', 'front-end', '백엔드', 'backend', 'fullstack', '풀스택',
+  'developer', 'engineer', '개발자', '디자이너', 'designer', '기획자', 'pm', '마케터',
+]
+
 const splitTokens = (value: string) =>
   value.split(',').map(item => item.trim()).filter(Boolean)
 
 const joinTokens = (items?: string[]) => (items ?? []).join(', ')
+
+const mergeTokens = (current: string | string[] | undefined, next: string[]) => {
+  const base = Array.isArray(current) ? current : splitTokens(current ?? '')
+  return Array.from(new Set([...base, ...next].map(item => item.trim()).filter(Boolean)))
+}
 
 const emptyForm = () => ({
   company: '',
@@ -62,6 +73,45 @@ const detectPlatform = (url: string): JobPostingPlatform => {
   if (lower.includes('jumpit.co.kr')) return 'jumpit'
   if (lower.includes('groupby.kr') || lower.includes('groupby.co.kr')) return 'groupby'
   return 'other'
+}
+
+const cleanUrlPart = (value: string) =>
+  value
+    .replace(/\.[a-z0-9]+$/i, '')
+    .replace(/[-_+|]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+const decodeUrlPart = (value: string) => {
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    return value
+  }
+}
+
+const inferFromUrl = (url: string) => {
+  const normalizedUrl = normalizeLinkUrl(url)
+  const parsed = new URL(normalizedUrl)
+  const platform = detectPlatform(normalizedUrl)
+  const urlText = [
+    parsed.hostname.replace(/^www\./, ''),
+    ...parsed.pathname.split('/'),
+    ...Array.from(parsed.searchParams.values()),
+  ]
+    .map(part => cleanUrlPart(decodeUrlPart(part)))
+    .filter(part => part && !/^\d+$/.test(part))
+    .join('\n')
+  const lines = urlText.split(/\n+/).map(line => line.trim()).filter(Boolean)
+  const position = lines.find(line =>
+    line.length <= 70 && ROLE_HINTS.some(hint => line.toLowerCase().includes(hint)),
+  ) ?? ''
+  return {
+    normalizedUrl,
+    platform,
+    position,
+    keywords: inferKeywords(urlText),
+  }
 }
 
 const inferDate = (text: string) => {
@@ -118,6 +168,21 @@ const inferFromText = (text: string) => {
   }
 }
 
+const buildLinkDraft = (url: string, text = '') => {
+  const urlDraft = inferFromUrl(url)
+  const textDraft = text.trim()
+    ? inferFromText(text)
+    : { company: '', position: '', deadline: '', keywords: [] }
+  return {
+    sourceUrl: urlDraft.normalizedUrl,
+    platform: urlDraft.platform,
+    company: textDraft.company,
+    position: textDraft.position || urlDraft.position,
+    deadline: textDraft.deadline,
+    keywords: mergeTokens(urlDraft.keywords, textDraft.keywords),
+  }
+}
+
 export default function JobPostings() {
   const { jobPostings, setJobPostings } = useApp()
   const [form, setForm] = useState(emptyForm)
@@ -125,19 +190,46 @@ export default function JobPostings() {
   const [query, setQuery] = useState('')
   const [ocrBusy, setOcrBusy] = useState(false)
   const [ocrStatus, setOcrStatus] = useState('')
+  const [linkDraftUrl, setLinkDraftUrl] = useState('')
+  const [linkDraftStatus, setLinkDraftStatus] = useState('')
 
-  const applyDraftToForm = () => {
-    const text = `${form.sourceUrl}\n${form.imageText}`
-    const inferred = inferFromText(text)
-    const platform = detectPlatform(form.sourceUrl)
-    setForm(previous => ({
-      ...previous,
-      platform,
-      company: previous.company || inferred.company,
-      position: previous.position || inferred.position,
-      deadline: previous.deadline || inferred.deadline,
-      keywords: previous.keywords || inferred.keywords.join(', '),
-    }))
+  const applyLinkDraftToForm = () => {
+    try {
+      const draft = buildLinkDraft(linkDraftUrl, form.imageText)
+      setForm(previous => ({
+        ...previous,
+        sourceUrl: draft.sourceUrl,
+        platform: draft.platform,
+        status: previous.status === 'saved' ? 'preparing' : previous.status,
+        company: previous.company || draft.company,
+        position: previous.position || draft.position,
+        deadline: previous.deadline || draft.deadline,
+        keywords: joinTokens(mergeTokens(previous.keywords, draft.keywords)),
+        nextAction: previous.nextAction || '공고 확인 후 지원서 맞춤 수정',
+      }))
+      setLinkDraftStatus(draft.deadline || draft.position || draft.keywords.length
+        ? '링크와 보조 텍스트를 바탕으로 초안을 반영했습니다.'
+        : '링크 주소에서 플랫폼과 원본 링크를 반영했습니다. 공고 본문 자동 분석은 추후 프리미엄 기능 후보입니다.')
+    } catch {
+      setLinkDraftStatus('올바른 공고 링크를 입력해 주세요.')
+    }
+  }
+
+  const applyDraftToPosting = (item: JobPosting) => {
+    if (!item.sourceUrl) return
+    try {
+      const draft = buildLinkDraft(item.sourceUrl, item.imageText ?? '')
+      updatePosting(item.id, {
+        sourceUrl: draft.sourceUrl,
+        platform: draft.platform,
+        company: item.company && item.company !== '회사 미정' ? item.company : draft.company || item.company,
+        position: item.position && item.position !== '포지션 미정' ? item.position : draft.position || item.position,
+        deadline: item.deadline || draft.deadline || undefined,
+        keywords: mergeTokens(item.keywords, draft.keywords),
+      })
+    } catch {
+      window.alert('올바른 공고 링크를 입력해 주세요.')
+    }
   }
 
   const runOcr = async (file?: File) => {
@@ -197,6 +289,8 @@ export default function JobPostings() {
     }
     setJobPostings(previous => [posting, ...previous])
     setForm(emptyForm())
+    setLinkDraftUrl('')
+    setLinkDraftStatus('')
     setOcrStatus('')
   }
 
@@ -259,6 +353,26 @@ export default function JobPostings() {
         </article>
       </section>
 
+      <details className="job-link-assist">
+        <summary>
+          <span>링크로 초안 만들기</span>
+          <small>추후 프리미엄 후보</small>
+        </summary>
+        <div className="job-link-assist-body">
+          <input
+            value={linkDraftUrl}
+            onChange={event => setLinkDraftUrl(event.target.value)}
+            placeholder="사람인, 잡플래닛, 원티드, 점핏, 그룹바이 공고 링크"
+          />
+          <button type="button" onClick={applyLinkDraftToForm}>분석해서 폼에 반영</button>
+          <p>
+            무료판에서는 링크 주소, 플랫폼, 붙여넣은/OCR 텍스트 기반으로 초안을 만듭니다.
+            실제 페이지 본문 자동 분석과 링크 내부 이미지 수집은 추후 유료 기능 후보로 숨겨 둡니다.
+          </p>
+          {linkDraftStatus && <small>{linkDraftStatus}</small>}
+        </div>
+      </details>
+
       <section className="job-add">
         <div className="job-add-main">
           <input value={form.company} onChange={event => setForm(prev => ({ ...prev, company: event.target.value }))} placeholder="회사" />
@@ -271,9 +385,8 @@ export default function JobPostings() {
           </select>
           <input type="date" value={form.deadline} onChange={event => setForm(prev => ({ ...prev, deadline: event.target.value }))} />
         </div>
-        <div className="job-add-link">
-          <input value={form.sourceUrl} onChange={event => setForm(prev => ({ ...prev, sourceUrl: event.target.value }))} placeholder="공고 링크" />
-          <button type="button" onClick={applyDraftToForm}>링크/텍스트 반영</button>
+        <div className="job-add-media">
+          {form.sourceUrl ? <small>원본 링크 저장됨: {form.sourceUrl}</small> : <small>공고 링크는 위의 접힌 링크 초안 영역에서 넣습니다.</small>}
           <label>
             이미지 OCR
             <input type="file" accept="image/*" onChange={event => runOcr(event.target.files?.[0])} disabled={ocrBusy} />
@@ -322,7 +435,11 @@ export default function JobPostings() {
               <label>키워드<input value={joinTokens(item.keywords)} onChange={event => updatePosting(item.id, { keywords: splitTokens(event.target.value) })} /></label>
             </div>
             <label className="wide-label">다음 행동<input value={item.nextAction ?? ''} onChange={event => updatePosting(item.id, { nextAction: event.target.value })} placeholder="예: 자기소개서 2번 문항 수정" /></label>
-            <label className="wide-label">공고 링크<input value={item.sourceUrl ?? ''} onChange={event => updatePosting(item.id, { sourceUrl: event.target.value, platform: detectPlatform(event.target.value) })} /></label>
+            <label className="wide-label">공고 링크</label>
+            <div className="job-card-link-row">
+              <input value={item.sourceUrl ?? ''} onChange={event => updatePosting(item.id, { sourceUrl: event.target.value, platform: detectPlatform(event.target.value) })} />
+              <button type="button" onClick={() => applyDraftToPosting(item)}>분석 반영</button>
+            </div>
             <textarea value={item.imageText ?? ''} onChange={event => updatePosting(item.id, { imageText: event.target.value })} placeholder="공고 이미지/OCR 텍스트" rows={3} />
             <textarea value={item.note ?? ''} onChange={event => updatePosting(item.id, { note: event.target.value })} placeholder="메모" rows={3} />
             <div className="job-card-actions">
@@ -339,7 +456,7 @@ export default function JobPostings() {
         .job-header h2 { margin: 0 0 6px; font-size: 24px; letter-spacing: 0; }
         .job-header p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
         .job-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-        .job-summary-card, .job-next, .job-platforms, .job-add, .job-tools, .job-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; }
+        .job-summary-card, .job-next, .job-platforms, .job-link-assist, .job-add, .job-tools, .job-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; }
         .job-summary-card { padding: 13px; min-width: 0; }
         .job-summary-card span, .job-next span, .job-platforms > span { color: var(--accent); font-size: 11px; font-weight: 900; }
         .job-summary-card b { display: block; margin: 5px 0 3px; font-size: 21px; }
@@ -350,16 +467,26 @@ export default function JobPostings() {
         .job-next p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
         .job-platforms > div { display: flex; flex-wrap: wrap; gap: 7px; }
         .job-platforms small { border-radius: 999px; background: var(--bg3); color: var(--muted); padding: 6px 9px; font-size: 11px; font-weight: 800; }
+        .job-link-assist { padding: 0; overflow: hidden; }
+        .job-link-assist summary { min-height: 42px; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer; color: var(--text); font-size: 13px; font-weight: 900; }
+        .job-link-assist summary::marker { color: var(--muted); }
+        .job-link-assist summary small { border-radius: 999px; background: var(--bg3); color: var(--muted); padding: 4px 8px; font-size: 10px; font-weight: 900; white-space: nowrap; }
+        .job-link-assist-body { border-top: 1px solid var(--border); padding: 11px 12px 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+        .job-link-assist-body input { min-width: 0; height: 34px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); font-family: inherit; font-size: 13px; outline: none; padding: 0 9px; }
+        .job-link-assist-body button, .job-card-link-row button { min-height: 34px; border: 0; border-radius: 7px; background: var(--accent); color: #fff; padding: 0 12px; font-size: 12px; font-weight: 900; cursor: pointer; white-space: nowrap; }
+        .job-link-assist-body p { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+        .job-link-assist-body small { grid-column: 1 / -1; color: var(--accent); font-size: 11px; font-weight: 800; }
         .job-add { padding: 12px; display: flex; flex-direction: column; gap: 9px; }
         .job-add-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) 120px 120px 138px; gap: 8px; }
-        .job-add-link { display: grid; grid-template-columns: minmax(0, 1fr) auto 150px; gap: 8px; align-items: center; }
+        .job-add-media { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 8px; align-items: center; }
+        .job-add-media small { min-width: 0; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .job-add-extra { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 8px; }
         .job-add input, .job-add select, .job-add textarea, .job-tools input, .job-card input, .job-card select, .job-card textarea { min-width: 0; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); font-family: inherit; font-size: 13px; outline: none; }
         .job-add input, .job-add select, .job-tools input, .job-card input, .job-card select { height: 34px; padding: 0 9px; }
         .job-add textarea, .job-card textarea { padding: 9px; resize: vertical; line-height: 1.5; }
         .job-add button { height: 34px; border: 0; border-radius: 7px; background: var(--accent); color: #fff; padding: 0 13px; font-size: 12px; font-weight: 800; cursor: pointer; }
-        .job-add-link label { height: 34px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); display: grid; place-items: center; font-size: 12px; font-weight: 800; cursor: pointer; overflow: hidden; }
-        .job-add-link input[type="file"] { display: none; }
+        .job-add-media label { height: 34px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); display: grid; place-items: center; font-size: 12px; font-weight: 800; cursor: pointer; overflow: hidden; }
+        .job-add-media input[type="file"] { display: none; }
         .ocr-status { color: var(--muted); font-size: 11px; }
         .job-tools { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
         .job-tools > div { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -375,6 +502,7 @@ export default function JobPostings() {
         .job-card-grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .job-card label { min-width: 0; display: flex; flex-direction: column; gap: 5px; color: var(--muted); font-size: 11px; font-weight: 800; }
         .wide-label { width: 100%; }
+        .job-card-link-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
         .job-card-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
         .job-card-actions a { color: var(--accent); font-size: 12px; font-weight: 800; text-decoration: none; }
         .job-card-actions small { color: var(--muted); font-size: 11px; }
@@ -383,10 +511,10 @@ export default function JobPostings() {
         @media (max-width: 980px) {
           .job-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .job-board, .job-list { grid-template-columns: 1fr; }
-          .job-add-main, .job-add-link, .job-add-extra, .job-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .job-add-main, .job-add-media, .job-add-extra, .job-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
         @media (max-width: 560px) {
-          .job-summary, .job-add-main, .job-add-link, .job-add-extra, .job-card-grid, .job-card-grid.two, .job-card-top { grid-template-columns: 1fr; }
+          .job-summary, .job-link-assist-body, .job-add-main, .job-add-media, .job-add-extra, .job-card-grid, .job-card-grid.two, .job-card-top, .job-card-link-row { grid-template-columns: 1fr; }
           .job-card-actions { align-items: flex-start; flex-direction: column; }
         }
       `}</style>
