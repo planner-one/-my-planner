@@ -33,7 +33,8 @@ type Filter = 'all' | JobPostingStatus
 const TECH_KEYWORDS = [
   'React', 'TypeScript', 'JavaScript', 'Next.js', 'Vue', 'Node.js',
   'Firebase', 'Figma', 'UI', 'UX', '프론트엔드', '백엔드', 'PM', '기획',
-  'Java', 'Spring Boot', 'Spring Data JPA', 'AWS', 'Docker', 'Git', 'React Native',
+  'Java', 'Spring Boot', 'Spring Data JPA', 'AWS', 'AWS ECS', 'Docker', 'Git',
+  'React Native', 'HTML', 'CSS', 'ES6',
 ]
 
 const ROLE_HINTS = [
@@ -206,41 +207,87 @@ const sortPostings = (items: JobPosting[]) =>
 const stripFieldLabel = (value: string) =>
   value.replace(/^(기업명|회사명|기관명|채용\s*직무\s*\/?\s*분야|모집\s*직무|포지션|직무|분야)\s*[:：-]?\s*/i, '').trim()
 
+const normalizeLine = (value: string) =>
+  value
+    .replace(/^[•▪·*ㆍ-]\s*/, '')
+    .replace(/^[①②③④⑤⑥⑦⑧⑨⑩]\s*/, '')
+    .replace(/^\d+[.)]\s*/, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+
 const findLabeledValue = (lines: string[], labelPattern: RegExp) => {
   for (let index = 0; index < lines.length; index += 1) {
     labelPattern.lastIndex = 0
     if (!labelPattern.test(lines[index])) continue
-    const sameLine = stripFieldLabel(lines[index])
+    const sameLine = stripFieldLabel(normalizeLine(lines[index]))
     if (sameLine && sameLine !== lines[index]) return sameLine
-    return stripFieldLabel(lines[index + 1] ?? '')
+    return stripFieldLabel(normalizeLine(lines[index + 1] ?? ''))
   }
   return ''
 }
+
+const SECTION_HEADING = /^(기업명|회사명|기관명|소재지|사업내용|홈페이지|연혁|재직\s*인원|채용\s*직무|모집\s*직무|세부\s*업무|담당업무|기술스택|기술\s*스택|채용\s*인원|연봉|급여|고용형태|채용\s*우대사항|우대사항|지원\s*자격|자격요건|복리후생|기업문화)/i
+
+const getSectionLines = (lines: string[], labelPattern: RegExp, maxLines = 8) => {
+  const start = lines.findIndex(line => {
+    labelPattern.lastIndex = 0
+    return labelPattern.test(line)
+  })
+  if (start < 0) return []
+  const results: string[] = []
+  for (let index = start + 1; index < lines.length && results.length < maxLines; index += 1) {
+    const line = normalizeLine(lines[index])
+    if (!line) continue
+    if (SECTION_HEADING.test(line) && results.length > 0) break
+    results.push(stripFieldLabel(line))
+  }
+  return results.filter(Boolean)
+}
+
+const findSectionValue = (lines: string[], labelPattern: RegExp) =>
+  getSectionLines(lines, labelPattern, 2)[0] ?? ''
 
 const isRoleLine = (line: string) => {
   const lower = line.toLowerCase()
   if (/사업내용|담당업무|기술스택|지원\s*자격|복리후생|홈페이지|소재지|연봉|인원/.test(line)) return false
   if (/개발\s*및\s*공급업/.test(line)) return false
-  return line.length <= 80 && ROLE_HINTS.some(hint => lower.includes(hint))
+  return line.length <= 80 && (ROLE_HINTS.some(hint => lower.includes(hint)) || /웹\s*\((백엔드|프론트엔드)\)/.test(line))
 }
 
 const inferFromText = (text: string) => {
-  const lines = text.split(/\n+/).map(line => line.trim()).filter(Boolean)
+  const lines = text.split(/\n+/).map(line => normalizeLine(line)).filter(Boolean)
   const deadline = inferDate(text)
   const keywords = inferKeywords(text)
   const company =
     findLabeledValue(lines, /기업명|회사명|기관명/) ||
     lines.map(stripFieldLabel).find(line => /주식회사|\(주\)|㈜/.test(line) && line.length <= 60) ||
     ''
-  const positions = lines
-    .map(stripFieldLabel)
+  const positionSection = getSectionLines(lines, /채용\s*직무\s*\/?\s*분야|모집\s*직무|직무\s*\/?\s*분야/, 6)
+  const positions = (positionSection.length ? positionSection : lines.map(stripFieldLabel))
     .filter(isRoleLine)
-    .slice(0, 2)
+    .slice(0, 3)
+  const location = findLabeledValue(lines, /소재지|주소|근무지|근무\s*지역/)
+  const employmentType = findSectionValue(lines, /고용형태|근무형태/)
+  const business = findLabeledValue(lines, /사업내용/)
+  const headcount = findSectionValue(lines, /채용\s*인원|모집\s*인원/)
+  const salary = findSectionValue(lines, /연봉|급여/)
+  const requirements = findSectionValue(lines, /지원\s*자격|자격요건/)
+  const preference = findSectionValue(lines, /채용\s*우대사항|우대사항/)
+  const note = [
+    business ? `사업내용: ${business}` : '',
+    headcount ? `채용 인원: ${headcount}` : '',
+    salary ? `연봉/급여: ${salary}` : '',
+    requirements ? `지원 자격: ${requirements}` : '',
+    preference ? `우대사항: ${preference}` : '',
+  ].filter(Boolean).join('\n')
   return {
     company,
     position: positions.join(' / '),
     deadline,
+    location,
+    employmentType,
     keywords,
+    note,
   }
 }
 
@@ -248,14 +295,21 @@ const buildLinkDraft = (url: string, text = '') => {
   const urlDraft = inferFromUrl(url)
   const textDraft = text.trim()
     ? inferFromText(text)
-    : { company: '', position: '', deadline: '', keywords: [] }
+    : { company: '', position: '', deadline: '', location: '', employmentType: '', keywords: [], note: '' }
+  const allowUrlCompanyFallback =
+    Boolean(text.trim()) ||
+    urlDraft.platform !== 'company' ||
+    !urlDraft.normalizedUrl.includes('sites.google.com')
   return {
     sourceUrl: urlDraft.normalizedUrl,
     platform: urlDraft.platform,
-    company: textDraft.company || urlDraft.company,
+    company: textDraft.company || (allowUrlCompanyFallback ? urlDraft.company : ''),
     position: textDraft.position || urlDraft.position,
     deadline: textDraft.deadline,
+    location: textDraft.location,
+    employmentType: textDraft.employmentType,
     keywords: mergeTokens(urlDraft.keywords, textDraft.keywords),
+    note: textDraft.note,
   }
 }
 
@@ -295,6 +349,7 @@ export default function JobPostings() {
   const [ocrBusy, setOcrBusy] = useState(false)
   const [ocrStatus, setOcrStatus] = useState('')
   const [linkDraftUrl, setLinkDraftUrl] = useState('')
+  const [linkDraftText, setLinkDraftText] = useState('')
   const [linkDraftStatus, setLinkDraftStatus] = useState('')
   const [linkDraftBusy, setLinkDraftBusy] = useState(false)
 
@@ -303,7 +358,7 @@ export default function JobPostings() {
     try {
       const normalizedUrl = normalizeLinkUrl(linkDraftUrl)
       const pageText = await getPageTextFromUrl(normalizedUrl)
-      const draft = buildLinkDraft(normalizedUrl, [pageText, form.imageText].filter(Boolean).join('\n'))
+      const draft = buildLinkDraft(normalizedUrl, [pageText, linkDraftText, form.imageText].filter(Boolean).join('\n'))
       setForm(previous => ({
         ...previous,
         sourceUrl: draft.sourceUrl,
@@ -312,13 +367,16 @@ export default function JobPostings() {
         company: previous.company || draft.company || '기업 미정',
         position: previous.position || draft.position || '공고 확인 필요',
         deadline: previous.deadline || draft.deadline,
+        location: previous.location || draft.location,
+        employmentType: previous.employmentType || draft.employmentType,
         keywords: joinTokens(mergeTokens(previous.keywords, draft.keywords)),
+        note: previous.note || draft.note,
         nextAction: previous.nextAction || '공고 확인 후 지원서 맞춤 수정',
       }))
-      const source = pageText ? '링크 본문과 보조 텍스트' : '링크 주소와 보조 텍스트'
-      setLinkDraftStatus(draft.company || draft.position || draft.deadline || draft.keywords.length
+      const source = pageText ? '링크 본문과 보조 텍스트' : linkDraftText || form.imageText ? '붙여넣은 공고 내용과 링크 주소' : '링크 주소'
+      setLinkDraftStatus(draft.company || draft.position || draft.deadline || draft.location || draft.employmentType || draft.keywords.length
         ? `${source}를 바탕으로 초안을 반영했습니다.`
-        : '링크를 공고로 저장할 수 있게 반영했습니다. 본문을 못 읽은 경우 공고 텍스트를 붙여넣으면 더 정확해집니다.')
+        : '링크를 공고로 저장할 수 있게 반영했습니다. 본문을 못 읽은 경우 아래에 페이지 내용을 붙여넣으면 기업명, 직무, 기술스택까지 반영합니다.')
     } catch {
       setLinkDraftStatus('올바른 공고 링크를 입력해 주세요.')
     } finally {
@@ -336,7 +394,10 @@ export default function JobPostings() {
         company: item.company && !['회사 미정', '기업 미정'].includes(item.company) ? item.company : draft.company || item.company || '기업 미정',
         position: item.position && !['포지션 미정', '공고 확인 필요'].includes(item.position) ? item.position : draft.position || item.position || '공고 확인 필요',
         deadline: item.deadline || draft.deadline || undefined,
+        location: item.location || draft.location || undefined,
+        employmentType: item.employmentType || draft.employmentType || undefined,
         keywords: mergeTokens(item.keywords, draft.keywords),
+        note: item.note || draft.note || undefined,
       })
     } catch {
       window.alert('올바른 공고 링크를 입력해 주세요.')
@@ -402,6 +463,7 @@ export default function JobPostings() {
     setJobPostings(previous => [posting, ...previous])
     setForm(emptyForm())
     setLinkDraftUrl('')
+    setLinkDraftText('')
     setLinkDraftStatus('')
     setOcrStatus('')
   }
@@ -483,6 +545,12 @@ export default function JobPostings() {
             기업 자체 채용 페이지와 인크루트 기업 도메인도 공고로 저장합니다.
             브라우저가 본문을 읽을 수 있으면 기업명과 직무를 함께 반영하고, 막히면 링크와 붙여넣은/OCR 텍스트를 기준으로 정리합니다.
           </p>
+          <textarea
+            value={linkDraftText}
+            onChange={event => setLinkDraftText(event.target.value)}
+            placeholder="페이지에 보이는 공고 내용을 그대로 붙여넣으면 기업명, 채용 직무/분야, 기술스택, 소재지, 고용형태, 연봉을 함께 반영합니다."
+            rows={5}
+          />
           {linkDraftStatus && <small>{linkDraftStatus}</small>}
         </div>
       </details>
@@ -586,8 +654,11 @@ export default function JobPostings() {
         .job-link-assist summary::marker { color: var(--muted); }
         .job-link-assist summary small { border-radius: 999px; background: var(--bg3); color: var(--muted); padding: 4px 8px; font-size: 10px; font-weight: 900; white-space: nowrap; }
         .job-link-assist-body { border-top: 1px solid var(--border); padding: 11px 12px 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
-        .job-link-assist-body input { min-width: 0; height: 34px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); font-family: inherit; font-size: 13px; outline: none; padding: 0 9px; }
+        .job-link-assist-body input, .job-link-assist-body textarea { min-width: 0; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); font-family: inherit; font-size: 13px; outline: none; }
+        .job-link-assist-body input { height: 34px; padding: 0 9px; }
+        .job-link-assist-body textarea { grid-column: 1 / -1; min-height: 112px; padding: 9px; resize: vertical; line-height: 1.5; }
         .job-link-assist-body button, .job-card-link-row button { min-height: 34px; border: 0; border-radius: 7px; background: var(--accent); color: #fff; padding: 0 12px; font-size: 12px; font-weight: 900; cursor: pointer; white-space: nowrap; }
+        .job-link-assist-body button:disabled { opacity: 0.65; cursor: wait; }
         .job-link-assist-body p { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
         .job-link-assist-body small { grid-column: 1 / -1; color: var(--accent); font-size: 11px; font-weight: 800; }
         .job-add { padding: 12px; display: flex; flex-direction: column; gap: 9px; }
