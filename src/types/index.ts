@@ -223,7 +223,7 @@ export interface PersonalApplication {
 }
 
 export type JobPostingPlatform =
-  | 'saramin' | 'jobplanet' | 'wanted' | 'jumpit' | 'groupby' | 'other'
+  | 'saramin' | 'jobplanet' | 'wanted' | 'jumpit' | 'groupby' | 'incruit' | 'company' | 'other'
 export type JobPostingStatus =
   | 'saved' | 'preparing' | 'applied' | 'interview'
   | 'offer' | 'rejected' | 'closed'
