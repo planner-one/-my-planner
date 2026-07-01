@@ -2,7 +2,15 @@ import { useMemo, useState } from 'react'
 import { useApp } from '../store/AppContext'
 import type { JobPosting, JobPostingPlatform, JobPostingStatus } from '../types'
 import { toLocalDateKey } from '../utils/date'
-import { normalizeLinkUrl } from '../services/linkAnalysisService'
+import {
+  buildJobPostingLinkDraft,
+  detectJobPlatform,
+  hasUsefulJobText,
+  inferJobPostingFromText,
+  mergeTokenLists,
+  normalizeJobUrl,
+  type JobPostingDraft,
+} from '../utils/jobPostingDraft'
 
 const PLATFORMS: JobPostingPlatform[] = ['saramin', 'jobplanet', 'wanted', 'jumpit', 'groupby', 'incruit', 'company', 'other']
 const STATUSES: JobPostingStatus[] = ['saved', 'preparing', 'applied', 'interview', 'offer', 'rejected', 'closed']
@@ -30,18 +38,6 @@ const STATUS_LABELS: Record<JobPostingStatus, string> = {
 
 type Filter = 'all' | JobPostingStatus
 
-const TECH_KEYWORDS = [
-  'React', 'TypeScript', 'JavaScript', 'Next.js', 'Vue', 'Node.js',
-  'Firebase', 'Figma', 'UI', 'UX', '프론트엔드', '백엔드', 'PM', '기획',
-  'Java', 'Spring Boot', 'Spring Data JPA', 'AWS', 'AWS ECS', 'Docker', 'Git',
-  'React Native', 'HTML', 'CSS', 'ES6',
-]
-
-const ROLE_HINTS = [
-  '프론트엔드', 'frontend', 'front-end', '백엔드', 'backend', 'fullstack', '풀스택',
-  'developer', 'engineer', '개발자', '디자이너', 'designer', '기획자', 'pm', '마케터',
-]
-
 const splitTokens = (value: string) =>
   value.split(',').map(item => item.trim()).filter(Boolean)
 
@@ -49,18 +45,8 @@ const joinTokens = (items?: string[]) => (items ?? []).join(', ')
 
 const mergeTokens = (current: string | string[] | undefined, next: string[]) => {
   const base = Array.isArray(current) ? current : splitTokens(current ?? '')
-  return Array.from(new Set([...base, ...next].map(item => item.trim()).filter(Boolean)))
+  return mergeTokenLists(base, next)
 }
-
-const COMPANY_SLUG_LABELS: Record<string, string> = {
-  kdb: 'KDB',
-}
-
-const JOB_CONTENT_HINTS =
-  /기업명|회사명|기관명|채용\s*직무|모집\s*직무|세부\s*업무|담당업무|기술스택|기술\s*스택|채용\s*인원|연봉|급여|고용형태|지원\s*자격|자격요건|우대사항|소재지|근무지|사업내용/
-
-const hasUsefulJobText = (text: string) =>
-  normalizeLine(text).length > 40 && JOB_CONTENT_HINTS.test(text)
 
 const emptyForm = () => ({
   company: '',
@@ -78,109 +64,6 @@ const emptyForm = () => ({
   nextAction: '',
   note: '',
 })
-
-const detectPlatform = (url: string): JobPostingPlatform => {
-  const lower = url.toLowerCase()
-  if (lower.includes('saramin.co.kr')) return 'saramin'
-  if (lower.includes('jobplanet.co.kr')) return 'jobplanet'
-  if (lower.includes('wanted.co.kr')) return 'wanted'
-  if (lower.includes('jumpit.co.kr')) return 'jumpit'
-  if (lower.includes('groupby.kr') || lower.includes('groupby.co.kr')) return 'groupby'
-  if (lower.includes('incruit.com')) return 'incruit'
-  if (
-    lower.includes('sites.google.com') ||
-    /\/(hire|recruit|career|jobs?|cor)(\/|[?#]|$)/i.test(lower) ||
-    /(^|[./-])(hire|recruit|career|jobs?)[./-]/i.test(lower)
-  ) return 'company'
-  return 'other'
-}
-
-const cleanUrlPart = (value: string) =>
-  value
-    .replace(/\.[a-z0-9]+$/i, '')
-    .replace(/[-_+|]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-
-const decodeUrlPart = (value: string) => {
-  try {
-    return decodeURIComponent(value)
-  } catch {
-    return value
-  }
-}
-
-const prettifyCompanySlug = (value: string) => {
-  const cleaned = cleanUrlPart(value).replace(/\s+/g, '')
-  if (!cleaned) return ''
-  const lower = cleaned.toLowerCase()
-  if (COMPANY_SLUG_LABELS[lower]) return COMPANY_SLUG_LABELS[lower]
-  if (/^[a-z]{2,5}$/i.test(cleaned)) return cleaned.toUpperCase()
-  return cleaned
-}
-
-const inferCompanyFromUrl = (parsed: URL, platform: JobPostingPlatform) => {
-  const hostParts = parsed.hostname.replace(/^www\./, '').split('.').filter(Boolean)
-  if (platform === 'incruit') {
-    const subdomain = hostParts[0]
-    if (subdomain && !['www', 'm', 'hire', 'recruit'].includes(subdomain)) {
-      return prettifyCompanySlug(subdomain)
-    }
-  }
-
-  const pathParts = parsed.pathname.split('/').map(part => cleanUrlPart(decodeUrlPart(part))).filter(Boolean)
-  const corIndex = pathParts.findIndex(part => /^cor$/i.test(part))
-  const slugAfterCor = corIndex >= 0 ? pathParts[corIndex + 1] : ''
-  if (slugAfterCor) return prettifyCompanySlug(slugAfterCor)
-
-  const siteSlug = parsed.hostname.includes('sites.google.com')
-    ? pathParts[pathParts.findIndex(part => part === 'view') + 1]
-    : ''
-  if (siteSlug && !/^home$/i.test(siteSlug)) return prettifyCompanySlug(siteSlug)
-
-  const hostnameCandidate = hostParts.find(part => !['m', 'www', 'hire', 'recruit', 'career', 'jobs'].includes(part))
-  return hostnameCandidate ? prettifyCompanySlug(hostnameCandidate) : ''
-}
-
-const inferFromUrl = (url: string) => {
-  const normalizedUrl = normalizeLinkUrl(url)
-  const parsed = new URL(normalizedUrl)
-  const platform = detectPlatform(normalizedUrl)
-  const urlText = [
-    parsed.hostname.replace(/^www\./, ''),
-    ...parsed.pathname.split('/'),
-    ...Array.from(parsed.searchParams.values()),
-  ]
-    .map(part => cleanUrlPart(decodeUrlPart(part)))
-    .filter(part => part && !/^\d+$/.test(part))
-    .join('\n')
-  const lines = urlText.split(/\n+/).map(line => line.trim()).filter(Boolean)
-  const position = lines.find(line =>
-    line.length <= 70 && ROLE_HINTS.some(hint => line.toLowerCase().includes(hint)),
-  ) ?? ''
-  return {
-    normalizedUrl,
-    platform,
-    company: inferCompanyFromUrl(parsed, platform),
-    position,
-    keywords: inferKeywords(urlText),
-  }
-}
-
-const inferDate = (text: string) => {
-  const match = text.match(/(20\d{2})[.\-/년\s]*(\d{1,2})[.\-/월\s]*(\d{1,2})/)
-    ?? text.match(/(\d{1,2})[.\-/월\s]*(\d{1,2})[일]?/)
-  if (!match) return ''
-  const now = new Date()
-  const year = match.length === 4 ? Number(match[1]) : now.getFullYear()
-  const month = Number(match[match.length === 4 ? 2 : 1])
-  const day = Number(match[match.length === 4 ? 3 : 2])
-  if (!month || !day) return ''
-  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-}
-
-const inferKeywords = (text: string) =>
-  TECH_KEYWORDS.filter(keyword => text.toLowerCase().includes(keyword.toLowerCase()))
 
 const dateDistance = (date?: string) => {
   if (!date) return Number.POSITIVE_INFINITY
@@ -208,127 +91,6 @@ const sortPostings = (items: JobPosting[]) =>
     if (aOpen !== bOpen) return aOpen ? -1 : 1
     return dateDistance(a.deadline ?? a.resultDate) - dateDistance(b.deadline ?? b.resultDate)
   })
-
-const stripFieldLabel = (value: string) => {
-  const stripped = value.replace(
-    /^(기업명|회사명|기관명|소재지|주소|근무지|근무\s*지역|사업내용|홈페이지|연혁|재직\s*인원|채용\s*직무\s*\/?\s*분야|모집\s*직무|포지션|직무|분야|세부\s*업무\s*내용\s*및\s*기술스택|세부\s*업무|담당업무|기술스택|기술\s*스택|채용\s*인원|모집\s*인원|연봉|급여|고용형태|근무형태|채용\s*우대사항|우대사항|지원\s*자격|자격요건|복리후생|기업문화)(?:\s*\([^)]*\))?\s*[:：-]?\s*/i,
-    '',
-  ).trim()
-  return /^\([^)]{1,30}\)$/.test(stripped) ? '' : stripped
-}
-
-const normalizeLine = (value: string) =>
-  value
-    .replace(/^[•▪·*ㆍ-]\s*/, '')
-    .replace(/^[①②③④⑤⑥⑦⑧⑨⑩]\s*/, '')
-    .replace(/^\d+[.)]\s*/, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-
-const findLabeledValue = (lines: string[], labelPattern: RegExp) => {
-  for (let index = 0; index < lines.length; index += 1) {
-    labelPattern.lastIndex = 0
-    if (!labelPattern.test(lines[index])) continue
-    const sameLine = stripFieldLabel(normalizeLine(lines[index]))
-    if (sameLine && sameLine !== lines[index]) return sameLine
-    return stripFieldLabel(normalizeLine(lines[index + 1] ?? ''))
-  }
-  return ''
-}
-
-const SECTION_HEADING = /^(기업명|회사명|기관명|소재지|사업내용|홈페이지|연혁|재직\s*인원|채용\s*직무|모집\s*직무|세부\s*업무|담당업무|기술스택|기술\s*스택|채용\s*인원|연봉|급여|고용형태|채용\s*우대사항|우대사항|지원\s*자격|자격요건|복리후생|기업문화)/i
-
-const getSectionLines = (lines: string[], labelPattern: RegExp, maxLines = 8) => {
-  const start = lines.findIndex(line => {
-    labelPattern.lastIndex = 0
-    return labelPattern.test(line)
-  })
-  if (start < 0) return []
-  const results: string[] = []
-  for (let index = start + 1; index < lines.length && results.length < maxLines; index += 1) {
-    const line = normalizeLine(lines[index])
-    if (!line) continue
-    if (SECTION_HEADING.test(line) && results.length > 0) break
-    results.push(stripFieldLabel(line))
-  }
-  return results.filter(Boolean)
-}
-
-const findSectionValue = (lines: string[], labelPattern: RegExp) =>
-  getSectionLines(lines, labelPattern, 2)[0] ?? ''
-
-const isRoleLine = (line: string) => {
-  const lower = line.toLowerCase()
-  if (/사업내용|담당업무|기술스택|지원\s*자격|복리후생|홈페이지|소재지|연봉|인원/.test(line)) return false
-  if (/개발\s*및\s*공급업/.test(line)) return false
-  return line.length <= 80 && (ROLE_HINTS.some(hint => lower.includes(hint)) || /웹\s*\((백엔드|프론트엔드)\)/.test(line))
-}
-
-const inferFromText = (text: string) => {
-  const lines = text.split(/\n+/).map(line => normalizeLine(line)).filter(Boolean)
-  const deadline = inferDate(text)
-  const keywords = inferKeywords(text)
-  const company =
-    findLabeledValue(lines, /기업명|회사명|기관명/) ||
-    lines.map(stripFieldLabel).find(line => /주식회사|\(주\)|㈜/.test(line) && line.length <= 60) ||
-    ''
-  const positionSection = getSectionLines(lines, /채용\s*직무\s*\/?\s*분야|모집\s*직무|직무\s*\/?\s*분야/, 6)
-  const positions = (positionSection.length ? positionSection : lines.map(stripFieldLabel))
-    .filter(isRoleLine)
-    .slice(0, 3)
-  const location = findLabeledValue(lines, /소재지|주소|근무지|근무\s*지역/)
-  const employmentType = findLabeledValue(lines, /고용형태|근무형태/) || findSectionValue(lines, /고용형태|근무형태/)
-  const business = findLabeledValue(lines, /사업내용/)
-  const headcount = findLabeledValue(lines, /채용\s*인원|모집\s*인원/) || findSectionValue(lines, /채용\s*인원|모집\s*인원/)
-  const salary = findLabeledValue(lines, /연봉|급여/) || findSectionValue(lines, /연봉|급여/)
-  const requirements = findLabeledValue(lines, /지원\s*자격|자격요건/) || findSectionValue(lines, /지원\s*자격|자격요건/)
-  const preference = findLabeledValue(lines, /채용\s*우대사항|우대사항/) || findSectionValue(lines, /채용\s*우대사항|우대사항/)
-  const note = [
-    business ? `사업내용: ${business}` : '',
-    headcount ? `채용 인원: ${headcount}` : '',
-    salary ? `연봉/급여: ${salary}` : '',
-    requirements ? `지원 자격: ${requirements}` : '',
-    preference ? `우대사항: ${preference}` : '',
-  ].filter(Boolean).join('\n')
-  return {
-    company,
-    position: positions.join(' / '),
-    deadline,
-    location,
-    employmentType,
-    keywords,
-    note,
-  }
-}
-
-const buildLinkDraft = (url: string, text = '') => {
-  const urlDraft = inferFromUrl(url)
-  const textDraft = text.trim()
-    ? inferFromText(text)
-    : { company: '', position: '', deadline: '', location: '', employmentType: '', keywords: [], note: '' }
-  const isGoogleSitesCompanyPage = urlDraft.normalizedUrl.includes('sites.google.com')
-  const allowUrlCompanyFallback =
-    urlDraft.platform !== 'company' ||
-    (!isGoogleSitesCompanyPage && !/\/cor\//i.test(urlDraft.normalizedUrl))
-  return {
-    sourceUrl: urlDraft.normalizedUrl,
-    platform: urlDraft.platform,
-    company: textDraft.company || (allowUrlCompanyFallback ? urlDraft.company : ''),
-    position: textDraft.position || urlDraft.position,
-    deadline: textDraft.deadline,
-    location: textDraft.location,
-    employmentType: textDraft.employmentType,
-    keywords: mergeTokens(urlDraft.keywords, textDraft.keywords),
-    note: textDraft.note,
-  }
-}
-
-type TextDraft = ReturnType<typeof inferFromText>
-type LinkDraft = ReturnType<typeof buildLinkDraft>
-type JobDraft = TextDraft | LinkDraft
-
-const isLinkDraft = (draft: JobDraft): draft is LinkDraft =>
-  'sourceUrl' in draft
 
 const getPageTextFromUrl = async (url: string) => {
   const controller = new AbortController()
@@ -373,18 +135,22 @@ export default function JobPostings() {
   const applyLinkDraftToForm = async () => {
     setLinkDraftBusy(true)
     try {
-      const normalizedUrl = normalizeLinkUrl(linkDraftUrl)
+      const normalizedUrl = normalizeJobUrl(linkDraftUrl)
       const pageText = await getPageTextFromUrl(normalizedUrl)
       const usefulPageText = hasUsefulJobText(pageText) ? pageText : ''
       const manualText = [linkDraftText, form.imageText].filter(Boolean).join('\n')
-      const draft = buildLinkDraft(normalizedUrl, [usefulPageText, manualText].filter(Boolean).join('\n'))
+      const draft = buildJobPostingLinkDraft(normalizedUrl, [usefulPageText, manualText].filter(Boolean).join('\n'))
       setForm(previous => ({
         ...previous,
-        sourceUrl: draft.sourceUrl,
-        platform: draft.platform,
+        sourceUrl: draft.sourceUrl ?? previous.sourceUrl,
+        platform: draft.platform ?? previous.platform,
         status: previous.status === 'saved' ? 'preparing' : previous.status,
-        company: previous.company || draft.company || '기업 미정',
-        position: previous.position || draft.position || '공고 확인 필요',
+        company: previous.company && !['기업 미정', '회사 미정'].includes(previous.company)
+          ? previous.company
+          : draft.company || previous.company || '기업 미정',
+        position: previous.position && !['공고 확인 필요', '포지션 미정'].includes(previous.position)
+          ? previous.position
+          : draft.position || previous.position || '공고 확인 필요',
         deadline: previous.deadline || draft.deadline,
         location: previous.location || draft.location,
         employmentType: previous.employmentType || draft.employmentType,
@@ -406,7 +172,7 @@ export default function JobPostings() {
   const applyDraftToPosting = (item: JobPosting) => {
     if (!item.sourceUrl) return
     try {
-      const draft = buildLinkDraft(item.sourceUrl, item.imageText ?? '')
+      const draft = buildJobPostingLinkDraft(item.sourceUrl, item.imageText ?? '')
       updatePosting(item.id, {
         sourceUrl: draft.sourceUrl,
         platform: draft.platform,
@@ -427,11 +193,13 @@ export default function JobPostings() {
     const url = form.sourceUrl || linkDraftUrl
     if (!url && !form.imageText.trim()) return
     try {
-      const draft = url ? buildLinkDraft(url, form.imageText) : inferFromText(form.imageText)
+      const draft: JobPostingDraft = url
+        ? buildJobPostingLinkDraft(url, form.imageText)
+        : inferJobPostingFromText(form.imageText)
       setForm(previous => ({
         ...previous,
-        sourceUrl: isLinkDraft(draft) ? draft.sourceUrl : previous.sourceUrl,
-        platform: isLinkDraft(draft) ? draft.platform : previous.platform,
+        sourceUrl: draft.sourceUrl ?? previous.sourceUrl,
+        platform: draft.platform ?? previous.platform,
         company: previous.company && !['기업 미정', '회사 미정'].includes(previous.company) ? previous.company : draft.company || previous.company,
         position: previous.position && !['공고 확인 필요', '포지션 미정'].includes(previous.position) ? previous.position : draft.position || previous.position,
         deadline: previous.deadline || draft.deadline,
@@ -662,7 +430,7 @@ export default function JobPostings() {
             <label className="wide-label">다음 행동<input value={item.nextAction ?? ''} onChange={event => updatePosting(item.id, { nextAction: event.target.value })} placeholder="예: 자기소개서 2번 문항 수정" /></label>
             <label className="wide-label">공고 링크</label>
             <div className="job-card-link-row">
-              <input value={item.sourceUrl ?? ''} onChange={event => updatePosting(item.id, { sourceUrl: event.target.value, platform: detectPlatform(event.target.value) })} />
+              <input value={item.sourceUrl ?? ''} onChange={event => updatePosting(item.id, { sourceUrl: event.target.value, platform: detectJobPlatform(event.target.value) })} />
               <button type="button" onClick={() => applyDraftToPosting(item)}>분석 반영</button>
             </div>
             <textarea value={item.imageText ?? ''} onChange={event => updatePosting(item.id, { imageText: event.target.value })} placeholder="공고 이미지/OCR 텍스트" rows={3} />

@@ -1,14 +1,14 @@
 # 다음 채팅 인수인계
 
 _작성일: 2026-06-28_
-_갱신일: 2026-07-01 (v0.3.6 Job Draft Accuracy 보강 기준)_
+_갱신일: 2026-07-01 (v0.3.7 Job Draft Verification 보강 기준)_
 
 이 파일은 새 Codex 또는 Claude Code 세션에서 바로 이어 작업하기 위한 현재 상태 메모입니다.
 새 세션에서는 먼저 이 파일과 `AGENTS.md`, `PROGRESS.md`, `REQUIREMENTS.md`, `SCENARIOS.md`, `RELEASES.md`, `COPYRIGHT_AND_SERVICE_NOTES.md`, `LINK_IMPORT_GUIDE.md`를 읽고 시작하면 됩니다.
 
 ## 한 줄 요약
 
-플래너는 Firebase 기반 React/Vite/TypeScript 앱이며, SC-07 위젯 검토와 SC-08 사이드바 기능 페이지, SC-09 테마 정리, SC-10 태블릿/모바일 반응형 코드 QA까지 완료했습니다. 2026-06-30에는 플래너를 v0.2.0 Core Planner로 올리고, 앱 내 버전 표시와 릴리즈 문서 체계를 추가한 뒤 `4700c1e`로 push했습니다. 2026-07-01에는 Firebase Hosting 200 응답과 Firestore rules 배포본/로컬 파일 일치 여부를 확인했고, 오래된 Firestore rules 배포 상태를 최신 규칙으로 동기화했습니다. 저작권/서비스 보호 메모를 별도 문서로 분리했고, 링크 정리 1차 기반 기능과 정식 노트 보강을 구현했습니다. v0.3.0에서는 작업 흐름 위젯, 작업/프로젝트/목표 요약, 일일·주간 마감 연결을 보강했고, v0.3.1에서는 주요 페이지 상단 실행/진행/기록 보드를 보강했습니다. v0.3.2에서는 내 신청과 지원 공고 모음 페이지, 새 데이터 필드, 캘린더 연결을 추가했고, v0.3.3에서는 지원 공고 링크 초안 패널과 카드별 링크 분석 반영 흐름을 보강했습니다. v0.3.4에서는 기업 자체 채용 링크, Google Sites 기업 상세, 인크루트 기업 도메인, 링크만 있는 공고 저장 흐름을 보강했습니다. v0.3.5에서는 브라우저가 본문을 못 읽는 공고도 페이지 내용 붙여넣기로 기업명/직무/소재지/고용형태/기술스택을 반영하도록 보강했습니다. v0.3.6에서는 Google Sites 경로명을 회사명으로 잘못 채우는 문제와 소재지/사업내용 라벨 파싱을 수정했습니다.
+플래너는 Firebase 기반 React/Vite/TypeScript 앱이며, SC-07 위젯 검토와 SC-08 사이드바 기능 페이지, SC-09 테마 정리, SC-10 태블릿/모바일 반응형 코드 QA까지 완료했습니다. 2026-06-30에는 플래너를 v0.2.0 Core Planner로 올리고, 앱 내 버전 표시와 릴리즈 문서 체계를 추가한 뒤 `4700c1e`로 push했습니다. 2026-07-01에는 Firebase Hosting 200 응답과 Firestore rules 배포본/로컬 파일 일치 여부를 확인했고, 오래된 Firestore rules 배포 상태를 최신 규칙으로 동기화했습니다. 저작권/서비스 보호 메모를 별도 문서로 분리했고, 링크 정리 1차 기반 기능과 정식 노트 보강을 구현했습니다. v0.3.0에서는 작업 흐름 위젯, 작업/프로젝트/목표 요약, 일일·주간 마감 연결을 보강했고, v0.3.1에서는 주요 페이지 상단 실행/진행/기록 보드를 보강했습니다. v0.3.2에서는 내 신청과 지원 공고 모음 페이지, 새 데이터 필드, 캘린더 연결을 추가했고, v0.3.3에서는 지원 공고 링크 초안 패널과 카드별 링크 분석 반영 흐름을 보강했습니다. v0.3.4에서는 기업 자체 채용 링크, Google Sites 기업 상세, 인크루트 기업 도메인, 링크만 있는 공고 저장 흐름을 보강했습니다. v0.3.5에서는 브라우저가 본문을 못 읽는 공고도 페이지 내용 붙여넣기로 기업명/직무/소재지/고용형태/기술스택을 반영하도록 보강했습니다. v0.3.6에서는 Google Sites 경로명을 회사명으로 잘못 채우는 문제와 소재지/사업내용 라벨 파싱을 수정했습니다. v0.3.7에서는 지원 공고 분석 로직을 공통 유틸로 분리하고 Google Sites/인크루트/붙여넣기 본문 회귀 테스트를 추가했으며, placeholder가 본문 재반영을 막던 문제를 수정했습니다.
 
 ## 작업 위치와 원격
 
@@ -18,9 +18,9 @@ _갱신일: 2026-07-01 (v0.3.6 Job Draft Accuracy 보강 기준)_
 - 배포: Firebase Hosting
 - 배포 URL: `https://my-planner-487bd.web.app`
 - GitHub Pages는 사용하지 않습니다.
-- 현재 HEAD: 커밋 후 최신 `main`
-- 현재 앱 버전: `v0.3.6 Job Draft Accuracy`
-- 현재 로컬 브랜치 상태: v0.3.6 Job Draft Accuracy 커밋/푸시 완료 기준
+- 현재 HEAD: 마지막 커밋은 v0.3.6 기준이며, v0.3.7 Job Draft Verification 변경은 작업/검증 완료 후 커밋 전 상태
+- 현재 앱 버전: `v0.3.7 Job Draft Verification`
+- 현재 로컬 브랜치 상태: v0.3.7 Job Draft Verification 작업 중, 커밋/푸시 전 확인 필요
 - 최근 push와 Firebase Hosting 배포는 `planner-one` 계정으로 성공했습니다.
 
 ## 2026-07-01 v0.3.0 반영 변경
@@ -52,6 +52,7 @@ _갱신일: 2026-07-01 (v0.3.6 Job Draft Accuracy 보강 기준)_
 - `src/pages/TaskTracker.tsx`, `src/pages/Notes.tsx`, `src/types/index.ts`: `sourceUrl` 보존과 원본 링크 표시 보강
 - `src/App.tsx`, `vite.config.js`: 페이지 단위 `React.lazy` 로딩과 React/Firebase/그리드/차트/OCR vendor 청크 분리로 500KB 초과 번들 경고 제거
 - `src/pages/JobPostings.tsx`: 지원 공고 링크 입력을 접힌 보조 패널로 분리하고, 링크 기반 초안 반영과 저장 카드별 분석 반영 추가
+- `src/utils/jobPostingDraft.ts`, `scripts/check-job-posting-draft.mjs`: 지원 공고 링크/본문 분석 로직을 공통 유틸로 분리하고 Google Sites/인크루트/붙여넣기 본문 회귀 테스트 추가
 - `src/pages/JobPostings.tsx`, `src/types/index.ts`: 기업/기관 채용 페이지와 인크루트 기업 도메인 플랫폼 추가, 링크만 있는 공고 저장, 읽을 수 있는 본문 기반 기업명/직무 초안 보강
 - `src/pages/JobPostings.tsx`: 링크 초안 패널 안에 페이지 내용 붙여넣기 영역 추가, 기업명/직무/소재지/고용형태/기술스택/연봉·자격·우대사항 메모 추출 보강
 - `src/pages/JobPostings.tsx`: 공고 힌트 없는 자동 본문 제외, Google Sites 경로명 회사명 오인 방지, 붙여넣은 내용 즉시 반영 버튼, 소재지/사업내용 라벨 파싱 수정
