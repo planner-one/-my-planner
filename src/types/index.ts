@@ -137,6 +137,9 @@ export interface Note {
   content: string
   fav: boolean
   review?: string
+  date?: string
+  keywords?: string[]
+  referenceUrl?: string
   createdAt?: string
   updatedAt?: string
   sourceMemoId?: string

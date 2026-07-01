@@ -228,10 +228,12 @@ export default function LinkOrganizerModal({
       setNotes(previous => [{
         id: `link-note-${Date.now()}`,
         title: draft.title,
+        date: draft.date,
         content: draft.summary,
         fav: false,
         createdAt: now,
         updatedAt: now,
+        referenceUrl: draft.url,
         sourceUrl: draft.url,
       }, ...previous])
       setPage('notes')
