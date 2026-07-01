@@ -195,6 +195,59 @@ export interface CareerEvent {
   note?: string
 }
 
+export type PersonalApplicationType =
+  | 'savings' | 'mentoring' | 'welfare' | 'youth_support'
+  | 'education' | 'certificate' | 'housing' | 'other'
+export type PersonalApplicationStatus =
+  | 'interested' | 'preparing' | 'submitted' | 'reviewing'
+  | 'selected' | 'rejected' | 'active' | 'finished' | 'cancelled'
+
+export interface PersonalApplication {
+  id: string
+  title: string
+  organization?: string
+  type: PersonalApplicationType
+  status: PersonalApplicationStatus
+  appliedDate?: string
+  deadline?: string
+  resultDate?: string
+  startDate?: string
+  endDate?: string
+  nextAction?: string
+  documents?: string[]
+  keywords?: string[]
+  sourceUrl?: string
+  note?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
+export type JobPostingPlatform =
+  | 'saramin' | 'jobplanet' | 'wanted' | 'jumpit' | 'groupby' | 'other'
+export type JobPostingStatus =
+  | 'saved' | 'preparing' | 'applied' | 'interview'
+  | 'offer' | 'rejected' | 'closed'
+
+export interface JobPosting {
+  id: string
+  company: string
+  position: string
+  platform: JobPostingPlatform
+  status: JobPostingStatus
+  deadline?: string
+  appliedDate?: string
+  resultDate?: string
+  location?: string
+  employmentType?: string
+  sourceUrl?: string
+  imageText?: string
+  keywords?: string[]
+  nextAction?: string
+  note?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
 export interface JournalEntry {
   date: string
   title?: string
@@ -245,6 +298,8 @@ export interface UserData {
   timeBlockData?: Record<string, Record<string, string>>
   scheduledTasks?: ScheduledTask[]
   careerEvents?: CareerEvent[]
+  personalApplications?: PersonalApplication[]
+  jobPostings?: JobPosting[]
   journal?: JournalEntry[]
   chartHistory?: number[]
   dashboardLayout?: LayoutItem[]

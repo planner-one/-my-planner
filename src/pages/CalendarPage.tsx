@@ -8,24 +8,24 @@ import {
   CAREER_CATEGORY_LABELS,
   CAREER_STATUS_LABELS,
   formatCareerDday,
-  getCareerDaysUntil,
   getCareerMilestones,
   getCareerNextMilestone,
-  isCareerOpen,
 } from '../utils/careerEvents'
 
 type SourceKey = keyof CalendarLinkedItems
 
 const SOURCE_META: Record<SourceKey, { label: string; className: string }> = {
   scheduled: { label: '예정', className: 'scheduled' },
-  career: { label: '신청', className: 'career' },
+  career: { label: '기회', className: 'career' },
+  personalApplications: { label: '내 신청', className: 'personal' },
+  jobPostings: { label: '공고', className: 'jobs' },
   todos: { label: 'Todo', className: 'todos' },
   tasks: { label: '작업', className: 'tasks' },
   goals: { label: '목표', className: 'goals' },
   projects: { label: '프로젝트', className: 'projects' },
 }
 
-const SOURCE_ORDER: SourceKey[] = ['scheduled', 'career', 'todos', 'tasks', 'goals', 'projects']
+const SOURCE_ORDER: SourceKey[] = ['scheduled', 'career', 'personalApplications', 'jobPostings', 'todos', 'tasks', 'goals', 'projects']
 
 const dateLabel = (dateKey: string) =>
   new Intl.DateTimeFormat('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })
@@ -39,6 +39,8 @@ export default function CalendarPage() {
     todos, setTodos,
     scheduledTasks, setScheduledTasks,
     careerEvents, setCareerEvents,
+    personalApplications,
+    jobPostings,
     tasks, goals, projects,
   } = useApp()
   const { setPage } = useRouter()
@@ -49,6 +51,8 @@ export default function CalendarPage() {
   const [visibleSources, setVisibleSources] = useState<Record<SourceKey, boolean>>({
     scheduled: true,
     career: true,
+    personalApplications: true,
+    jobPostings: true,
     todos: true,
     tasks: true,
     goals: true,
@@ -61,7 +65,7 @@ export default function CalendarPage() {
   const year = viewDate.getFullYear()
   const month = viewDate.getMonth()
   const days = useMemo(() => makeCalendarDays(year, month), [year, month])
-  const calendarSources = { todos, scheduledTasks, careerEvents, tasks, goals, projects }
+  const calendarSources = { todos, scheduledTasks, careerEvents, personalApplications, jobPostings, tasks, goals, projects }
 
   const getItems = (date: string) => getCalendarLinkedItems(calendarSources, date, todayKey)
   const visibleCount = (items: CalendarLinkedItems) =>
@@ -72,13 +76,8 @@ export default function CalendarPage() {
     .map(date => toLocalDateKey(date))
   const monthTotal = monthDateKeys.reduce((total, date) => total + countCalendarLinkedItems(getItems(date)), 0)
   const monthCareer = monthDateKeys.reduce((total, date) => total + getItems(date).career.length, 0)
-  const urgentCareer = careerEvents.filter(event => {
-    if (!isCareerOpen(event.status)) return false
-    const next = getCareerNextMilestone(event, todayKey)
-    if (!next) return false
-    const daysLeft = getCareerDaysUntil(next.date, todayKey)
-    return daysLeft >= 0 && daysLeft <= 7
-  })
+  const monthTracked = monthDateKeys.reduce((total, date) =>
+    total + getItems(date).personalApplications.length + getItems(date).jobPostings.length, 0)
   const selectedItems = getItems(selectedDate)
   const selectedTotal = visibleCount(selectedItems)
 
@@ -173,6 +172,46 @@ export default function CalendarPage() {
         ),
       }
     }),
+    ...items.personalApplications.map(item => {
+      const markers = [
+        item.deadline === selectedDate ? '마감' : undefined,
+        item.appliedDate === selectedDate ? '신청일' : undefined,
+        item.resultDate === selectedDate ? '결과' : undefined,
+        item.startDate === selectedDate ? '시작' : undefined,
+        item.endDate === selectedDate ? '종료' : undefined,
+      ].filter(Boolean)
+      return {
+        key: `personal-${item.id}`,
+        source: 'personalApplications' as SourceKey,
+        title: item.title,
+        detail: [item.organization, markers.join(' · ') || '내 신청'].filter(Boolean).join(' · '),
+        done: ['rejected', 'finished', 'cancelled'].includes(item.status),
+        action: (
+          <button type="button" onClick={() => setPage('personalApplications')}>
+            보기
+          </button>
+        ),
+      }
+    }),
+    ...items.jobPostings.map(item => {
+      const markers = [
+        item.deadline === selectedDate ? '마감' : undefined,
+        item.appliedDate === selectedDate ? '지원일' : undefined,
+        item.resultDate === selectedDate ? '결과' : undefined,
+      ].filter(Boolean)
+      return {
+        key: `job-${item.id}`,
+        source: 'jobPostings' as SourceKey,
+        title: `${item.company} · ${item.position}`,
+        detail: markers.join(' · ') || '지원 공고',
+        done: ['rejected', 'closed'].includes(item.status),
+        action: (
+          <button type="button" onClick={() => setPage('jobPostings')}>
+            보기
+          </button>
+        ),
+      }
+    }),
     ...items.todos.map(item => ({
       key: `todo-${item.id}`,
       source: 'todos' as SourceKey,
@@ -219,7 +258,7 @@ export default function CalendarPage() {
       <header className="calendar-page-header">
         <div>
           <h2>캘린더</h2>
-          <p>Todo, 예정 작업, 신청·지원, 작업 관리, 목표와 프로젝트 마감을 날짜 기준으로 모아 봅니다.</p>
+          <p>Todo, 예정 작업, 기회 일정, 내 신청, 지원 공고, 작업 관리, 목표와 프로젝트 마감을 날짜 기준으로 모아 봅니다.</p>
         </div>
         <div className="calendar-page-controls">
           <button type="button" onClick={() => moveMonth(-1)}>이전</button>
@@ -231,8 +270,8 @@ export default function CalendarPage() {
 
       <section className="calendar-summary">
         <Summary label="이번 달 항목" value={monthTotal} />
-        <Summary label="신청 일정" value={monthCareer} />
-        <Summary label="7일 이내 신청" value={urgentCareer.length} tone="urgent" />
+        <Summary label="기회 일정" value={monthCareer} />
+        <Summary label="내 신청/공고" value={monthTracked} />
         <Summary label="선택일 항목" value={selectedTotal} />
       </section>
 
@@ -292,7 +331,11 @@ export default function CalendarPage() {
               <h3>{dateLabel(selectedDate)}</h3>
               <span>{selectedTotal}개 항목</span>
             </div>
-            <button type="button" onClick={() => setPage('career')}>신청 관리</button>
+            <div className="agenda-actions">
+              <button type="button" onClick={() => setPage('career')}>기회 일정</button>
+              <button type="button" onClick={() => setPage('personalApplications')}>내 신청</button>
+              <button type="button" onClick={() => setPage('jobPostings')}>지원 공고</button>
+            </div>
           </div>
 
           <div className="quick-add-panel">
@@ -311,9 +354,9 @@ export default function CalendarPage() {
                 value={quickCareerTitle}
                 onChange={event => setQuickCareerTitle(event.target.value)}
                 onKeyDown={event => { if (event.key === 'Enter' && !event.nativeEvent.isComposing) addCareer() }}
-                placeholder="신청·지원 일정 빠른 추가"
+                placeholder="기회 일정 빠른 추가"
               />
-              <button type="button" onClick={addCareer}>신청 추가</button>
+              <button type="button" onClick={addCareer}>기회 추가</button>
             </div>
           </div>
 
@@ -363,6 +406,8 @@ export default function CalendarPage() {
         .calendar-event-dot { min-width: 0; border-left: 3px solid var(--accent); border-radius: 4px; background: var(--bg3); padding: 3px 5px; color: var(--text); font-size: 11px; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .calendar-event-dot.scheduled, .agenda-item.scheduled { border-color: #3b82f6; }
         .calendar-event-dot.career, .agenda-item.career { border-color: #a855f7; }
+        .calendar-event-dot.personal, .agenda-item.personal { border-color: #14b8a6; }
+        .calendar-event-dot.jobs, .agenda-item.jobs { border-color: #f97316; }
         .calendar-event-dot.todos, .agenda-item.todos { border-color: #f59e0b; }
         .calendar-event-dot.tasks, .agenda-item.tasks { border-color: #64748b; }
         .calendar-event-dot.goals, .agenda-item.goals { border-color: #10b981; }
@@ -370,6 +415,7 @@ export default function CalendarPage() {
         .calendar-day-events small { color: var(--muted); font-size: 10px; }
         .calendar-agenda { border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); padding: 14px; display: flex; flex-direction: column; gap: 12px; }
         .agenda-heading { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+        .agenda-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
         .agenda-heading h3 { margin: 0 0 3px; font-size: 16px; letter-spacing: 0; }
         .agenda-heading span { color: var(--muted); font-size: 12px; }
         .quick-add-panel { display: flex; flex-direction: column; gap: 7px; }
@@ -383,6 +429,7 @@ export default function CalendarPage() {
         .agenda-item small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .agenda-item input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent); }
         .agenda-item select { max-width: 112px; min-width: 92px; height: 30px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg2); color: var(--text); font-size: 11px; }
+        .agenda-item button { min-height: 30px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg2); color: var(--text); padding: 0 10px; font-size: 11px; font-weight: 800; cursor: pointer; }
         .done-text { color: var(--muted) !important; text-decoration: line-through; }
         .empty-text { margin: 0; padding: 18px; color: var(--muted); text-align: center; font-size: 12px; }
         @media (max-width: 980px) {

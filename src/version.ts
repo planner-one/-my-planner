@@ -1,10 +1,10 @@
-export const APP_VERSION = '0.3.0'
+export const APP_VERSION = '0.3.2'
 export const APP_RELEASE_DATE = '2026-07-01'
-export const APP_RELEASE_NAME = 'Workflow Visibility'
+export const APP_RELEASE_NAME = 'Application Tracking'
 
 export const APP_RELEASE_NOTES = [
-  '작업 흐름 대시보드 위젯 추가',
-  '작업·프로젝트·목표 역할과 요약 지표 강화',
-  '일일/주간 플래너에 작업·목표·프로젝트 마감 연결',
-  '정식 노트, 링크 정리, 이미지 포스터 OCR 기반 기능 정리',
+  '내 신청 페이지 추가',
+  '지원 공고 모음 페이지와 공고 이미지 OCR 입력 추가',
+  '내 신청과 지원 공고 마감/결과일 캘린더 연결',
+  '제도성 신청과 채용 공고 데이터를 별도 구조로 저장',
 ] as const

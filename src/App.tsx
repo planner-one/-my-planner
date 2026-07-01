@@ -3,43 +3,35 @@ import { AppProvider, useApp } from './store/AppContext'
 import { RouterProvider, useRouter } from './store/RouterContext'
 import LoginPage from './pages/LoginPage'
 import PageShell from './components/PageShell'
-import Dashboard from './pages/Dashboard'
-import CalendarPage from './pages/CalendarPage'
-import HabitTracker from './pages/HabitTracker'
-import TaskTracker from './pages/TaskTracker'
-import Goals from './pages/Goals'
-import Projects from './pages/Projects'
-import WeeklyPlanner from './pages/WeeklyPlanner'
-import DailyPlanner from './pages/DailyPlanner'
-import Notes from './pages/Notes'
-import Journal from './pages/Journal'
-import ProfilePage from './pages/ProfilePage'
-import TodoPage from './pages/TodoPage'
-import Inquiries from './pages/Inquiries'
-import PrintPlanner from './pages/PrintPlanner'
-import CareerEvents from './pages/CareerEvents'
-import type { ComponentType } from 'react'
+import { Suspense, lazy, type ComponentType, type LazyExoticComponent } from 'react'
 
 type PageId =
   | 'dashboard' | 'calendar' | 'habits' | 'tasks' | 'todos' | 'goals' | 'projects'
   | 'weekly' | 'daily' | 'notes' | 'journal' | 'profile' | 'inquiries' | 'print' | 'career'
+  | 'personalApplications' | 'jobPostings'
 
-const PAGE_MAP: Record<PageId, ComponentType> = {
-  dashboard: Dashboard,
-  calendar:  CalendarPage,
-  habits:    HabitTracker,
-  tasks:     TaskTracker,
-  todos:     TodoPage,
-  goals:     Goals,
-  projects:  Projects,
-  weekly:    WeeklyPlanner,
-  daily:     DailyPlanner,
-  notes:     Notes,
-  journal:   Journal,
-  profile:   ProfilePage,
-  inquiries: Inquiries,
-  print:     PrintPlanner,
-  career:    CareerEvents,
+type PageComponent = LazyExoticComponent<ComponentType>
+
+const loadPage = (loader: () => Promise<{ default: ComponentType }>): PageComponent => lazy(loader)
+
+const PAGE_MAP: Record<PageId, PageComponent> = {
+  dashboard: loadPage(() => import('./pages/Dashboard')),
+  calendar:  loadPage(() => import('./pages/CalendarPage')),
+  habits:    loadPage(() => import('./pages/HabitTracker')),
+  tasks:     loadPage(() => import('./pages/TaskTracker')),
+  todos:     loadPage(() => import('./pages/TodoPage')),
+  goals:     loadPage(() => import('./pages/Goals')),
+  projects:  loadPage(() => import('./pages/Projects')),
+  weekly:    loadPage(() => import('./pages/WeeklyPlanner')),
+  daily:     loadPage(() => import('./pages/DailyPlanner')),
+  notes:     loadPage(() => import('./pages/Notes')),
+  journal:   loadPage(() => import('./pages/Journal')),
+  profile:   loadPage(() => import('./pages/ProfilePage')),
+  inquiries: loadPage(() => import('./pages/Inquiries')),
+  print:     loadPage(() => import('./pages/PrintPlanner')),
+  career:    loadPage(() => import('./pages/CareerEvents')),
+  personalApplications: loadPage(() => import('./pages/PersonalApplications')),
+  jobPostings: loadPage(() => import('./pages/JobPostings')),
 }
 
 function Loading() {
@@ -53,16 +45,29 @@ function Loading() {
   )
 }
 
+function PageLoading() {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      minHeight: 320, color: 'var(--muted)',
+    }}>
+      페이지를 불러오는 중...
+    </div>
+  )
+}
+
 function AppMain() {
   const { dataLoaded } = useApp()
   const { page } = useRouter()
-  const PageComponent = PAGE_MAP[page] ?? Dashboard
+  const PageComponent = PAGE_MAP[page] ?? PAGE_MAP.dashboard
 
   if (!dataLoaded) return <Loading />
 
   return (
     <PageShell>
-      <PageComponent />
+      <Suspense fallback={<PageLoading />}>
+        <PageComponent />
+      </Suspense>
     </PageShell>
   )
 }

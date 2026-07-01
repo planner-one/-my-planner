@@ -219,7 +219,7 @@ function ItemForm({
               color: form.type === t ? '#fff' : 'var(--muted)',
               fontSize: 12, fontWeight: form.type === t ? 600 : 400,
             }}>
-              {t === 'scheduled' ? '예정 작업' : t === 'career' ? '신청·지원' : '할 일'}
+              {t === 'scheduled' ? '예정 작업' : t === 'career' ? '기회 일정' : '할 일'}
             </button>
           ))}
         </div>
@@ -229,7 +229,7 @@ function ItemForm({
         autoFocus
         value={form.title}
         onChange={e => set('title', e.target.value)}
-        placeholder={form.type === 'scheduled' ? '작업 제목' : form.type === 'career' ? '신청·지원 일정명' : '할 일 내용'}
+        placeholder={form.type === 'scheduled' ? '작업 제목' : form.type === 'career' ? '기회 일정명' : '할 일 내용'}
         style={{
           width: '100%', padding: '7px 10px', borderRadius: 7,
           border: '1px solid var(--border)', background: 'var(--bg2)',
@@ -734,7 +734,7 @@ function DayModal(props: ModalProps) {
           )}
 
           {career.length > 0 && (
-            <Section title="💼 신청·지원 일정" color="#a855f7">
+            <Section title="💼 기회 일정" color="#a855f7">
               {career.map(event => (
                 <ItemRow
                   key={event.id}
@@ -803,7 +803,7 @@ function DayModal(props: ModalProps) {
               initial={form}
               onSave={handleSave}
               onDelete={form.mode === 'edit' ? () => {
-                const label = form.type === 'todo' ? '할 일' : form.type === 'career' ? '신청·지원 일정' : '예정 작업'
+                const label = form.type === 'todo' ? '할 일' : form.type === 'career' ? '기회 일정' : '예정 작업'
                 if (!window.confirm(`이 ${label}을 삭제할까요?`)) return
                 if (form.type === 'todo') props.onDeleteTodo(form.id!)
                 else if (form.type === 'career') props.onDeleteCareer(form.id!)
@@ -839,7 +839,8 @@ export default function CalendarWidget() {
   const { ref, w, h } = useWidgetSize()
   const {
     todos, setTodos, scheduledTasks, setScheduledTasks,
-    careerEvents, setCareerEvents, tasks, goals, projects,
+    careerEvents, setCareerEvents, personalApplications, jobPostings,
+    tasks, goals, projects,
   } = useApp()
 
   const today = new Date()
@@ -858,7 +859,7 @@ export default function CalendarWidget() {
 
   const days = makeCalendarDays(year, month)
   const todayStr = toDateStr(today)
-  const calendarSources = { todos, scheduledTasks, careerEvents, tasks, goals, projects }
+  const calendarSources = { todos, scheduledTasks, careerEvents, personalApplications, jobPostings, tasks, goals, projects }
 
   const compact = w < 300 || h < 330
   const HEADER_H = compact ? 38 : 44
@@ -882,8 +883,11 @@ export default function CalendarWidget() {
     getItemsForDate(dateStr).todos.filter(t => t.priority === 'high').length
 
   const getHasItems = (dateStr: string) => {
-    const { todos: t, scheduled: s, career: c, tasks: work, goals: g, projects: p } = getItemsForDate(dateStr)
-    return t.length + s.length + c.length + work.length + g.length + p.length > 0
+    const {
+      todos: t, scheduled: s, career: c, personalApplications: personal,
+      jobPostings: jobs, tasks: work, goals: g, projects: p,
+    } = getItemsForDate(dateStr)
+    return t.length + s.length + c.length + personal.length + jobs.length + work.length + g.length + p.length > 0
   }
 
   // CRUD handlers

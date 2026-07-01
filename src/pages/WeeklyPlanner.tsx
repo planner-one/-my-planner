@@ -55,6 +55,20 @@ export default function WeeklyPlanner() {
   const weekManagedTasks = managedTasks.filter(task => task.due && weekDates.includes(task.due) && !task.done && task.status !== '완료')
   const weekGoals = goals.filter(goal => goal.due && weekDates.includes(goal.due))
   const weekProjects = projects.filter(project => project.due && weekDates.includes(project.due))
+  const unfinishedWeekTasks = tasks.filter(task => !task.done)
+  const weekDeadlineTotal = weekManagedTasks.length + weekGoals.length + weekProjects.length
+  const firstDeadline = weekManagedTasks[0]?.name ?? weekGoals[0]?.name ?? weekProjects[0]?.name
+  const busiestDay = weekDates
+    .map(date => {
+      const count = todos.filter(todo => belongsToDate(todo, date)).length
+        + scheduledTasks.filter(task => task.date === date).length
+        + careerEvents.filter(event => getCareerMilestones(event, date).length > 0).length
+        + managedTasks.filter(task => task.due === date && !task.done && task.status !== '완료').length
+        + goals.filter(goal => goal.due === date).length
+        + projects.filter(project => project.due === date).length
+      return { date, count }
+    })
+    .sort((a, b) => b.count - a.count)[0]
 
   const setWeekTaskList = (updater: (items: WeekTask[]) => WeekTask[]) => {
     setWeekTasks(prev => ({
@@ -110,6 +124,17 @@ export default function WeeklyPlanner() {
         />
         <SummaryCard label="예정" value={String(weekScheduled.length + weekCareerEvents.length)} sub="캘린더 일정" />
         <SummaryCard label="마감" value={String(weekManagedTasks.length + weekGoals.length + weekProjects.length)} sub="작업/목표/프로젝트" />
+      </section>
+
+      <section className="weekly-focus-board">
+        <article className="week-focus-main">
+          <span>이번 주 운영</span>
+          <strong>{unfinishedWeekTasks[0]?.text ?? '핵심 작업 없음'}</strong>
+          <div className="week-focus-progress"><i style={{ width: `${pct}%` }} /></div>
+        </article>
+        <WeeklyFocus label="남은 핵심" value={`${unfinishedWeekTasks.length}개`} sub={unfinishedWeekTasks[0]?.cat ?? '정리됨'} />
+        <WeeklyFocus label="첫 마감" value={firstDeadline ?? '없음'} sub={`${weekDeadlineTotal}개 연결`} />
+        <WeeklyFocus label="가장 바쁜 날" value={busiestDay && busiestDay.count > 0 ? dateLabel(busiestDay.date) : '없음'} sub={busiestDay && busiestDay.count > 0 ? `${busiestDay.count}개 항목` : '여유 있음'} />
       </section>
 
       <section className="weekly-grid">
@@ -174,6 +199,7 @@ export default function WeeklyPlanner() {
                 <article key={date} className="week-day-card">
                   <strong>{dateLabel(date)}</strong>
                   <small>Todo {dayTodos.filter(todo => todo.done).length}/{dayTodos.length}</small>
+                  <em>{dayTodos.length + dayScheduled.length + dayCareerEvents.length + dayDue.length}개</em>
                   {dayScheduled.slice(0, 3).map(task => <p key={task.id}>{task.time ? `${task.time} ` : ''}{task.title}</p>)}
                   {dayCareerEvents.slice(0, 3).map(event => {
                     const labels = getCareerMilestones(event, date).filter(label => label !== '일정')
@@ -184,6 +210,7 @@ export default function WeeklyPlanner() {
                     )
                   })}
                   {dayDue.slice(0, 3).map(title => <p key={title} className="due-text">마감 · {title}</p>)}
+                  {dayDue.length > 3 && <p className="more-text">마감 +{dayDue.length - 3}</p>}
                   {dayTodos.length + dayScheduled.length + dayCareerEvents.length + dayDue.length === 0 && <p className="muted">비어 있음</p>}
                 </article>
               )
@@ -206,6 +233,13 @@ export default function WeeklyPlanner() {
         .summary-card span { color: var(--muted); font-size: 11px; font-weight: 700; }
         .summary-card b { display: block; margin-top: 6px; font-size: 22px; color: var(--text); }
         .summary-card small { color: var(--muted); font-size: 11px; }
+        .weekly-focus-board { display: grid; grid-template-columns: minmax(0, 1.35fr) repeat(3, minmax(0, 1fr)); gap: 10px; }
+        .week-focus-main, .weekly-focus-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 13px; min-width: 0; }
+        .week-focus-main span, .weekly-focus-card span { color: var(--accent); font-size: 11px; font-weight: 900; }
+        .week-focus-main strong, .weekly-focus-card b { display: block; margin-top: 7px; color: var(--text); font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .weekly-focus-card small { display: block; margin-top: 6px; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .week-focus-progress { margin-top: 11px; height: 8px; border-radius: 999px; background: var(--bg4); overflow: hidden; }
+        .week-focus-progress i { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
         .weekly-grid { display: grid; grid-template-columns: minmax(320px, 0.85fr) minmax(0, 1.15fr); gap: 14px; align-items: start; }
         .weekly-panel { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
         .panel-heading { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
@@ -226,17 +260,21 @@ export default function WeeklyPlanner() {
         .week-day-card { min-height: 132px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg3); padding: 10px; }
         .week-day-card strong { display: block; font-size: 12px; margin-bottom: 4px; }
         .week-day-card small { color: var(--muted); font-size: 10px; }
+        .week-day-card em { display: inline-block; margin-top: 6px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); padding: 3px 7px; font-size: 10px; font-style: normal; font-weight: 900; }
         .week-day-card p { margin: 7px 0 0; color: var(--text); font-size: 11px; line-height: 1.35; word-break: break-word; }
         .week-day-card .career-text { color: #a855f7; font-weight: 700; }
         .week-day-card .due-text { color: var(--accent); font-weight: 700; }
+        .week-day-card .more-text { color: var(--muted); font-weight: 800; }
         @media (max-width: 900px) {
           .weekly-header { align-items: stretch; flex-direction: column; }
           .week-controls { justify-content: flex-start; }
           .weekly-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .weekly-focus-board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .week-focus-main { grid-column: 1 / -1; }
           .weekly-grid { grid-template-columns: 1fr; }
         }
         @media (max-width: 560px) {
-          .weekly-summary { grid-template-columns: 1fr; }
+          .weekly-summary, .weekly-focus-board { grid-template-columns: 1fr; }
           .week-add, .week-task-row { grid-template-columns: 1fr; }
         }
       `}</style>
@@ -247,6 +285,16 @@ export default function WeeklyPlanner() {
 function SummaryCard({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
     <article className="summary-card">
+      <span>{label}</span>
+      <b>{value}</b>
+      <small>{sub}</small>
+    </article>
+  )
+}
+
+function WeeklyFocus({ label, value, sub }: { label: string; value: string; sub: string }) {
+  return (
+    <article className="weekly-focus-card">
       <span>{label}</span>
       <b>{value}</b>
       <small>{sub}</small>

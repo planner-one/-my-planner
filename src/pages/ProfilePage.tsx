@@ -8,7 +8,8 @@ export default function ProfilePage() {
     nickname, setNickname,
     uiScale, setUiScale,
     todos, habits, goals, projects, notes, journal,
-    scheduledTasks, careerEvents, dashboardActive, dashboardLayout,
+    scheduledTasks, careerEvents, personalApplications, jobPostings,
+    dashboardActive, dashboardLayout,
     saveNow,
   } = useApp()
 
@@ -21,7 +22,9 @@ export default function ProfilePage() {
     { label: '노트', value: notes.length },
     { label: '저널', value: journal.length },
     { label: '예정', value: scheduledTasks.length },
-    { label: '신청', value: careerEvents.length },
+    { label: '기회', value: careerEvents.length },
+    { label: '내 신청', value: personalApplications.length },
+    { label: '공고', value: jobPostings.length },
   ]
 
   return (

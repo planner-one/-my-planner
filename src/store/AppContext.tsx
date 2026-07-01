@@ -13,7 +13,7 @@ import {
 import type {
   Todo, TodoDailyResult, DeletedTodoDailyResult, Habit, Task, Goal, Project, TopGoal, Counters,
   Note, QuickMemoEntry, WeekTask, ScheduledTask, CareerEvent, JournalEntry, LayoutItem, UserData,
-  ReviewDailyEntry,
+  ReviewDailyEntry, PersonalApplication, JobPosting,
 } from '../types'
 
 interface AppContextValue {
@@ -49,6 +49,10 @@ interface AppContextValue {
   setScheduledTasks: React.Dispatch<React.SetStateAction<ScheduledTask[]>>
   careerEvents: CareerEvent[]
   setCareerEvents: React.Dispatch<React.SetStateAction<CareerEvent[]>>
+  personalApplications: PersonalApplication[]
+  setPersonalApplications: React.Dispatch<React.SetStateAction<PersonalApplication[]>>
+  jobPostings: JobPosting[]
+  setJobPostings: React.Dispatch<React.SetStateAction<JobPosting[]>>
   journal: JournalEntry[];   setJournal: React.Dispatch<React.SetStateAction<JournalEntry[]>>
   chartHistory: number[];    setChartHistory: React.Dispatch<React.SetStateAction<number[]>>
   dashboardLayout: LayoutItem[]
@@ -100,6 +104,28 @@ const migrateCareerEvents = (careerEvents: UserData['careerEvents'] = []): Caree
       ?? toLocalDateKey(),
   }))
 
+const migratePersonalApplications = (items: UserData['personalApplications'] = []): PersonalApplication[] =>
+  (items as Array<Partial<PersonalApplication>>).map((item, index) => ({
+    ...item,
+    id: item.id ?? `personal-application-${Date.now()}-${index}`,
+    title: normalizeText(item.title, '이름 없는 신청'),
+    type: item.type ?? 'other',
+    status: item.status ?? 'interested',
+    documents: Array.isArray(item.documents) ? item.documents : [],
+    keywords: Array.isArray(item.keywords) ? item.keywords : [],
+  }))
+
+const migrateJobPostings = (items: UserData['jobPostings'] = []): JobPosting[] =>
+  (items as Array<Partial<JobPosting>>).map((item, index) => ({
+    ...item,
+    id: item.id ?? `job-posting-${Date.now()}-${index}`,
+    company: normalizeText(item.company, '회사 미정'),
+    position: normalizeText(item.position, '포지션 미정'),
+    platform: item.platform ?? 'other',
+    status: item.status ?? 'saved',
+    keywords: Array.isArray(item.keywords) ? item.keywords : [],
+  }))
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
 
@@ -123,6 +149,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [timeBlockData, setTimeBlockData] = useState<Record<string, Record<string, string>>>({})
   const [scheduledTasks, setScheduledTasks] = useState<ScheduledTask[]>([])
   const [careerEvents, setCareerEvents] = useState<CareerEvent[]>([])
+  const [personalApplications, setPersonalApplications] = useState<PersonalApplication[]>([])
+  const [jobPostings, setJobPostings] = useState<JobPosting[]>([])
   const [journal, setJournal] = useState<JournalEntry[]>([])
   const [chartHistory, setChartHistory] = useState<number[]>([])
   const [dashboardLayout, setDashboardLayout] = useState<LayoutItem[]>([])
@@ -156,6 +184,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       tasks, goals, projects, topGoals,
       energy, counters, quickMemo: '', quickMemos, reviewHistory,
       notes, weekTasks, timeBlockData, scheduledTasks, careerEvents,
+      personalApplications, jobPostings,
       journal, chartHistory,
       dashboardLayout, dashboardActive,
       uiScale,
@@ -228,6 +257,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setTimeBlockData({})
     setScheduledTasks([])
     setCareerEvents([])
+    setPersonalApplications([])
+    setJobPostings([])
     setJournal([])
     setChartHistory([])
     setDashboardLayout([])
@@ -287,6 +318,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setTimeBlockData(d?.timeBlockData ?? {})
       setScheduledTasks(d?.scheduledTasks ?? [])
       setCareerEvents(migrateCareerEvents(d?.careerEvents))
+      setPersonalApplications(migratePersonalApplications(d?.personalApplications))
+      setJobPostings(migrateJobPostings(d?.jobPostings))
       setJournal(d?.journal ?? [])
       setChartHistory(d?.chartHistory ?? [])
       setDashboardLayout(d?.dashboardLayout ?? [])
@@ -389,7 +422,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     todos, todoHistory, todoHistoryTrash, todoHistoryDeletedDates,
     habits, habitHistory, habitSavedAt, tasks, goals, projects, topGoals,
     energy, counters, quickMemos, reviewHistory, notes, weekTasks,
-    timeBlockData, scheduledTasks, careerEvents, journal, chartHistory,
+    timeBlockData, scheduledTasks, careerEvents, personalApplications, jobPostings,
+    journal, chartHistory,
     dashboardLayout, dashboardActive, uiScale, nickname, dataLoaded,
   ])
 
@@ -442,6 +476,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     timeBlockData, setTimeBlockData,
     scheduledTasks, setScheduledTasks,
     careerEvents, setCareerEvents,
+    personalApplications, setPersonalApplications,
+    jobPostings, setJobPostings,
     journal, setJournal,
     chartHistory, setChartHistory,
     dashboardLayout, setDashboardLayout,

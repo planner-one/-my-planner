@@ -25,7 +25,7 @@ interface LinkOrganizerModalProps {
 }
 
 const TARGET_LABELS: Record<LinkInsertTarget, string> = {
-  career: '신청 관리',
+  career: '기회 일정',
   calendar: '캘린더',
   task: '작업 목록',
   note: '메모',

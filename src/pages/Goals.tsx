@@ -79,6 +79,8 @@ export default function Goals() {
     ? 0
     : Math.round(activeGoals.reduce((sum, goal) => sum + goal.pct, 0) / activeGoals.length)
   const nextGoal = sortedGoals.find(goal => goal.status !== '완료' && goal.pct < 100)
+  const nextGoalStep = nextGoal?.steps.find(step => !step.done)
+  const focusPct = topGoals.length === 0 ? 0 : Math.round((focusDone / topGoals.length) * 100)
 
   return (
     <div className="goals-page">
@@ -100,6 +102,43 @@ export default function Goals() {
         <GoalStat label="장기 목표 평균" value={`${avgGoalPct}%`} sub={`진행 ${activeGoals.length}개`} />
         <GoalStat label="완료 목표" value={`${completedGoals.length}개`} sub="누적 완료" />
         <GoalStat label="다음 목표" value={nextGoal ? `${nextGoal.pct}%` : '-'} sub={nextGoal?.name ?? '목표 없음'} />
+      </section>
+
+      <section className="goal-command-board">
+        <article className="goal-focus-board">
+          <div className="goal-board-heading">
+            <div>
+              <span>오늘 집중</span>
+              <h3>{focusPct}% 정리됨</h3>
+            </div>
+            <b>{focusDone}/{topGoals.length}</b>
+          </div>
+          <div className="goal-board-progress"><i style={{ width: `${focusPct}%` }} /></div>
+          <div className="goal-focus-preview">
+            {topGoals.length === 0 ? (
+              <p className="empty-text">오늘 집중할 방향을 추가하세요.</p>
+            ) : topGoals.slice(0, 4).map(goal => (
+              <button
+                key={goal.id}
+                type="button"
+                className={goal.done ? 'goal-focus-chip done' : 'goal-focus-chip'}
+                onClick={() => updateTopGoal(goal.id, { done: !goal.done })}
+              >
+                {goal.done ? '완료' : '집중'} · {goal.text}
+              </button>
+            ))}
+          </div>
+        </article>
+
+        <article className="goal-next-board">
+          <span>다음 장기 목표</span>
+          <strong>{nextGoal?.name ?? '진행 중 목표 없음'}</strong>
+          <p>{nextGoalStep?.text ?? (nextGoal ? '다음 단계를 추가하면 목표 흐름이 더 선명해집니다.' : '새 목표를 추가하면 로드맵이 표시됩니다.')}</p>
+          <div className="goal-next-meta">
+            <small>{nextGoal ? getGoalDueText(nextGoal.due) : '-'}</small>
+            <small>{nextGoal ? `${getRemainingSteps(nextGoal)}단계 남음` : '대기'}</small>
+          </div>
+        </article>
       </section>
 
       <section className="goals-grid">
@@ -253,7 +292,7 @@ export default function Goals() {
         .goals-heading p, .panel-heading p { color: var(--muted); margin: 0; font-size: 13px; line-height: 1.5; }
         .goal-guide { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
         .goal-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-        .guide-card, .goal-panel, .goal-summary, .goal-stat { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; }
+        .guide-card, .goal-panel, .goal-summary, .goal-stat, .goal-focus-board, .goal-next-board { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; }
         .guide-card { padding: 14px; }
         .goal-stat { padding: 13px; }
         .goal-stat span { color: var(--muted); font-size: 11px; font-weight: 800; }
@@ -262,6 +301,21 @@ export default function Goals() {
         .guide-card h3, .panel-heading h3, .goal-summary h3 { margin: 0; font-size: 15px; letter-spacing: 0; }
         .guide-card p { margin: 7px 0 9px; color: var(--muted); font-size: 12px; line-height: 1.5; }
         .guide-card small { color: var(--accent); font-size: 11px; font-weight: 700; }
+        .goal-command-board { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(260px, 0.9fr); gap: 12px; }
+        .goal-focus-board, .goal-next-board { padding: 14px; display: flex; flex-direction: column; gap: 11px; }
+        .goal-board-heading { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+        .goal-board-heading span, .goal-next-board > span { color: var(--accent); font-size: 11px; font-weight: 900; }
+        .goal-board-heading h3 { margin: 4px 0 0; font-size: 17px; letter-spacing: 0; }
+        .goal-board-heading b { color: var(--accent); font-size: 26px; line-height: 1; }
+        .goal-board-progress { height: 10px; border-radius: 999px; background: var(--bg4); overflow: hidden; }
+        .goal-board-progress i { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
+        .goal-focus-preview { display: flex; flex-wrap: wrap; gap: 7px; }
+        .goal-focus-chip { max-width: 100%; border: 1px solid var(--border); border-radius: 999px; background: var(--bg3); color: var(--text); padding: 7px 10px; font-size: 12px; font-weight: 800; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .goal-focus-chip.done { border-color: transparent; background: var(--accent-soft); color: var(--accent); }
+        .goal-next-board strong { color: var(--text); font-size: 17px; overflow-wrap: anywhere; }
+        .goal-next-board p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+        .goal-next-meta { display: flex; flex-wrap: wrap; gap: 7px; }
+        .goal-next-meta small { border-radius: 999px; background: var(--bg3); color: var(--muted); padding: 6px 9px; font-size: 11px; font-weight: 800; }
         .goals-grid { display: grid; grid-template-columns: minmax(280px, 0.75fr) minmax(0, 1.25fr); gap: 14px; align-items: start; }
         .goal-panel { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
         .panel-heading { display: flex; justify-content: space-between; gap: 10px; }
@@ -295,7 +349,7 @@ export default function Goals() {
         .summary-pill.done { background: var(--accent-soft); color: var(--accent); }
         @media (max-width: 760px) {
           .goals-page { gap: 14px; }
-          .goal-guide, .goals-grid { grid-template-columns: 1fr; }
+          .goal-guide, .goals-grid, .goal-command-board { grid-template-columns: 1fr; }
           .goal-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .goal-panel { padding: 14px; }
           .goal-meta-row { grid-template-columns: 1fr; }

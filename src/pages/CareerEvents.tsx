@@ -215,7 +215,7 @@ export default function CareerEvents() {
   }
 
   const remove = (id: string) => {
-    if (!window.confirm('이 신청·지원 일정을 삭제할까요?')) return
+    if (!window.confirm('이 기회 일정을 삭제할까요?')) return
     setCareerEvents(previous => previous.filter(item => item.id !== id))
     if (editingId === id) {
       setEditingId(null)
@@ -291,8 +291,8 @@ export default function CareerEvents() {
     <div className="career-page">
       <header className="career-header">
         <div>
-          <h2>신청·지원 일정</h2>
-          <p>채용, 교육, 행사, 공모전과 각종 프로그램 신청 결과를 한곳에서 관리합니다.</p>
+          <h2>기회 일정</h2>
+          <p>채용 설명회, 교육, 행사, 공모전, 프로그램처럼 외부 기회와 관련된 일정을 관리합니다.</p>
         </div>
         <div className="career-header-actions">
           <button type="button" className="career-link-button" onClick={openLinkImportForNew}>링크에서 추가</button>
@@ -300,7 +300,7 @@ export default function CareerEvents() {
         </div>
       </header>
 
-      <section className="career-summary-grid" aria-label="신청·지원 일정 요약">
+      <section className="career-summary-grid" aria-label="기회 일정 요약">
         <SummaryCard label="진행 중" value={openCount} sub="관심~선정" />
         <SummaryCard label="7일 이내" value={urgentCount} sub="다음 체크 필요" tone="urgent" />
         <SummaryCard label="결과 대기" value={pendingCount} sub="확인 필요" />
@@ -413,7 +413,7 @@ export default function CareerEvents() {
         applyToCareerForm={applyLinkDraft}
       />
 
-      <section className="career-toolbar" aria-label="신청·지원 일정 검색과 구분">
+      <section className="career-toolbar" aria-label="기회 일정 검색과 구분">
         <input
           value={query}
           onChange={event => setQuery(event.target.value)}
@@ -431,7 +431,7 @@ export default function CareerEvents() {
         <span>{filtered.length}건 표시</span>
       </section>
 
-      <nav className="career-filters" aria-label="신청·지원 일정 상태">
+      <nav className="career-filters" aria-label="기회 일정 상태">
         {(['all', 'interested', 'planned', 'applied', 'pending', 'confirmed', 'completed', 'rejected', 'cancelled'] as const).map(status => (
           <button key={status} type="button" className={filter === status ? 'active' : ''} onClick={() => setFilter(status)}>
             {status === 'all' ? `전체 ${totalCount}` : `${STATUS_LABELS[status]} ${statusCounts[status]}`}
@@ -458,7 +458,7 @@ export default function CareerEvents() {
 
       <section className="career-list">
         {upcoming.length === 0 ? (
-          <div className="career-empty">예정된 신청·지원 일정이 없습니다.</div>
+          <div className="career-empty">예정된 기회 일정이 없습니다.</div>
         ) : upcoming.map(item => (
           <CareerEventCard key={item.id} item={item} today={today} onEdit={edit} onRemove={remove} onStatusChange={updateStatus} />
         ))}

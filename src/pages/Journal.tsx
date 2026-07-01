@@ -6,6 +6,11 @@ import { isHabitScheduled } from '../utils/habits'
 import { calculateProductivityScore } from '../utils/productivity'
 
 const MOODS = ['좋음', '보통', '피곤', '불안', '뿌듯'] as const
+const JOURNAL_PROMPTS = [
+  '오늘 가장 많이 신경 쓴 일은 ',
+  '생각보다 잘 된 부분은 ',
+  '내일로 넘길 것은 ',
+]
 
 export default function Journal() {
   const {
@@ -32,6 +37,11 @@ export default function Journal() {
     scheduledTasks,
     counters,
   })
+  const recentEnergyEntries = journal.filter(entry => entry.energy != null).slice(0, 7)
+  const avgEnergy = recentEnergyEntries.length === 0
+    ? undefined
+    : Math.round((recentEnergyEntries.reduce((sum, entry) => sum + (entry.energy ?? 0), 0) / recentEnergyEntries.length) * 10) / 10
+  const contentLength = (selected?.content ?? '').trim().length
 
   const mergedEntry: JournalEntry = {
     date: selectedDate,
@@ -92,6 +102,11 @@ export default function Journal() {
     setSelectedDate(toLocalDateKey(addLocalDays(dateObj, days)))
   }
 
+  const appendPrompt = (text: string) => {
+    const current = (mergedEntry.content ?? '').trim()
+    updateEntry({ content: current ? `${current}\n\n${text}` : text })
+  }
+
   const recentEntries = [...journal].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 12)
 
   return (
@@ -114,6 +129,29 @@ export default function Journal() {
         <Summary label="루틴" value={habitPct == null ? '-' : `${habitPct}%`} />
         <Summary label="생산성" value={productivity ? `${productivity.score}%` : '-'} />
         <Summary label="에너지" value={mergedEntry.energy == null ? '-' : `${mergedEntry.energy}`} />
+      </section>
+
+      <section className="journal-writing-board">
+        <article className="journal-today-card">
+          <span>오늘 기록 상태</span>
+          <strong>{contentLength > 0 ? `${contentLength}자 작성` : '아직 비어 있음'}</strong>
+          <p>{mergedEntry.tomorrowFocus ? `내일 초점: ${mergedEntry.tomorrowFocus}` : '내일 초점을 남기면 다음날 계획으로 이어가기 좋습니다.'}</p>
+        </article>
+        <article className="journal-prompt-card">
+          <span>빠른 시작</span>
+          <div>
+            {JOURNAL_PROMPTS.map(prompt => (
+              <button key={prompt} type="button" onClick={() => appendPrompt(prompt)}>
+                {prompt.trim()}
+              </button>
+            ))}
+          </div>
+        </article>
+        <article className="journal-trend-card">
+          <span>최근 흐름</span>
+          <strong>{avgEnergy == null ? '-' : `${avgEnergy}/10`}</strong>
+          <p>최근 에너지 평균</p>
+        </article>
       </section>
 
       <section className="journal-grid">
@@ -174,7 +212,7 @@ export default function Journal() {
             >
               <strong>{entry.date}</strong>
               <span>{entry.title || entry.content || '제목 없음'}</span>
-              <small>{entry.mood ?? '기록'}</small>
+              <small>{[entry.mood ?? '기록', entry.energy != null ? `에너지 ${entry.energy}` : undefined].filter(Boolean).join(' · ')}</small>
             </button>
           ))}
           {selected && (
@@ -199,6 +237,14 @@ export default function Journal() {
         .journal-summary-card { padding: 13px; }
         .journal-summary-card span { color: var(--muted); font-size: 11px; font-weight: 700; }
         .journal-summary-card b { display: block; margin-top: 6px; font-size: 22px; }
+        .journal-writing-board { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(280px, 1fr) 160px; gap: 10px; }
+        .journal-today-card, .journal-prompt-card, .journal-trend-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 13px; min-width: 0; }
+        .journal-today-card span, .journal-prompt-card span, .journal-trend-card span { color: var(--accent); font-size: 11px; font-weight: 900; }
+        .journal-today-card strong, .journal-trend-card strong { display: block; margin-top: 7px; color: var(--text); font-size: 18px; overflow-wrap: anywhere; }
+        .journal-today-card p, .journal-trend-card p { margin: 7px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+        .journal-prompt-card { display: flex; flex-direction: column; gap: 10px; }
+        .journal-prompt-card > div { display: flex; flex-wrap: wrap; gap: 7px; }
+        .journal-prompt-card button { border: 1px solid var(--border); border-radius: 999px; background: var(--bg3); color: var(--text); padding: 7px 10px; font-size: 12px; font-weight: 800; cursor: pointer; }
         .journal-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(260px, 0.75fr); gap: 14px; align-items: start; }
         .journal-editor { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
         .journal-title-input { font-weight: 800; font-size: 16px !important; }
@@ -219,6 +265,7 @@ export default function Journal() {
           .journal-header { align-items: stretch; flex-direction: column; }
           .journal-date-controls { justify-content: flex-start; }
           .journal-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .journal-writing-board { grid-template-columns: 1fr; }
           .journal-grid { grid-template-columns: 1fr; }
         }
         @media (max-width: 560px) {

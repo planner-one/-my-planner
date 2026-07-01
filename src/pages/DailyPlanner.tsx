@@ -51,6 +51,13 @@ export default function DailyPlanner() {
     + dayCareerEvents.filter(event => event.status === 'completed' || event.status === 'cancelled').length
   const schedulePct = scheduleTotal === 0 ? 0 : Math.round((scheduleDone / scheduleTotal) * 100)
   const blocks = timeBlockData[selectedDate] ?? {}
+  const nextTodo = dayTodos.find(todo => !todo.done)
+  const nextSchedule = daySchedules.find(task => !task.done)
+  const nextCareerEvent = dayCareerEvents.find(event => event.status !== 'completed' && event.status !== 'cancelled')
+  const nextDeadline = dueTasks[0]?.name ?? dueProjects[0]?.name ?? dueGoals[0]?.name
+  const dayDoneUnits = todoDone + habitDone + scheduleDone
+  const dayTotalUnits = dayTodos.length + activeHabits.length + scheduleTotal
+  const dayPace = dayTotalUnits === 0 ? 0 : Math.round((dayDoneUnits / dayTotalUnits) * 100)
 
   const shiftDate = (days: number) => {
     setSelectedDate(toLocalDateKey(addLocalDays(dateObj, days)))
@@ -143,6 +150,21 @@ export default function DailyPlanner() {
         <Summary label="루틴" value={`${habitDone}/${activeHabits.length}`} pct={habitPct} />
         <Summary label="일정" value={String(scheduleTotal)} pct={schedulePct} />
         <Summary label="마감" value={String(deadlineTotal)} pct={deadlineTotal > 0 ? 100 : 0} />
+      </section>
+
+      <section className="daily-focus-board">
+        <article className="daily-pace-card">
+          <span>오늘 진행감</span>
+          <strong>{dayPace}%</strong>
+          <div className="daily-pace-bar"><i style={{ width: `${dayPace}%` }} /></div>
+        </article>
+        <FocusItem label="다음 Todo" title={nextTodo?.text ?? '남은 Todo 없음'} meta={nextTodo ? CATEGORY_LABEL[(nextTodo.category as typeof TODO_CATEGORIES[number]) ?? 'work'] ?? '업무' : '정리됨'} />
+        <FocusItem
+          label="다음 일정"
+          title={nextSchedule?.title ?? nextCareerEvent?.title ?? '예정 없음'}
+          meta={nextSchedule?.time ?? nextCareerEvent?.time ?? '시간 미지정'}
+        />
+        <FocusItem label="연결 마감" title={nextDeadline ?? '오늘 마감 없음'} meta={`${deadlineTotal}개`} />
       </section>
 
       <section className="daily-grid">
@@ -273,6 +295,14 @@ export default function DailyPlanner() {
         .daily-summary-card b { display: block; margin: 5px 0; font-size: 21px; }
         .daily-mini-progress { height: 6px; border-radius: 999px; background: var(--bg4); overflow: hidden; }
         .daily-mini-progress i { display: block; height: 100%; background: var(--accent); }
+        .daily-focus-board { display: grid; grid-template-columns: 150px repeat(3, minmax(0, 1fr)); gap: 10px; }
+        .daily-pace-card, .daily-focus-item { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 13px; min-width: 0; }
+        .daily-pace-card span, .daily-focus-item span { color: var(--accent); font-size: 11px; font-weight: 900; }
+        .daily-pace-card strong { display: block; margin: 7px 0; color: var(--text); font-size: 24px; }
+        .daily-pace-bar { height: 8px; border-radius: 999px; background: var(--bg4); overflow: hidden; }
+        .daily-pace-bar i { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
+        .daily-focus-item strong { display: block; margin-top: 7px; color: var(--text); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .daily-focus-item small { display: block; margin-top: 6px; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .daily-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
         .daily-panel { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
         .daily-panel h3 { margin: 0; font-size: 15px; }
@@ -305,7 +335,7 @@ export default function DailyPlanner() {
         @media (max-width: 900px) {
           .daily-header { align-items: stretch; flex-direction: column; }
           .daily-date-controls { justify-content: flex-start; }
-          .daily-grid, .daily-summary { grid-template-columns: 1fr; }
+          .daily-grid, .daily-summary, .daily-focus-board { grid-template-columns: 1fr; }
           .time-blocks { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
         @media (max-width: 560px) {
@@ -323,6 +353,16 @@ function Summary({ label, value, pct }: { label: string; value: string; pct: num
       <span>{label}</span>
       <b>{value}</b>
       <div className="daily-mini-progress"><i style={{ width: `${pct}%` }} /></div>
+    </article>
+  )
+}
+
+function FocusItem({ label, title, meta }: { label: string; title: string; meta: string }) {
+  return (
+    <article className="daily-focus-item">
+      <span>{label}</span>
+      <strong>{title}</strong>
+      <small>{meta}</small>
     </article>
   )
 }

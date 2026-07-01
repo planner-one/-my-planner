@@ -1,10 +1,15 @@
-import type { CareerEvent, Goal, Project, ScheduledTask, Task, Todo } from '../types'
+import type {
+  CareerEvent, Goal, JobPosting, PersonalApplication,
+  Project, ScheduledTask, Task, Todo,
+} from '../types'
 import { getCareerMilestones } from './careerEvents'
 
 export interface CalendarSources {
   todos: Todo[]
   scheduledTasks: ScheduledTask[]
   careerEvents: CareerEvent[]
+  personalApplications: PersonalApplication[]
+  jobPostings: JobPosting[]
   tasks: Task[]
   goals: Goal[]
   projects: Project[]
@@ -14,6 +19,8 @@ export interface CalendarLinkedItems {
   todos: Todo[]
   scheduled: ScheduledTask[]
   career: CareerEvent[]
+  personalApplications: PersonalApplication[]
+  jobPostings: JobPosting[]
   tasks: Task[]
   goals: Goal[]
   projects: Project[]
@@ -27,6 +34,12 @@ export function getCalendarLinkedItems(sources: CalendarSources, dateStr: string
     todos: sources.todos.filter(todo => todoBelongsToDate(todo, dateStr, todayStr)),
     scheduled: sources.scheduledTasks.filter(task => task.date === dateStr),
     career: sources.careerEvents.filter(event => getCareerMilestones(event, dateStr).length > 0),
+    personalApplications: sources.personalApplications.filter(item =>
+      [item.deadline, item.appliedDate, item.resultDate, item.startDate, item.endDate].includes(dateStr),
+    ),
+    jobPostings: sources.jobPostings.filter(item =>
+      [item.deadline, item.appliedDate, item.resultDate].includes(dateStr),
+    ),
     tasks: sources.tasks.filter(task => task.due === dateStr),
     goals: sources.goals.filter(goal => goal.due === dateStr),
     projects: sources.projects.filter(project => project.due === dateStr),
@@ -37,6 +50,8 @@ export function countCalendarLinkedItems(items: CalendarLinkedItems) {
   return items.todos.length
     + items.scheduled.length
     + items.career.length
+    + items.personalApplications.length
+    + items.jobPostings.length
     + items.tasks.length
     + items.goals.length
     + items.projects.length

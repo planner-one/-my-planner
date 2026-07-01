@@ -8,6 +8,7 @@ import LinkOrganizerModal from './LinkOrganizerModal'
 type PageId =
   | 'dashboard' | 'calendar' | 'habits' | 'tasks' | 'todos' | 'goals' | 'projects'
   | 'weekly' | 'daily' | 'notes' | 'journal' | 'profile' | 'inquiries' | 'print' | 'career'
+  | 'personalApplications' | 'jobPostings'
 
 type NavGroupId = 'core' | 'plan' | 'record' | 'system'
 type Theme = 'light' | 'dark' | 'coral' | 'blue'
@@ -84,8 +85,16 @@ const NAV_ITEMS: NavItem[] = [
     paths: ['M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z'],
   },
   {
-    id: 'career', label: '신청 관리', group: 'plan',
+    id: 'career', label: '기회 일정', group: 'plan',
     paths: ['M8 7V5a4 4 0 018 0v2', 'M3 7h18v13H3z', 'M3 12h18', 'M10 12v2h4v-2'],
+  },
+  {
+    id: 'personalApplications', label: '내 신청', group: 'plan',
+    paths: ['M4 4h16v16H4z', 'M8 8h8M8 12h8M8 16h5', 'M17 16l2 2 3-4'],
+  },
+  {
+    id: 'jobPostings', label: '지원 공고', group: 'plan',
+    paths: ['M3 7h18v13H3z', 'M8 7V5a4 4 0 018 0v2', 'M8 12h8M8 16h5'],
   },
   {
     id: 'weekly', label: '주간', group: 'plan',

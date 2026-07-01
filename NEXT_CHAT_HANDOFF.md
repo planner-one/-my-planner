@@ -1,14 +1,14 @@
 # 다음 채팅 인수인계
 
 _작성일: 2026-06-28_
-_갱신일: 2026-07-01 (v0.3.0 Workflow Visibility 보강 완료, 커밋 후 최신 `main` 기준)_
+_갱신일: 2026-07-01 (v0.3.2 Application Tracking 보강 진행, 커밋 전 로컬 변경 포함)_
 
 이 파일은 새 Codex 또는 Claude Code 세션에서 바로 이어 작업하기 위한 현재 상태 메모입니다.
 새 세션에서는 먼저 이 파일과 `AGENTS.md`, `PROGRESS.md`, `REQUIREMENTS.md`, `SCENARIOS.md`, `RELEASES.md`, `COPYRIGHT_AND_SERVICE_NOTES.md`, `LINK_IMPORT_GUIDE.md`를 읽고 시작하면 됩니다.
 
 ## 한 줄 요약
 
-플래너는 Firebase 기반 React/Vite/TypeScript 앱이며, SC-07 위젯 검토와 SC-08 사이드바 기능 페이지, SC-09 테마 정리, SC-10 태블릿/모바일 반응형 코드 QA까지 완료했습니다. 2026-06-30에는 플래너를 v0.2.0 Core Planner로 올리고, 앱 내 버전 표시와 릴리즈 문서 체계를 추가한 뒤 `4700c1e`로 push했습니다. 2026-07-01에는 Firebase Hosting 200 응답과 Firestore rules 배포본/로컬 파일 일치 여부를 확인했고, 오래된 Firestore rules 배포 상태를 최신 규칙으로 동기화했습니다. 저작권/서비스 보호 메모를 별도 문서로 분리했고, 링크 정리 1차 기반 기능과 정식 노트 보강을 구현했습니다. 현재는 v0.3.0 Workflow Visibility로 작업 흐름 위젯, 작업/프로젝트/목표 요약, 일일·주간 마감 연결을 보강했습니다.
+플래너는 Firebase 기반 React/Vite/TypeScript 앱이며, SC-07 위젯 검토와 SC-08 사이드바 기능 페이지, SC-09 테마 정리, SC-10 태블릿/모바일 반응형 코드 QA까지 완료했습니다. 2026-06-30에는 플래너를 v0.2.0 Core Planner로 올리고, 앱 내 버전 표시와 릴리즈 문서 체계를 추가한 뒤 `4700c1e`로 push했습니다. 2026-07-01에는 Firebase Hosting 200 응답과 Firestore rules 배포본/로컬 파일 일치 여부를 확인했고, 오래된 Firestore rules 배포 상태를 최신 규칙으로 동기화했습니다. 저작권/서비스 보호 메모를 별도 문서로 분리했고, 링크 정리 1차 기반 기능과 정식 노트 보강을 구현했습니다. v0.3.0에서는 작업 흐름 위젯, 작업/프로젝트/목표 요약, 일일·주간 마감 연결을 보강했고, v0.3.1에서는 주요 페이지 상단 실행/진행/기록 보드를 보강했습니다. 현재 로컬 변경은 v0.3.2 Application Tracking으로 내 신청과 지원 공고 모음 페이지, 새 데이터 필드, 캘린더 연결을 추가하는 작업입니다.
 
 ## 작업 위치와 원격
 
@@ -19,8 +19,8 @@ _갱신일: 2026-07-01 (v0.3.0 Workflow Visibility 보강 완료, 커밋 후 최
 - 배포 URL: `https://my-planner-487bd.web.app`
 - GitHub Pages는 사용하지 않습니다.
 - 현재 HEAD: 커밋 후 최신 `main`
-- 현재 앱 버전: `v0.3.0 Workflow Visibility`
-- 현재 로컬 브랜치 상태: v0.3.0 Workflow Visibility 커밋/푸시/배포 후 정리 기준
+- 현재 앱 버전: `v0.3.2 Application Tracking`
+- 현재 로컬 브랜치 상태: v0.3.2 Application Tracking 문서/페이지/데이터 모델 변경 미커밋 상태
 - 최근 push와 Firebase Hosting 배포는 `planner-one` 계정으로 성공했습니다.
 
 ## 2026-07-01 v0.3.0 반영 변경
@@ -44,9 +44,14 @@ _갱신일: 2026-07-01 (v0.3.0 Workflow Visibility 보강 완료, 커밋 후 최
 - `src/pages/Notes.tsx`, `src/types/index.ts`: 빠른 메모와 정식 노트 탭을 분리하고 정식 노트에 자동 날짜, 핵심 키워드, 참고 링크, 수정/삭제 흐름 추가
 - `src/widgets/WorkOverviewWidget.tsx`, `src/widgets/index.ts`, `src/pages/Dashboard.tsx`: 작업 관리, 프로젝트, 목표를 대시보드에서 함께 보는 작업 흐름 위젯 추가
 - `src/pages/Projects.tsx`, `src/pages/TaskTracker.tsx`, `src/pages/Goals.tsx`, `src/pages/DailyPlanner.tsx`, `src/pages/WeeklyPlanner.tsx`: 요약 지표와 마감/다음 액션 연결 보강
+- `src/pages/TaskTracker.tsx`, `src/pages/Projects.tsx`, `src/pages/Goals.tsx`, `src/pages/DailyPlanner.tsx`, `src/pages/WeeklyPlanner.tsx`, `src/pages/Journal.tsx`: v0.3.1 기준 실행 대기열, 다음 결과물, 오늘 집중, 일일/주간 운영 브리핑, 저널 작성 흐름 UI/UX 보강
+- `src/pages/PersonalApplications.tsx`, `src/pages/JobPostings.tsx`, `src/store/AppContext.tsx`, `src/types/index.ts`: 내 신청과 지원 공고 모음 페이지, `personalApplications`/`jobPostings` Firestore 저장 필드 추가
+- `src/pages/CalendarPage.tsx`, `src/widgets/CalendarWidget.tsx`, `src/utils/calendar.ts`: 내 신청과 지원 공고의 마감/신청/지원/결과/시작/종료 날짜를 캘린더 표시 항목으로 연결
 - `src/components/PageShell.tsx`: 사이드바/상단 헤더 링크 정리 버튼 추가
-- `src/pages/CareerEvents.tsx`: 신청관리 "링크에서 추가/불러오기" 연결
+- `src/pages/CareerEvents.tsx`: 기회 일정 "링크에서 추가/불러오기" 연결
 - `src/pages/TaskTracker.tsx`, `src/pages/Notes.tsx`, `src/types/index.ts`: `sourceUrl` 보존과 원본 링크 표시 보강
+- `src/App.tsx`, `vite.config.js`: 페이지 단위 `React.lazy` 로딩과 React/Firebase/그리드/차트/OCR vendor 청크 분리로 500KB 초과 번들 경고 제거
+- 추후 유료 AI 맞춤 기능을 위해 Todo, 작업, 목표, 프로젝트, 기회 일정, 내 신청, 지원 공고, 노트, 회고, 저널의 날짜·상태·카테고리·진행률·키워드·원본 링크·완료/변경 이력을 사용자별 구조화 데이터로 보존하는 기준을 추가했습니다.
 - Google Form처럼 로그인/쿠키/접근 권한이 필요한 링크는 실제 폼 내용을 읽을 수 없으므로, 본문 분석 불가 안내와 수동 보정 흐름으로 처리합니다.
 - 공개 공고/행사/교육/채용 페이지처럼 자동 정리에 적합한 링크 기준은 `LINK_IMPORT_GUIDE.md`를 참고합니다.
 - 이미지 포스터형 게시글은 현재 이미지 파일 업로드 OCR 또는 포스터에서 읽은 텍스트를 붙여넣어 초안을 만들 수 있습니다. 링크 페이지 내부 이미지를 자동으로 찾아 OCR/이미지 분석하는 기능은 추후 유료 기능 후보입니다.
@@ -164,7 +169,9 @@ firebase deploy --only hosting
 | `habits` | 습관 | ✅ 구현됨 |
 | `goals` | 목표 | ✅ 구현됨 |
 | `projects` | 프로젝트 | ✅ 구현됨 |
-| `career` | 신청 관리 | ✅ 구현됨 |
+| `career` | 기회 일정 | ✅ 구현됨 |
+| `personalApplications` | 내 신청 | ✅ 구현됨 |
+| `jobPostings` | 지원 공고 | ✅ 구현됨 |
 | `weekly` | 주간 | ✅ 구현됨 |
 | `daily` | 일일 | ✅ 구현됨 |
 | `notes` | 노트 | ✅ 구현됨 |
@@ -231,9 +238,9 @@ SC-07 위젯 검토는 완료입니다.
 
 ## 최근 핵심 기능 상태
 
-### 신청 관리와 캘린더
+### 기회 일정과 캘린더
 
-- 신청 관리 페이지: `src/pages/CareerEvents.tsx`
+- 기회 일정 페이지: `src/pages/CareerEvents.tsx`
 - 캘린더 위젯: `src/widgets/CalendarWidget.tsx`
 - 타입: `CareerEvent`
 - 구분: 채용설명회, 면접, 직무캠프, 교육/프로그램, 행사/세미나, 공모전, 지원사업, 기업 지원, 기타
@@ -241,10 +248,10 @@ SC-07 위젯 검토는 완료입니다.
 - 장소와 주소는 `장소 / 주소` 한 항목으로 통합
 - 관련 링크는 온라인/오프라인/혼합과 무관하게 항상 입력 가능
 - 캘린더는 신청 마감, 결과 발표, 운영, 대표 일정일을 구분 표시
-- 신청관리의 지난/예정 분리는 대표 일정일, 신청 마감, 결과 발표, 운영 시작/종료일 중 마지막 관련일 기준입니다.
-- 일일/주간 플래너도 같은 날짜 기준으로 신청/지원 일정을 표시합니다.
-- 신청관리 페이지는 검색, 구분/상태 필터, 요약 카드, 임박 일정, D-day, 카드 내 상태 변경을 제공합니다.
-- 캘린더 관리 페이지는 Todo, 예정 작업, 신청 일정, 작업 관리 마감, 목표/프로젝트 마감을 한 화면에서 필터링하고 선택일 agenda에서 확인/빠른 추가할 수 있습니다.
+- 기회 일정의 지난/예정 분리는 대표 일정일, 신청 마감, 결과 발표, 운영 시작/종료일 중 마지막 관련일 기준입니다.
+- 일일/주간 플래너도 같은 날짜 기준으로 기회 일정을 표시합니다.
+- 기회 일정 페이지는 검색, 구분/상태 필터, 요약 카드, 임박 일정, D-day, 카드 내 상태 변경을 제공합니다.
+- 캘린더 관리 페이지는 Todo, 예정 작업, 기회 일정, 내 신청/지원 공고 날짜, 작업 관리 마감, 목표/프로젝트 마감을 한 화면에서 필터링하고 선택일 agenda에서 확인/빠른 추가할 수 있습니다.
 
 ### 생산성 추이
 
