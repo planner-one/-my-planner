@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useApp } from '../store/AppContext'
 import type { Goal, TopGoal } from '../types'
-import { calculateGoalPct, createGoalId, getGoalDueText, getRemainingSteps, sortPriorityGoals } from '../utils/goals'
+import { calculateGoalPct, createGoalId, getGoalDueText, getRemainingSteps, getTodayTopGoals, sortPriorityGoals } from '../utils/goals'
+import { toLocalDateKey } from '../utils/date'
 
 const GOAL_STATUS = ['진행 중', '대기', '완료'] as const
 
@@ -11,10 +12,13 @@ export default function Goals() {
   const [newGoalName, setNewGoalName] = useState('')
 
   const TOP_GOAL_MAX = 6
+  const today = toLocalDateKey()
+  const todayTopGoals = getTodayTopGoals(topGoals, today)
+
   const addTopGoal = () => {
     const text = newTopGoal.trim()
-    if (!text || topGoals.length >= TOP_GOAL_MAX) return
-    const next: TopGoal = { id: `top-goal-${Date.now()}`, text, done: false }
+    if (!text || todayTopGoals.length >= TOP_GOAL_MAX) return
+    const next: TopGoal = { id: `top-goal-${Date.now()}`, text, done: false, date: today }
     setTopGoals(prev => [...prev, next])
     setNewTopGoal('')
   }
@@ -71,8 +75,8 @@ export default function Goals() {
   }
 
   const sortedGoals = sortPriorityGoals(goals)
-  const activeTopGoals = topGoals.slice(0, 3)
-  const focusDone = topGoals.filter(goal => goal.done).length
+  const activeTopGoals = todayTopGoals.slice(0, 3)
+  const focusDone = todayTopGoals.filter(goal => goal.done).length
   const activeGoals = goals.filter(goal => goal.status !== '완료' && goal.pct < 100)
   const completedGoals = goals.filter(goal => goal.status === '완료' || goal.pct >= 100)
   const avgGoalPct = activeGoals.length === 0
@@ -80,25 +84,25 @@ export default function Goals() {
     : Math.round(activeGoals.reduce((sum, goal) => sum + goal.pct, 0) / activeGoals.length)
   const nextGoal = sortedGoals.find(goal => goal.status !== '완료' && goal.pct < 100)
   const nextGoalStep = nextGoal?.steps.find(step => !step.done)
-  const focusPct = topGoals.length === 0 ? 0 : Math.round((focusDone / topGoals.length) * 100)
+  const focusPct = todayTopGoals.length === 0 ? 0 : Math.round((focusDone / todayTopGoals.length) * 100)
 
   return (
     <div className="goals-page">
       <section className="goals-heading">
         <div>
           <h2>목표 관리</h2>
-          <p>Todo는 실행 작업, 목표는 오늘 집중과 장기 목표 진행 관리로 나눠서 씁니다.</p>
+          <p>Todo는 오늘 끝낼 실행 작업, 오늘 방향은 하루 기준, 장기 목표는 진행률과 마감 기준으로 관리합니다.</p>
         </div>
       </section>
 
       <section className="goal-guide">
         <GuideCard title="Todo" text="오늘 끝낼 수 있는 구체적인 작업" example="강의 1개 듣기" />
-        <GuideCard title="오늘 집중" text="오늘 흐트러지지 않게 잡는 핵심 방향" example="시험 준비 흐름 만들기" />
+        <GuideCard title="오늘 방향" text="오늘만 붙잡을 기준입니다. 날짜가 바뀌면 새로 시작합니다." example="오늘은 이력서 수정에 집중" />
         <GuideCard title="장기 목표" text="마감일과 단계가 있는 진행 목표" example="자격증 합격 45%" />
       </section>
 
       <section className="goal-stats">
-        <GoalStat label="오늘 집중" value={`${focusDone}/${topGoals.length}`} sub="완료한 방향" />
+        <GoalStat label="오늘 방향" value={`${focusDone}/${todayTopGoals.length}`} sub="오늘 체크한 방향" />
         <GoalStat label="장기 목표 평균" value={`${avgGoalPct}%`} sub={`진행 ${activeGoals.length}개`} />
         <GoalStat label="완료 목표" value={`${completedGoals.length}개`} sub="누적 완료" />
         <GoalStat label="다음 목표" value={nextGoal ? `${nextGoal.pct}%` : '-'} sub={nextGoal?.name ?? '목표 없음'} />
@@ -108,23 +112,23 @@ export default function Goals() {
         <article className="goal-focus-board">
           <div className="goal-board-heading">
             <div>
-              <span>오늘 집중</span>
+              <span>오늘 방향</span>
               <h3>{focusPct}% 정리됨</h3>
             </div>
-            <b>{focusDone}/{topGoals.length}</b>
+            <b>{focusDone}/{todayTopGoals.length}</b>
           </div>
           <div className="goal-board-progress"><i style={{ width: `${focusPct}%` }} /></div>
           <div className="goal-focus-preview">
-            {topGoals.length === 0 ? (
-              <p className="empty-text">오늘 집중할 방향을 추가하세요.</p>
-            ) : topGoals.slice(0, 4).map(goal => (
+            {todayTopGoals.length === 0 ? (
+              <p className="empty-text">오늘만 볼 방향을 추가하세요.</p>
+            ) : todayTopGoals.slice(0, 4).map(goal => (
               <button
                 key={goal.id}
                 type="button"
                 className={goal.done ? 'goal-focus-chip done' : 'goal-focus-chip'}
                 onClick={() => updateTopGoal(goal.id, { done: !goal.done })}
               >
-                {goal.done ? '완료' : '집중'} · {goal.text}
+                {goal.done ? '완료' : '오늘'} · {goal.text}
               </button>
             ))}
           </div>
@@ -145,8 +149,8 @@ export default function Goals() {
         <div className="goal-panel">
           <div className="panel-heading">
             <div>
-              <h3>오늘 집중</h3>
-              <p>Todo가 아니라 오늘의 방향 1~3개를 적습니다.</p>
+              <h3>오늘 방향</h3>
+              <p>Todo가 아니라 오늘만 기준으로 삼을 방향 1~3개를 적습니다.</p>
             </div>
           </div>
           <div className="inline-add">
@@ -156,22 +160,22 @@ export default function Goals() {
               onKeyDown={event => {
                 if (event.key === 'Enter' && !event.nativeEvent.isComposing) addTopGoal()
               }}
-              disabled={topGoals.length >= TOP_GOAL_MAX}
-              placeholder={topGoals.length >= TOP_GOAL_MAX ? `최대 ${TOP_GOAL_MAX}개까지 추가할 수 있어요` : '예: 앱 출시 준비 흐름 잡기'}
+              disabled={todayTopGoals.length >= TOP_GOAL_MAX}
+              placeholder={todayTopGoals.length >= TOP_GOAL_MAX ? `오늘 방향은 최대 ${TOP_GOAL_MAX}개까지 추가할 수 있어요` : '예: 오늘은 이력서 수정에 집중'}
             />
-            <button type="button" onClick={addTopGoal} disabled={topGoals.length >= TOP_GOAL_MAX}>추가</button>
+            <button type="button" onClick={addTopGoal} disabled={todayTopGoals.length >= TOP_GOAL_MAX}>추가</button>
           </div>
           <div className="top-goal-list">
-            {topGoals.length === 0 ? (
-              <EmptyText text="오늘 집중할 방향을 추가하세요." />
-            ) : topGoals.map((goal, index) => (
+            {todayTopGoals.length === 0 ? (
+              <EmptyText text="오늘만 볼 방향을 추가하세요." />
+            ) : todayTopGoals.map(goal => (
               <div key={goal.id} className="top-goal-row">
                 <button
                   type="button"
                   onClick={() => updateTopGoal(goal.id, { done: !goal.done })}
                   className={goal.done ? 'check done' : 'check'}
                 >
-                  {goal.done ? '✓' : index + 1}
+                  {goal.done ? '✓' : '○'}
                 </button>
                 <input
                   value={goal.text}
@@ -274,11 +278,11 @@ export default function Goals() {
 
       {activeTopGoals.length > 0 && (
         <section className="goal-summary">
-          <h3>오늘의 방향</h3>
+          <h3>오늘 방향</h3>
           <div>
             {activeTopGoals.map(goal => (
               <span key={goal.id} className={goal.done ? 'summary-pill done' : 'summary-pill'}>
-                {goal.done ? '완료' : '집중'} · {goal.text}
+                {goal.done ? '완료' : '오늘'} · {goal.text}
               </span>
             ))}
           </div>

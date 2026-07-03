@@ -4,6 +4,7 @@ import {
 import { loadUserData, saveUserData } from '../services/userService'
 import { useAuth } from './AuthContext'
 import { toLocalDateKey } from '../utils/date'
+import { normalizeTopGoalsForToday } from '../utils/goals'
 import { HABITS_VERSION, isHabitScheduled, migrateHabits } from '../utils/habits'
 import { createDefaultCounters, migrateCounters } from '../utils/counters'
 import {
@@ -285,7 +286,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setTasks(d?.tasks ?? [])
       setGoals(d?.goals ?? [])
       setProjects(migrateProjects(d?.projects))
-      setTopGoals(d?.topGoals ?? [])
+      setTopGoals(normalizeTopGoalsForToday(d?.topGoals ?? []))
       setEnergy(d?.energy ?? 0)
       setCounters(migrateCounters(d?.counters))
       if (d?.quickMemos) {

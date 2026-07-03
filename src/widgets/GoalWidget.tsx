@@ -2,7 +2,8 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import { useApp } from '../store/AppContext'
 import { useRouter } from '../store/RouterContext'
 import { useWidgetSize } from '../hooks/useWidgetSize'
-import { sortPriorityGoals } from '../utils/goals'
+import { getTodayTopGoals, sortPriorityGoals } from '../utils/goals'
+import { toLocalDateKey } from '../utils/date'
 import QuickAddModal from '../components/QuickAddModal'
 import type { Goal, TopGoal } from '../types'
 
@@ -61,17 +62,18 @@ export default function GoalWidget() {
   const [draft, setDraft] = useState('')
   const [composing, setComposing] = useState(false)
 
+  const today = toLocalDateKey()
+  const todayTopGoals = getTodayTopGoals(topGoals, today)
   const compact = w > 0 && w < 340
-  const hasAnyGoal = topGoals.length > 0 || goals.length > 0
-  const atMax = topGoals.length >= TOP_GOAL_MAX
+  const hasAnyGoal = todayTopGoals.length > 0 || goals.length > 0
+  const atMax = todayTopGoals.length >= TOP_GOAL_MAX
 
-  // "오늘 집중"은 가로로 줄바꿈되는 한 줄 레이아웃이라 전부 표시 (최대 TOP_GOAL_MAX개)
-  // "목표"는 세로로 쌓이는 카드라 위젯 높이에 비례해 보여줄 개수를 동적으로 계산
+  // "오늘 방향"은 오늘 날짜에만 보이고, 장기 목표는 위젯 높이에 맞춰 보여준다.
   const itemH = compact ? 34 : 38
   const chrome = compact ? 90 : 105
   const goalSlots = h > 0 ? Math.max(1, Math.floor((h - chrome) / itemH)) : 3
 
-  const visibleTopGoals = topGoals
+  const visibleTopGoals = todayTopGoals
   const priorityGoals = sortPriorityGoals(goals).slice(0, goalSlots)
   const hiddenCount = Math.max(0, goals.length - priorityGoals.length)
 
@@ -79,7 +81,7 @@ export default function GoalWidget() {
     setTopGoals(prev => prev.map(goal => goal.id === id ? { ...goal, done: !goal.done } : goal))
   }
 
-  // 버튼 하나로 통합 — 모달 안에서 '오늘 집중'/'목표'를 선택
+  // 버튼 하나로 통합해서 모달 안에서 오늘 방향/장기 목표를 선택한다.
   const openModal = () => {
     setDraft('')
     setModal('top')
@@ -93,7 +95,7 @@ export default function GoalWidget() {
     if (!text) return
     if (modal === 'top') {
       if (atMax) return
-      const next: TopGoal = { id: `top-goal-${Date.now()}`, text, done: false }
+      const next: TopGoal = { id: `top-goal-${Date.now()}`, text, done: false, date: today }
       setTopGoals(prev => [...prev, next])
     } else if (modal === 'goal') {
       const next: Goal = {
@@ -118,7 +120,7 @@ export default function GoalWidget() {
     }}>
       {!hasAnyGoal ? (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center', justifyContent: 'center' }}>
-          <span style={{ color: 'var(--muted)', fontSize: 12 }}>오늘 집중과 목표를 추가하세요</span>
+          <span style={{ color: 'var(--muted)', fontSize: 12 }}>오늘 방향과 장기 목표를 추가하세요</span>
           <button type="button" onClick={openModal} style={addButtonStyle}>+ 추가</button>
         </div>
       ) : (
@@ -129,14 +131,14 @@ export default function GoalWidget() {
               onClick={() => setPage('goals')}
               style={{ display: 'flex', alignItems: 'baseline', gap: 6, border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', flexShrink: 0 }}
             >
-              <span style={{ color: 'var(--muted)', fontSize: 11, fontWeight: 800 }}>오늘 집중</span>
+              <span style={{ color: 'var(--muted)', fontSize: 11, fontWeight: 800 }}>오늘 방향</span>
               {visibleTopGoals.length > 0 && (
                 <span style={{ color: 'var(--accent)', fontSize: 11, fontWeight: 800 }}>
                   {visibleTopGoals.filter(goal => goal.done).length}/{visibleTopGoals.length}
                 </span>
               )}
             </button>
-            {visibleTopGoals.map((goal, index) => (
+            {visibleTopGoals.map(goal => (
               <button
                 key={goal.id}
                 type="button"
@@ -152,7 +154,7 @@ export default function GoalWidget() {
                 }}
               >
                 <span style={{ flexShrink: 0, fontSize: compact ? 12 : 13, fontWeight: 900 }}>
-                  {goal.done ? '✓' : index + 1}
+                  {goal.done ? '✓' : '○'}
                 </span>
                 <span style={{
                   minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis',
@@ -171,7 +173,7 @@ export default function GoalWidget() {
               onClick={() => setPage('goals')}
               style={{ flexShrink: 0, border: 'none', background: 'transparent', padding: 0, color: 'var(--muted)', fontSize: 11, fontWeight: 800, cursor: 'pointer', textAlign: 'left' }}
             >
-              목표
+              장기 목표
             </button>
             {priorityGoals.length > 0 && (
               <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -210,7 +212,7 @@ export default function GoalWidget() {
               onClick={() => setPage('goals')}
               style={{ border: 'none', background: 'transparent', color: 'var(--muted)', cursor: 'pointer', fontSize: 10, flexShrink: 0 }}
             >
-              목표 +{hiddenCount}개 더 보기
+              장기 목표 +{hiddenCount}개 더 보기
             </button>
           )}
         </>
@@ -225,14 +227,14 @@ export default function GoalWidget() {
               disabled={atMax}
               style={toggleButtonStyle(modal === 'top', atMax)}
             >
-              오늘 집중
+              오늘 방향
             </button>
             <button
               type="button"
               onClick={() => setModal('goal')}
               style={toggleButtonStyle(modal === 'goal', false)}
             >
-              목표
+              장기 목표
             </button>
           </div>
           <input
@@ -242,7 +244,7 @@ export default function GoalWidget() {
             onCompositionStart={() => setComposing(true)}
             onCompositionEnd={() => setComposing(false)}
             onKeyDown={e => { if (e.key === 'Enter' && !composing) submitModal() }}
-            placeholder={modal === 'top' ? '예: 시험 준비 흐름 만들기' : '예: 정보처리기사 합격'}
+            placeholder={modal === 'top' ? '예: 오늘은 이력서 수정에 집중' : '예: 정보처리기사 합격'}
             style={{
               border: '1px solid var(--border)', borderRadius: 8,
               background: 'var(--bg3)', color: 'var(--text)', fontSize: 14,

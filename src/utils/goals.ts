@@ -1,4 +1,5 @@
-import type { Goal, GoalStep } from '../types'
+import { toLocalDateKey } from './date'
+import type { Goal, GoalStep, TopGoal } from '../types'
 
 export const createGoalId = (): string => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
@@ -38,3 +39,15 @@ export const sortPriorityGoals = (goals: Goal[]): Goal[] =>
 
     return getRemainingSteps(b) - getRemainingSteps(a)
   })
+
+export const normalizeTopGoalsForToday = (
+  topGoals: TopGoal[] = [],
+  today = toLocalDateKey(),
+): TopGoal[] =>
+  topGoals.map(goal => goal.date ? goal : { ...goal, date: today })
+
+export const getTodayTopGoals = (
+  topGoals: TopGoal[] = [],
+  today = toLocalDateKey(),
+): TopGoal[] =>
+  topGoals.filter(goal => (goal.date ?? today) === today)

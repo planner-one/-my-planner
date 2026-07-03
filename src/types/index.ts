@@ -88,6 +88,7 @@ export interface TopGoal {
   id: string
   text: string
   done: boolean
+  date?: string
 }
 
 export type CounterPeriod = 'daily' | 'weekly' | 'total'

@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useApp } from '../store/AppContext'
 import { useRouter } from '../store/RouterContext'
 import { toLocalDateKey } from '../utils/date'
-import { sortPriorityGoals } from '../utils/goals'
+import { getTodayTopGoals, sortPriorityGoals } from '../utils/goals'
 import { sortProjects } from '../utils/projects'
 
 const daysUntil = (date?: string) => {
@@ -39,7 +39,8 @@ export default function WorkOverviewWidget() {
   const activeTasks = tasks.filter(task => !task.done && task.status !== '완료')
   const activeProjects = projects.filter(project => project.status !== '완료' && project.pct < 100)
   const activeGoals = goals.filter(goal => goal.status !== '완료' && goal.pct < 100)
-  const focusDone = topGoals.filter(goal => goal.done).length
+  const todayTopGoals = getTodayTopGoals(topGoals)
+  const focusDone = todayTopGoals.filter(goal => goal.done).length
   const projectAvg = activeProjects.length === 0
     ? 0
     : Math.round(activeProjects.reduce((sum, project) => sum + project.pct, 0) / activeProjects.length)
@@ -94,7 +95,7 @@ export default function WorkOverviewWidget() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 7, flexShrink: 0 }}>
         <Metric label="작업" value={activeTasks.length} sub="실행 대기" onClick={() => setPage('tasks')} />
         <Metric label="프로젝트" value={`${projectAvg}%`} sub={`${activeProjects.length}개 진행`} onClick={() => setPage('projects')} />
-        <Metric label="목표" value={`${goalAvg}%`} sub={`집중 ${focusDone}/${topGoals.length}`} onClick={() => setPage('goals')} />
+        <Metric label="목표" value={`${goalAvg}%`} sub={`오늘 방향 ${focusDone}/${todayTopGoals.length}`} onClick={() => setPage('goals')} />
       </div>
 
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
