@@ -132,8 +132,18 @@ export default function JobPostings() {
       setLinkImageUrls(pageTextResult.imageUrls)
       const usefulPageText = hasUsefulJobText(pageTextResult.text) ? pageTextResult.text : ''
       const manualText = [linkDraftText, form.imageText].filter(Boolean).join('\n')
-      const draft = buildJobPostingLinkDraft(normalizedUrl, [usefulPageText, manualText].filter(Boolean).join('\n'))
-      const hasDraft = Boolean(draft.company || draft.position || draft.deadline || draft.location || draft.employmentType || draft.keywords.length)
+      const draftText = [usefulPageText, manualText].filter(Boolean).join('\n')
+      const draft = buildJobPostingLinkDraft(normalizedUrl, draftText)
+      const hasReadableContent = Boolean(draftText.trim())
+      const hasExtractedDraft = hasReadableContent && Boolean(
+        draft.company ||
+        draft.position ||
+        draft.deadline ||
+        draft.location ||
+        draft.employmentType ||
+        draft.keywords.length ||
+        draft.note,
+      )
       setForm(previous => ({
         ...previous,
         sourceUrl: draft.sourceUrl ?? previous.sourceUrl,
@@ -141,27 +151,27 @@ export default function JobPostings() {
         status: previous.status === 'saved' ? 'preparing' : previous.status,
         company: !isPlaceholderCompany(previous.company)
           ? previous.company
-          : draft.company || previous.company || '기업 미정',
+          : hasReadableContent ? draft.company || previous.company || '기업 미정' : previous.company,
         position: !isPlaceholderPosition(previous.position)
           ? previous.position
-          : draft.position || previous.position || '공고 확인 필요',
-        deadline: previous.deadline || draft.deadline,
-        location: previous.location || draft.location,
-        employmentType: previous.employmentType || draft.employmentType,
-        keywords: joinTokens(mergeTokens(previous.keywords, draft.keywords)),
-        note: previous.note.trim() ? previous.note : draft.note,
+          : hasReadableContent ? draft.position || previous.position || '공고 확인 필요' : previous.position,
+        deadline: hasReadableContent ? previous.deadline || draft.deadline : previous.deadline,
+        location: hasReadableContent ? previous.location || draft.location : previous.location,
+        employmentType: hasReadableContent ? previous.employmentType || draft.employmentType : previous.employmentType,
+        keywords: hasReadableContent ? joinTokens(mergeTokens(previous.keywords, draft.keywords)) : previous.keywords,
+        note: hasReadableContent ? previous.note.trim() ? previous.note : draft.note : previous.note,
         nextAction: previous.nextAction || '공고 확인 후 지원서 맞춤 수정',
       }))
       const source = usefulPageText
         ? pageTextResult.source === 'reader' ? 'Reader로 읽은 링크 본문과 보조 텍스트' : '링크 본문과 보조 텍스트'
         : manualText ? '붙여넣은 공고 내용과 링크 주소' : '링크 주소'
       const imageNotice = pageTextResult.imageUrls.length ? ` 페이지 이미지 후보 ${pageTextResult.imageUrls.length}개도 찾았습니다.` : ''
-      setShowManualLinkText(!hasDraft || Boolean(linkDraftText.trim()))
-      setLinkDraftStatus(hasDraft
+      setShowManualLinkText(!hasExtractedDraft || Boolean(linkDraftText.trim()))
+      setLinkDraftStatus(hasExtractedDraft
         ? `${source}를 바탕으로 초안을 반영했습니다.${imageNotice}`
         : pageTextResult.imageUrls.length
           ? '링크 본문은 공고 텍스트로 읽지 못했지만 페이지 이미지 후보를 찾았습니다. 페이지 이미지 OCR을 시도해 보세요.'
-          : '링크 본문을 자동으로 읽지 못했습니다. 아래 페이지 내용 붙여넣기 칸에 공고 내용을 넣고 다시 반영하면 기업명, 직무, 기술스택까지 채웁니다.')
+          : '링크 주소만으로는 공고 본문을 추출하지 못했습니다. 아래 페이지 내용 붙여넣기 칸에 공고 내용을 넣고 다시 반영하면 기업명, 직무, 마감일, 조건을 채웁니다.')
     } catch {
       setLinkImageUrls([])
       setShowManualLinkText(false)
@@ -179,21 +189,23 @@ export default function JobPostings() {
       const pageTextResult = await getJobPostingPageText(normalizedUrl)
       setLinkImageUrls(pageTextResult.imageUrls)
       const usefulPageText = hasUsefulJobText(pageTextResult.text) ? pageTextResult.text : ''
-      const draft = buildJobPostingLinkDraft(normalizedUrl, [usefulPageText, item.imageText ?? ''].filter(Boolean).join('\n'))
+      const draftText = [usefulPageText, item.imageText ?? ''].filter(Boolean).join('\n')
+      const hasReadableContent = Boolean(draftText.trim())
+      const draft = buildJobPostingLinkDraft(normalizedUrl, draftText)
       updatePosting(item.id, {
         sourceUrl: draft.sourceUrl,
         platform: draft.platform,
-        company: !isPlaceholderCompany(item.company) ? item.company : draft.company || item.company || '기업 미정',
-        position: !isPlaceholderPosition(item.position) ? item.position : draft.position || item.position || '공고 확인 필요',
-        deadline: item.deadline || draft.deadline || undefined,
-        location: item.location || draft.location || undefined,
-        employmentType: item.employmentType || draft.employmentType || undefined,
-        keywords: mergeTokens(item.keywords, draft.keywords),
-        note: item.note || draft.note || undefined,
+        company: !isPlaceholderCompany(item.company) ? item.company : hasReadableContent ? draft.company || item.company || '기업 미정' : item.company,
+        position: !isPlaceholderPosition(item.position) ? item.position : hasReadableContent ? draft.position || item.position || '공고 확인 필요' : item.position,
+        deadline: hasReadableContent ? item.deadline || draft.deadline || undefined : item.deadline,
+        location: hasReadableContent ? item.location || draft.location || undefined : item.location,
+        employmentType: hasReadableContent ? item.employmentType || draft.employmentType || undefined : item.employmentType,
+        keywords: hasReadableContent ? mergeTokens(item.keywords, draft.keywords) : item.keywords,
+        note: hasReadableContent ? item.note || draft.note || undefined : item.note,
       })
       const source = usefulPageText
         ? pageTextResult.source === 'reader' ? 'Reader로 저장 공고 링크를 다시 분석했습니다.' : '저장 공고 링크 본문을 다시 분석했습니다.'
-        : '저장 공고 링크 주소와 기존 OCR 텍스트를 기준으로 다시 반영했습니다.'
+        : hasReadableContent ? '저장 공고 링크 주소와 기존 OCR 텍스트를 기준으로 다시 반영했습니다.' : '저장 공고 링크 본문을 추출하지 못했습니다. 공고 원문/OCR 칸을 채운 뒤 다시 반영해 주세요.'
       setLinkDraftStatus(pageTextResult.imageUrls.length ? `${source} 페이지 이미지 후보 ${pageTextResult.imageUrls.length}개도 찾았습니다.` : source)
     } catch {
       window.alert('올바른 공고 링크를 입력해 주세요.')

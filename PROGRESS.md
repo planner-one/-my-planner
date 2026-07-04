@@ -211,5 +211,6 @@ _마지막 업데이트: 2026-07-04_
 | 2026-07-04 | 설계 감사/문서 동기화 후 `npm run check:job-draft`, `npx tsc --noEmit`, `npm run build`, `git diff --check`, 충돌 마커 검색 통과 |
 | 2026-07-04 | KDB 인크루트 기업 도메인 공고가 직접 접근/HTTPS Reader에서 비는 문제를 확인하고, 로컬 Reader의 인크루트 `http` 대상 재시도와 한국산업은행 공고 라벨 파싱을 보강 |
 | 2026-07-04 | KDB 인크루트 Reader 보강 후 로컬 `/api/job-posting-page` 응답과 `npm run check:job-draft`, `npx tsc --noEmit`, `npm run build`, `git diff --check`, 충돌 마커 검색 통과 |
+| 2026-07-04 | 지원 공고 링크 초안이 본문 추출 없이 URL 슬러그만으로 성공 처리되던 흐름을 수정하고, `/api` 부재 시 브라우저 Reader fallback을 시도하도록 보강 |
 | 2026-07-04 | 오늘 할 일의 과거 미완료 `오늘로 올리기` 후 다음날 기록이 오래된 스냅샷으로 남을 수 있는 흐름을 검토하고, 기존 기록도 실제 Todo 상태와 다르면 자동 갱신하도록 보강 |
 | 2026-07-04 | 이후 날짜나 오늘 Todo에 이미 반영된 과거 미완료 항목은 다시 가져오기 후보에서 제외하고, `npm run check:todo-history` 회귀 체크를 추가 |

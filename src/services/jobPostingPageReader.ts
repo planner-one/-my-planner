@@ -1,3 +1,5 @@
+import { hasUsefulJobText } from '../utils/jobPostingDraft'
+
 export type JobPostingPageTextSource = 'direct' | 'reader' | 'none'
 
 export interface JobPostingPageTextResult {
@@ -16,6 +18,34 @@ const isReaderFirstHost = (url: string) => {
     return false
   }
 }
+
+const isIncruitHost = (url: string) => {
+  try {
+    const parsed = new URL(url)
+    return parsed.hostname === 'incruit.com' || parsed.hostname.endsWith('.incruit.com')
+  } catch {
+    return false
+  }
+}
+
+const getReaderTargetUrls = (url: string) => {
+  const targets = [url]
+  try {
+    if (isIncruitHost(url)) {
+      const parsed = new URL(url)
+      if (parsed.protocol === 'https:') {
+        parsed.protocol = 'http:'
+        targets.unshift(parsed.toString())
+      }
+    }
+  } catch {
+    // Keep the original URL as the only target.
+  }
+  return Array.from(new Set(targets))
+}
+
+const toReaderUrl = (url: string) =>
+  `https://r.jina.ai/http://${url}`
 
 const withTimeout = async <T,>(run: (signal: AbortSignal) => Promise<T>, timeoutMs = 7000) => {
   const controller = new AbortController()
@@ -49,6 +79,22 @@ const extractImageUrls = (doc: Document, baseUrl: string) =>
     })
     .filter((url, index, urls) => url && isLikelyContentImage(url) && urls.indexOf(url) === index)
     .slice(0, 8)
+
+const extractMarkdownImageUrls = (text: string, baseUrl: string) => {
+  const urls: string[] = []
+  const pushUrl = (raw: string) => {
+    try {
+      const imageUrl = new URL(raw.trim(), baseUrl).toString()
+      if (isLikelyContentImage(imageUrl) && !urls.includes(imageUrl)) urls.push(imageUrl)
+    } catch {
+      // Ignore malformed markdown image URLs.
+    }
+  }
+  for (const match of text.matchAll(/!\[[^\]]*]\(([^)\s]+)[^)]*\)/g)) {
+    pushUrl(match[1])
+  }
+  return urls.slice(0, 8)
+}
 
 const jsonValueToText = (value: unknown, results: string[] = []) => {
   if (!value || results.length >= 80) return results
@@ -127,25 +173,54 @@ const fetchSameOriginApiText = async (url: string): Promise<JobPostingPageTextRe
     }
   }, 12000)
 
+const fetchReaderResult = async (url: string): Promise<JobPostingPageTextResult> =>
+  withTimeout(async signal => {
+    const response = await fetch(toReaderUrl(url), {
+      signal,
+      credentials: 'omit',
+      headers: { accept: 'text/plain,*/*' },
+    })
+    if (!response.ok) return { text: '', source: 'none', imageUrls: [] }
+    const text = (await response.text()).slice(0, 30000)
+    return {
+      text,
+      source: 'reader',
+      imageUrls: extractMarkdownImageUrls(text, url),
+    }
+  }, 18000)
+
+const fetchReaderTargets = async (url: string) => {
+  for (const targetUrl of getReaderTargetUrls(url)) {
+    try {
+      const result = await fetchReaderResult(targetUrl)
+      if (result.imageUrls.length || hasUsefulJobText(result.text)) return result
+    } catch {
+      // Try the next reader target.
+    }
+  }
+  return { text: '', source: 'none', imageUrls: [] } satisfies JobPostingPageTextResult
+}
+
 export const getJobPostingPageText = async (url: string): Promise<JobPostingPageTextResult> => {
   try {
     const apiResult = await fetchSameOriginApiText(url)
-    if (apiResult.text.trim() || apiResult.imageUrls.length) return apiResult
+    if (apiResult.imageUrls.length || hasUsefulJobText(apiResult.text)) return apiResult
   } catch {
     // Local dev and future backend use /api first; production without that route falls back below.
   }
 
   const readWithReaderFirst = isReaderFirstHost(url)
-  if (readWithReaderFirst) return { text: '', source: 'none', imageUrls: [] }
+  if (readWithReaderFirst) return fetchReaderTargets(url)
 
   const readers: Array<() => Promise<JobPostingPageTextResult>> = [
     () => fetchDirectResult(url),
+    () => fetchReaderTargets(url),
   ]
 
   for (const read of readers) {
     try {
       const result = await read()
-      if (result.text.trim() || result.imageUrls.length) return result
+      if (result.imageUrls.length || hasUsefulJobText(result.text)) return result
     } catch {
       // Keep link analysis usable when a site blocks browser reads.
     }

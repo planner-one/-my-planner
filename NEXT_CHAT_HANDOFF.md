@@ -31,6 +31,7 @@ _갱신일: 2026-07-04 (설계 감사와 업데이트 스케줄 정리 기준)_
 - `UPDATE_SCHEDULE.md`: v0.3.11 문서/QA 기준, v0.3.12 UI System Pass, v0.3.13 플래너 흐름 구분, v0.3.14 데이터 품질/AI 준비, v0.4.0 운영 API 준비, v0.5.0 유료 AI 후보 순서 기록
 - 확인된 보완점: 운영 배포용 지원 공고 Reader API 부재, 실기기 반응형 QA 필요, 디자인 시스템 불균일, 자동 점검 스크립트 부족, 데이터 내보내기/삭제와 약관/개인정보 문서 필요
 - KDB 인크루트 링크 `https://kdb.incruit.com/hire/viewhire.asp?projectid=125`는 직접 접근 시 잘못된 경로 응답을 주지만, Reader가 `http://kdb.incruit.com/...` 대상으로 접근하면 한국산업은행 공고 본문을 읽을 수 있어 인크루트 `http` 대상 재시도를 추가했습니다.
+- 지원 공고 링크 초안은 이제 본문 추출 없이 URL 슬러그만 잡힌 경우를 성공으로 표시하지 않습니다. `/api/job-posting-page`가 없을 때는 브라우저 Reader fallback을 시도하고, 그래도 실패하면 수동 붙여넣기 안내를 표시합니다.
 - 다음 구현 후보는 `UPDATE_SCHEDULE.md`를 먼저 보고 사용자와 하나씩 확정합니다.
 
 ## 2026-07-01 v0.3.0 반영 변경
@@ -134,6 +135,7 @@ firebase deploy --only hosting
 - 2026-07-03 v0.3.10 Goal Focus Reset 후 `npm run check:job-draft`, `npx tsc --noEmit`, `npm run build`, `git diff --check`, 충돌 마커 검색 통과
 - 2026-07-04 설계 감사/문서 동기화 후 `npm run check:job-draft`, `npx tsc --noEmit`, `npm run build`, `git diff --check`, 충돌 마커 검색 통과
 - 2026-07-04 KDB 인크루트 Reader 보강 후 로컬 `/api/job-posting-page`가 `source: reader`로 한국산업은행 본문을 반환하는 것 확인, `npm run check:job-draft`, `npx tsc --noEmit`, `npm run build`, `git diff --check`, 충돌 마커 검색 통과
+- 2026-07-04 지원 공고 링크 초안 성공 판정/브라우저 Reader fallback 보강 후 `npm run check:job-draft`, `npx tsc --noEmit`, `npm run build` 통과
 
 주의:
 
