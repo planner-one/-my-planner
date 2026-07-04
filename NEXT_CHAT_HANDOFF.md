@@ -1,14 +1,14 @@
 # 다음 채팅 인수인계
 
 _작성일: 2026-06-28_
-_갱신일: 2026-07-03 (v0.3.10 Goal Focus Reset 보강 기준)_
+_갱신일: 2026-07-04 (설계 감사와 업데이트 스케줄 정리 기준)_
 
 이 파일은 새 Codex 또는 Claude Code 세션에서 바로 이어 작업하기 위한 현재 상태 메모입니다.
-새 세션에서는 먼저 이 파일과 `AGENTS.md`, `PROGRESS.md`, `REQUIREMENTS.md`, `SCENARIOS.md`, `RELEASES.md`, `COPYRIGHT_AND_SERVICE_NOTES.md`, `LINK_IMPORT_GUIDE.md`, `JOB_POSTING_LINK_READER.md`를 읽고 시작하면 됩니다.
+새 세션에서는 먼저 이 파일과 `AGENTS.md`, `PROGRESS.md`, `REQUIREMENTS.md`, `SCENARIOS.md`, `RELEASES.md`, `COPYRIGHT_AND_SERVICE_NOTES.md`, `LINK_IMPORT_GUIDE.md`, `JOB_POSTING_LINK_READER.md`, `PLANNER_SYSTEM_AUDIT_2026-07-04.md`, `UPDATE_SCHEDULE.md`를 읽고 시작하면 됩니다.
 
 ## 한 줄 요약
 
-플래너는 Firebase 기반 React/Vite/TypeScript 앱이며, SC-07 위젯 검토와 SC-08 사이드바 기능 페이지, SC-09 테마 정리, SC-10 태블릿/모바일 반응형 코드 QA까지 완료했습니다. 2026-06-30에는 플래너를 v0.2.0 Core Planner로 올리고, 앱 내 버전 표시와 릴리즈 문서 체계를 추가한 뒤 `4700c1e`로 push했습니다. 2026-07-01에는 Firebase Hosting 200 응답과 Firestore rules 배포본/로컬 파일 일치 여부를 확인했고, 오래된 Firestore rules 배포 상태를 최신 규칙으로 동기화했습니다. 저작권/서비스 보호 메모를 별도 문서로 분리했고, 링크 정리 1차 기반 기능과 정식 노트 보강을 구현했습니다. v0.3.0에서는 작업 흐름 위젯, 작업/프로젝트/목표 요약, 일일·주간 마감 연결을 보강했고, v0.3.1에서는 주요 페이지 상단 실행/진행/기록 보드를 보강했습니다. v0.3.2에서는 내 신청과 지원 공고 모음 페이지, 새 데이터 필드, 캘린더 연결을 추가했고, v0.3.3~v0.3.9에서는 지원 공고 링크 Reader와 사람인/원티드 파싱을 보강했습니다. v0.3.10에서는 목표 위젯/목표 페이지의 오늘 집중을 날짜별 오늘 방향으로 정리해, 체크된 항목이 다음날에도 그대로 남는 혼동과 미완료 번호 표시를 보정했습니다.
+플래너는 Firebase 기반 React/Vite/TypeScript 앱이며, SC-07 위젯 검토와 SC-08 사이드바 기능 페이지, SC-09 테마 정리, SC-10 태블릿/모바일 반응형 코드 QA까지 완료했습니다. v0.3.0~v0.3.2에서는 작업 흐름 위젯, 주요 페이지 UX, 내 신청/지원 공고/캘린더 연결을 보강했고, v0.3.3~v0.3.9에서는 지원 공고 링크 Reader와 사람인/원티드 파싱을 보강했습니다. v0.3.10에서는 목표 위젯/목표 페이지의 오늘 집중을 날짜별 오늘 방향으로 정리해, 체크된 항목이 다음날에도 그대로 남는 혼동과 미완료 번호 표시를 보정했습니다. 2026-07-04에는 현재 설계, 구현, 데이터 저장 구조를 `PLANNER_SYSTEM_AUDIT_2026-07-04.md`로 감사하고, 다음 개선 순서를 `UPDATE_SCHEDULE.md`로 정리했습니다.
 
 ## 작업 위치와 원격
 
@@ -18,10 +18,20 @@ _갱신일: 2026-07-03 (v0.3.10 Goal Focus Reset 보강 기준)_
 - 배포: Firebase Hosting
 - 배포 URL: `https://my-planner-487bd.web.app`
 - GitHub Pages는 사용하지 않습니다.
-- 현재 HEAD: v0.3.7 Job Draft Verification 커밋/푸시 완료 후 v0.3.9 Job Platform Parsing 작업 중
+- 현재 HEAD: `d339be2 fix: reset goal focus by date`
 - 현재 앱 버전: `v0.3.10 Goal Focus Reset`
-- 현재 로컬 브랜치 상태: v0.3.10 Goal Focus Reset 작업/검증 중, 커밋/푸시 전 확인 필요
+- 현재 로컬 브랜치 상태: 2026-07-04 설계 감사/업데이트 스케줄 문서화 작업 중, 커밋/푸시 전 사용자 확인 필요
 - 최근 push와 Firebase Hosting 배포는 `planner-one` 계정으로 성공했습니다.
+
+## 2026-07-04 설계 감사 반영
+
+현재 구조를 "모르는 게 없을 때까지" 확인하기 위한 기준 문서를 추가했습니다.
+
+- `PLANNER_SYSTEM_AUDIT_2026-07-04.md`: 페이지 17개, 위젯 15개, `UserData` 주요 필드, Firebase 저장 흐름, 로컬 Reader API와 배포 차이, 디자인/반응형 상태, 보완점 정리
+- `UPDATE_SCHEDULE.md`: v0.3.11 문서/QA 기준, v0.3.12 UI System Pass, v0.3.13 플래너 흐름 구분, v0.3.14 데이터 품질/AI 준비, v0.4.0 운영 API 준비, v0.5.0 유료 AI 후보 순서 기록
+- 확인된 보완점: 운영 배포용 지원 공고 Reader API 부재, 실기기 반응형 QA 필요, 디자인 시스템 불균일, 자동 점검 스크립트 부족, 데이터 내보내기/삭제와 약관/개인정보 문서 필요
+- KDB 인크루트 링크 `https://kdb.incruit.com/hire/viewhire.asp?projectid=125`는 직접 접근 시 잘못된 경로 응답을 주지만, Reader가 `http://kdb.incruit.com/...` 대상으로 접근하면 한국산업은행 공고 본문을 읽을 수 있어 인크루트 `http` 대상 재시도를 추가했습니다.
+- 다음 구현 후보는 `UPDATE_SCHEDULE.md`를 먼저 보고 사용자와 하나씩 확정합니다.
 
 ## 2026-07-01 v0.3.0 반영 변경
 
@@ -69,28 +79,18 @@ _갱신일: 2026-07-03 (v0.3.10 Goal Focus Reset 보강 기준)_
 ## 최근 커밋 흐름
 
 ```text
-ff31eef fix: add direct todo carryover from history
-d9683df feat: improve sidebar and todo carryover
-09ab803 feat: complete planner workflows
-6c4e51f docs: 인수인계 문서 최신 커밋·SC-08 진행 상태로 갱신
-23cc5b1 chore: 로컬 Claude 설정 파일 추적 해제
-25f07e1 docs: 다음 채팅 인수인계 문서 추가
-b39cf0e fix: 잘못 추가한 GitHub Pages 배포 설정 되돌림
-d2cb767 ci: GitHub Pages 자동 배포 워크플로우 추가
-12fe2f8 feat: 저널 위젯 제목 숨기고 이미지가 카드 전체를 채우도록 변경
-33d8060 fix: 이미지가 있으면 아래 중복 텍스트 제거, 이미지가 카드 전체 채움
-a3751a3 feat: 저널 위젯 타이틀 라벨 제거, 슬라이드 버튼을 이미지 위에 오버레이
-35fb3b2 feat: 저널 위젯 상태 텍스트 제거, 새로고침을 제목줄로 이동, 이미지 표시 지원 추가
-92a9b12 feat: 저널 위젯 웹훅 URL 고정, 설정 UI 제거
-f1d5cbe feat: 저널 위젯을 캐러셀(슬라이드) 형태로 변경
-1c7e4f3 fix: 저널 위젯이 title/link만 있는 RSS 형태 응답도 정상 표시하도록 수정
-3ac118b feat: 저널 알림 위젯 추가 (n8n 웹훅 연동)
-d086500 fix: 이번주/다음주 토글을 위치 헤더 줄로 통합
-57f19e0 feat: 날씨 이번주/다음주 토글을 카드 제목줄로 이동
-ccce664 feat: 위젯 추가 버튼 제목줄 통합, 날씨 과거/다음주 표시, 목표 위젯 표시 버그 수정
-4c1a9e1 feat: 목표·예정된 작업·일일 루틴 위젯 추가를 모달 방식으로 변경
-f131922 feat: 목표·예정된 작업·일일 루틴 위젯에 빠른 추가 입력 추가
-bf9dce7 feat: 작업 관리(TaskTracker) 페이지 구현
+d339be2 fix: reset goal focus by date
+f9b7e6d feat: improve job posting link parsing
+1b5f76e docs: update handoff after job draft fix
+60f6a4b fix: verify job posting draft parsing
+2e778f3 fix: improve job posting draft accuracy
+0f81eb1 fix: parse pasted job posting content
+782d030 fix: support company job posting links
+38380df feat: add job posting link drafts
+cf0249f feat: add application tracking and optimize bundles
+1c1a9cd feat: improve workflow visibility
+1d8653b feat: improve formal notes page
+83942dc feat: add link organizer OCR and favicon
 ```
 
 ## 사용자 작업 방식
@@ -130,6 +130,10 @@ firebase deploy --only hosting
 - 2026-06-30 Todo 과거 미완료 가져오기 개선 후 `npx tsc --noEmit`, `npm run build`, `git diff --check`, 충돌 마커 검색, 로컬 dev 서버 5182 HTTP 200 확인 통과
 - 2026-06-30 Todo 기록 보정 화면 직접 올리기 개선 후 `npx tsc --noEmit`, `npm run build`, `git diff --check`, 충돌 마커 검색, 로컬 dev 서버 5182 HTTP 200 확인 통과
 - 2026-06-30 v0.2.0 버전 정리 후 `npx tsc --noEmit`, `npm run build`, `git diff --check`, 충돌 마커 검색, 로컬 dev 서버 5182 HTTP 200 확인 통과
+- 2026-07-01 지원 공고 Reader/파서 보강 후 `npm run check:job-draft`, `npx tsc --noEmit`, `npm run build`, `git diff --check`, 충돌 마커 검색 통과
+- 2026-07-03 v0.3.10 Goal Focus Reset 후 `npm run check:job-draft`, `npx tsc --noEmit`, `npm run build`, `git diff --check`, 충돌 마커 검색 통과
+- 2026-07-04 설계 감사/문서 동기화 후 `npm run check:job-draft`, `npx tsc --noEmit`, `npm run build`, `git diff --check`, 충돌 마커 검색 통과
+- 2026-07-04 KDB 인크루트 Reader 보강 후 로컬 `/api/job-posting-page`가 `source: reader`로 한국산업은행 본문을 반환하는 것 확인, `npm run check:job-draft`, `npx tsc --noEmit`, `npm run build`, `git diff --check`, 충돌 마커 검색 통과
 
 주의:
 
@@ -277,6 +281,7 @@ SC-07 위젯 검토는 완료입니다.
 - 날짜별 기록 저장, 보정, 누락 항목 추가, 잘못된 항목 제거, 휴지통/복원/영구 삭제 구현
 - 오늘 미완료 항목은 오늘 결과를 저장한 뒤 다음날 Todo로 넘길 수 있습니다.
 - 과거 Todo 기록의 미완료 항목은 오늘 Todo로 다시 가져올 수 있습니다.
+- 2026-07-04 보강: 이미 존재하는 날짜별 기록도 실제 Todo 상태와 다르면 자동 갱신하고, 이후 날짜나 오늘 Todo에 이미 반영된 과거 미완료 항목은 다시 가져오기 후보에서 제외합니다.
 
 ### 일일 루틴
 

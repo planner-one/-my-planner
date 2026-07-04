@@ -2,6 +2,14 @@ import { useState, useRef, useEffect } from 'react'
 import { useApp } from '../store/AppContext'
 import type { DeletedTodoDailyResult, Todo, TodoCorrection, TodoDailyResult } from '../types'
 import { addLocalDays, toLocalDateKey } from '../utils/date'
+import {
+  buildTodoDailyResult,
+  getIncompleteTodos,
+  getTodoCarryKey,
+  getTodoCategory,
+  getUnresolvedIncompleteTodos,
+  hasLaterTodoOccurrence,
+} from '../utils/todos'
 
 type Category = 'work' | 'personal' | 'study'
 type FilterType = 'all' | Category
@@ -13,8 +21,7 @@ const CATEGORY_CONFIG: Record<Category, { label: string; color: string }> = {
   study:    { label: '공부', color: '#8E44AD' },
 }
 
-const DEFAULT_CATEGORY: Category = 'work'
-const cat = (t: Todo): Category => (t.category as Category) ?? DEFAULT_CATEGORY
+const cat = (t: Todo): Category => getTodoCategory(t)
 
 function Badge({ category }: { category: Category }) {
   const cfg = CATEGORY_CONFIG[category]
@@ -130,17 +137,7 @@ export default function TodoPage() {
   const cancelEdit = () => setEditId(null)
 
   const saveTodayResult = async () => {
-    const items = todayItems.map(t => ({ ...t, date: today }))
-    const completed = items.filter(t => t.done).length
-    const result: TodoDailyResult = {
-      date: today,
-      total: items.length,
-      done: completed,
-      completionRate: items.length === 0 ? 0 : Math.round((completed / items.length) * 100),
-      savedAt: new Date().toISOString(),
-      source: 'manual',
-      items,
-    }
+    const result = buildTodoDailyResult(today, todayItems, 'manual')
     const nextHistory = [result, ...todoHistory.filter(item => item.date !== today)]
       .sort((a, b) => b.date.localeCompare(a.date))
     const nextTrash = todoHistoryTrash.filter(item => item.date !== today)
@@ -158,25 +155,30 @@ export default function TodoPage() {
     window.setTimeout(() => setSaveMessage(''), 2000)
   }
 
-  const todoCarryKey = (todo: Todo) =>
-    `${todo.text.trim().toLowerCase()}::${cat(todo)}`
-
   const getIncompleteItems = (items: Todo[]) =>
-    items.filter(item => !item.done)
+    getIncompleteTodos(items)
+
+  const getUnresolvedIncompleteItems = (sourceDate: string, items: Todo[]) =>
+    getUnresolvedIncompleteTodos({ sourceDate, items, today, todoHistory, todos })
 
   const getImportableItems = (
     items: Todo[],
-    existingKeys = new Set(todayItems.map(todoCarryKey))
-  ) => getIncompleteItems(items)
-    .filter(todo => !existingKeys.has(todoCarryKey(todo)))
+    existingKeys = new Set(todayItems.map(getTodoCarryKey)),
+    sourceDate?: string,
+  ) => {
+    const candidates = sourceDate
+      ? getUnresolvedIncompleteItems(sourceDate, items)
+      : getIncompleteItems(items)
+    return candidates.filter(todo => !existingKeys.has(getTodoCarryKey(todo)))
+  }
 
   const getIncompleteHistoryItems = (result: TodoDailyResult) =>
-    getIncompleteItems(result.items)
+    getUnresolvedIncompleteItems(result.date, result.items)
 
   const getImportableHistoryItems = (
     result: TodoDailyResult,
-    existingKeys = new Set(todayItems.map(todoCarryKey))
-  ) => getImportableItems(result.items, existingKeys)
+    existingKeys = new Set(todayItems.map(getTodoCarryKey))
+  ) => getImportableItems(result.items, existingKeys, result.date)
 
   const pastIncompleteResults = todoHistory
     .filter(result => result.date !== today)
@@ -203,10 +205,10 @@ export default function TodoPage() {
     const tomorrowKeys = new Set(
       todos
         .filter(todo => todo.date === tomorrow)
-        .map(todoCarryKey)
+        .map(getTodoCarryKey)
     )
     const carried = todayIncomplete
-      .filter(todo => !tomorrowKeys.has(todoCarryKey(todo)))
+      .filter(todo => !tomorrowKeys.has(getTodoCarryKey(todo)))
       .map((todo, index): Todo => ({
         ...todo,
         id: `carry-${Date.now()}-${index}`,
@@ -214,17 +216,7 @@ export default function TodoPage() {
         date: tomorrow,
       }))
 
-    const items = todayItems.map(t => ({ ...t, date: today }))
-    const completed = items.filter(t => t.done).length
-    const result: TodoDailyResult = {
-      date: today,
-      total: items.length,
-      done: completed,
-      completionRate: items.length === 0 ? 0 : Math.round((completed / items.length) * 100),
-      savedAt: new Date().toISOString(),
-      source: 'manual',
-      items,
-    }
+    const result = buildTodoDailyResult(today, todayItems, 'manual')
     const nextHistory = [result, ...todoHistory.filter(item => item.date !== today)]
       .sort((a, b) => b.date.localeCompare(a.date))
     const nextTrash = todoHistoryTrash.filter(item => item.date !== today)
@@ -254,8 +246,14 @@ export default function TodoPage() {
       window.setTimeout(() => setSaveMessage(''), 2000)
       return
     }
-    const todayKeys = new Set(todayItems.map(todoCarryKey))
-    const carried = getImportableItems(sourceItems, todayKeys)
+    const unresolved = getUnresolvedIncompleteItems(sourceDate, sourceItems)
+    if (unresolved.length === 0) {
+      setSaveMessage('이미 이후 날짜나 오늘 할 일에 반영된 항목입니다.')
+      window.setTimeout(() => setSaveMessage(''), 2400)
+      return
+    }
+    const todayKeys = new Set(todayItems.map(getTodoCarryKey))
+    const carried = getImportableItems(sourceItems, todayKeys, sourceDate)
       .map((todo, index): Todo => ({
         ...todo,
         id: `history-carry-${Date.now()}-${index}`,
@@ -287,14 +285,14 @@ export default function TodoPage() {
       return
     }
 
-    const todayKeys = new Set(todayItems.map(todoCarryKey))
+    const todayKeys = new Set(todayItems.map(getTodoCarryKey))
     const timestamp = Date.now()
     const carried: Todo[] = []
     let duplicateCount = 0
 
     pastIncompleteResults.forEach(({ incomplete }) => {
       incomplete.forEach(todo => {
-        const key = todoCarryKey(todo)
+        const key = getTodoCarryKey(todo)
         if (todayKeys.has(key)) {
           duplicateCount += 1
           return
@@ -759,10 +757,10 @@ export default function TodoPage() {
             }}>
               <div style={{ minWidth: 0 }}>
                 <strong style={{ display: 'block', fontSize: 13, color: 'var(--text)' }}>
-                  지난 기록에 미완료 Todo {pastIncompleteTotal}개가 남아 있어요.
+                  지난 기록에 다시 올릴 미완료 Todo {pastIncompleteTotal}개가 남아 있어요.
                 </strong>
                 <span style={{ display: 'block', marginTop: 2, fontSize: 11, color: 'var(--muted)' }}>
-                  오늘 Todo에 없는 항목만 오늘 날짜로 가져옵니다. 지난 기록은 그대로 보존됩니다.
+                  이후 날짜나 오늘 Todo에 이미 반영된 항목은 제외하고 가져옵니다. 지난 기록은 그대로 보존됩니다.
                 </span>
               </div>
               <button
@@ -833,7 +831,8 @@ export default function TodoPage() {
         ) : todoHistory.map(result => {
           const visibleItems = correctionDate === result.date ? correctionItems : result.items
           const visibleIncomplete = getIncompleteItems(visibleItems)
-          const visibleImportable = getImportableItems(visibleItems)
+          const visibleUnresolved = getUnresolvedIncompleteItems(result.date, visibleItems)
+          const visibleImportable = getImportableItems(visibleItems, undefined, result.date)
           return (
           <details key={result.date} style={{
             borderTop: '1px solid var(--border)',
@@ -876,6 +875,9 @@ export default function TodoPage() {
                 }}>
                   <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600 }}>
                     이 날짜에 체크 안 된 항목 {visibleIncomplete.length}개가 남아 있습니다.
+                    {visibleUnresolved.length !== visibleIncomplete.length
+                      ? ` 이 중 ${visibleIncomplete.length - visibleUnresolved.length}개는 이후 날짜에 반영됐습니다.`
+                      : ''}
                   </span>
                   <button
                     type="button"
@@ -893,7 +895,9 @@ export default function TodoPage() {
                       opacity: visibleImportable.length === 0 ? 0.55 : 1,
                     }}
                   >
-                    {visibleImportable.length === 0
+                    {visibleUnresolved.length === 0
+                      ? '이후 날짜에 반영됨'
+                      : visibleImportable.length === 0
                       ? '오늘 할 일에 이미 있음'
                       : `체크 안 된 항목 ${visibleImportable.length}개 오늘 할 일로 올리기`}
                   </button>
@@ -924,7 +928,14 @@ export default function TodoPage() {
                   )}
                 </div>
               ) : visibleItems.map(item => {
-                const itemImportable = getImportableItems([item]).length > 0
+                const itemHandledLater = !item.done && hasLaterTodoOccurrence({
+                  sourceDate: result.date,
+                  todo: item,
+                  today,
+                  todoHistory,
+                  todos,
+                })
+                const itemImportable = getImportableItems([item], undefined, result.date).length > 0
                 return (
                 <label key={item.id} style={{
                   display: 'flex', alignItems: 'center', gap: 8,
@@ -979,7 +990,7 @@ export default function TodoPage() {
                         opacity: itemImportable ? 1 : 0.55,
                       }}
                     >
-                      {itemImportable ? '오늘로 올리기' : '이미 오늘에 있음'}
+                      {itemImportable ? '오늘로 올리기' : itemHandledLater ? '이후 반영됨' : '이미 오늘에 있음'}
                     </button>
                   )}
                   {correctionDate === result.date && (

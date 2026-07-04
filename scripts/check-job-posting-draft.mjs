@@ -184,6 +184,36 @@ Secure SDLC, Threat Modeling 실무 경험
 <저작권자 (주)원티드랩. 무단전재-재배포금지>
 `
 
+const incruitKdbReaderText = `
+Title: 한국산업은행 채용정보
+
+### 채용예정인원 :120명 내외
+
+### 채용구분 :임시고용인력
+
+### 담당직무 :은행업무 지원
+
+### 응시자격
+
+공통
+연령 : 채용예정일 기준 만 34세 이하인 자
+학력 및 전공에 따른 응시자격 제한 없음
+
+### 주요 근무조건 및 보수
+
+계약기간 : 2026. 09. 01. ∼ 2026. 11. 20. (예정)
+근무시간 : 주 40시간, 1일 8시간 근무 (09:00 ∼ 18:00)
+보수수준 : 월 216만원 (4대보험 및 세금 포함)
+근 무 지 : 본점, 국내지점, KDB Digital Square
+
+### 채용일정
+
+지원서 접수 : 접수기간 : 2026. 06. 25. (목) 17:00 ∼ 07. 09. (목) 16:00
+서류심사 합격자 발표(예정) : 2026. 07. 24. (금)
+면접일자(예정) : 2026. 08월초
+입 행 : 2026. 09. 01. (화) 입행(예정)
+`
+
 const linkOnly = buildJobPostingLinkDraft(googleSitesUrl)
 assert.equal(linkOnly.platform, 'company')
 assert.equal(linkOnly.company, '')
@@ -251,6 +281,17 @@ assert.equal(wantedDraft.note.includes('원티드랩'), false)
 const incruitDraft = buildJobPostingLinkDraft(incruitUrl)
 assert.equal(incruitDraft.platform, 'incruit')
 assert.equal(incruitDraft.company, 'KDB')
+
+const incruitKdbDraft = buildJobPostingLinkDraft(incruitUrl, incruitKdbReaderText)
+assert.equal(incruitKdbDraft.platform, 'incruit')
+assert.equal(incruitKdbDraft.company, '한국산업은행')
+assert.equal(incruitKdbDraft.position, '은행업무 지원')
+assert.equal(incruitKdbDraft.deadline, '2026-07-09')
+assert.equal(incruitKdbDraft.location, '본점, 국내지점, KDB Digital Square')
+assert.equal(incruitKdbDraft.employmentType, '임시고용인력')
+assert.ok(incruitKdbDraft.note.includes('월 216만원'))
+assert.ok(incruitKdbDraft.note.includes('지원 자격'))
+assert.equal(hasUsefulJobText(incruitKdbReaderText), true)
 
 assert.equal(detectJobPlatform(incruitUrl), 'incruit')
 assert.equal(hasUsefulJobText('Google Sites home cor nextsystem authuser'), false)

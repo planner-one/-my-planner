@@ -97,7 +97,7 @@ const COMPANY_SLUG_LABELS: Record<string, string> = {
 }
 
 const JOB_CONTENT_HINTS =
-  /기업명|회사명|기관명|채용\s*직무|모집\s*직무|모집\s*부문|포지션|주요\s*업무|세부\s*업무|담당업무|기술스택|기술\s*스택|스킬|채용\s*인원|연봉|급여|고용형태|근무형태|지원\s*자격|자격요건|우대사항|소재지|근무지|근무\s*지역|사업내용|핵심\s*정보|접수\s*기간|마감일|원티드|사람인|블록체인|보안|프론트엔드|백엔드|개발자|엔지니어|engineer|developer/i
+  /기업명|회사명|기관명|채용\s*직무|담당\s*직무|모집\s*직무|모집\s*부문|포지션|주요\s*업무|세부\s*업무|담당업무|기술스택|기술\s*스택|스킬|채용\s*인원|채용예정인원|연봉|급여|보수\s*수준|고용형태|근무형태|채용\s*구분|지원\s*자격|자격요건|응시\s*자격|우대사항|소재지|근무지|근\s*무\s*지|근무\s*지역|사업내용|핵심\s*정보|접수\s*기간|지원서\s*접수|마감일|채용\s*일정|원티드|사람인|블록체인|보안|프론트엔드|백엔드|개발자|엔지니어|engineer|developer/i
 
 export const normalizeJobLine = (value: string) =>
   value
@@ -109,7 +109,7 @@ export const normalizeJobLine = (value: string) =>
     .replace(/\*\*/g, ' ')
     .replace(/([가-힣A-Za-z])#/g, '$1 ')
     .replace(
-      /(경력|학력|근무형태|근무\s*형태|우대사항|급여|근무일시|근무지역|근무\s*지역|시작일|마감일|지원방법|접수양식|대표자명|기업형태|업종|사원수|설립일|홈페이지|기업주소|채용\s*직무|모집\s*직무|모집\s*부문|주요업무|주요\s*업무|자격요건|기술스택|기술\s*스택|포지션|근무지위치|접수기간)/g,
+      /(경력|학력|근무형태|근무\s*형태|채용\s*구분|우대사항|급여|보수\s*수준|근무일시|근무지역|근무\s*지역|근무지|근\s*무\s*지|시작일|마감일|지원방법|접수양식|대표자명|기업형태|업종|사원수|설립일|홈페이지|기업주소|채용\s*직무|담당\s*직무|모집\s*직무|모집\s*부문|주요업무|주요\s*업무|자격요건|응시\s*자격|기술스택|기술\s*스택|포지션|근무지위치|접수기간|지원서\s*접수|채용\s*일정)/g,
       ' $1 ',
     )
     .replace(/\s+/g, ' ')
@@ -224,21 +224,30 @@ const inferFromUrl = (url: string) => {
   }
 }
 
-const parseDate = (text: string) => {
-  const match = text.match(/(20\d{2})[.\-/년\s]*(\d{1,2})[.\-/월\s]*(\d{1,2})/)
-    ?? text.match(/(\d{1,2})[.\-/월\s]*(\d{1,2})[일]?/)
-  if (!match) return ''
+const formatDate = (year: number, month: number, day: number) => {
   const now = new Date()
-  const year = match.length === 4 ? Number(match[1]) : now.getFullYear()
-  const month = Number(match[match.length === 4 ? 2 : 1])
-  const day = Number(match[match.length === 4 ? 3 : 2])
-  if (!month || !day) return ''
-  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  const safeYear = year || now.getFullYear()
+  if (!month || !day || month < 1 || month > 12 || day < 1 || day > 31) return ''
+  return `${safeYear}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }
+
+const parseDates = (text: string) => {
+  const dates: string[] = []
+  let lastYear = new Date().getFullYear()
+  for (const match of text.matchAll(/(?:(20\d{2})[.\-/년\s]*)?(\d{1,2})[.\-/월\s]+(\d{1,2})[일]?/g)) {
+    if (match[1]) lastYear = Number(match[1])
+    const parsed = formatDate(lastYear, Number(match[2]), Number(match[3]))
+    if (parsed) dates.push(parsed)
+  }
+  return dates
+}
+
+const parseDate = (text: string) =>
+  parseDates(text)[0] ?? ''
 
 const inferDeadline = (text: string) => {
   const lines = text.split(/\n+/).map(line => normalizeJobLine(line)).filter(Boolean)
-  const deadlineLabel = /마감|접수\s*기간|지원\s*기간|모집\s*기간|서류\s*접수|채용\s*기간|공고\s*기간|신청\s*기간/i
+  const deadlineLabel = /마감|접수\s*기간|지원서\s*접수|지원\s*기간|모집\s*기간|서류\s*접수|채용\s*기간|공고\s*기간|신청\s*기간/i
   for (const line of lines) {
     const match = line.match(/마감일?|마감\s*기한/i)
     if (!match || match.index === undefined) continue
@@ -248,7 +257,11 @@ const inferDeadline = (text: string) => {
   for (let index = 0; index < lines.length; index += 1) {
     if (!deadlineLabel.test(lines[index])) continue
     const nearby = [lines[index], lines[index + 1] ?? '', lines[index + 2] ?? ''].join(' ')
-    const parsed = parseDate(nearby)
+    const sameLineDates = parseDates(lines[index])
+    const dates = sameLineDates.length ? sameLineDates : parseDates(nearby)
+    const parsed = /접수\s*기간|지원서\s*접수|지원\s*기간|모집\s*기간|서류\s*접수|채용\s*기간|공고\s*기간|신청\s*기간/i.test(nearby)
+      ? dates[dates.length - 1]
+      : dates[0]
     if (parsed) return parsed
   }
   return ''
@@ -262,7 +275,7 @@ const inferKeywords = (text: string) =>
 
 const stripFieldLabel = (value: string) => {
   const stripped = value.replace(
-    /^(Title|기업명|회사명|기관명|소재지|주소|근무지|근무\s*지역|근무지역|지역|사업내용|홈페이지|연혁|재직\s*인원|채용\s*직무\s*\/?\s*분야|모집\s*직무|모집\s*부문|모집\s*분야|포지션명|포지션|직무명|직무|분야|주요업무|주요\s*업무|세부\s*업무\s*내용\s*및\s*기술스택|세부\s*업무|담당업무|기술스택|기술\s*스택|스킬|Skill|채용\s*인원|모집\s*인원|연봉|급여|고용형태|근무형태|채용\s*우대사항|우대사항|지원\s*자격|자격요건|복리후생|기업문화|근무지위치|접수기간\s*및\s*방법|접수기간)(?:\s*\([^)]*\))?\s*[:：-]?\s*/i,
+    /^(Title|기업명|회사명|기관명|소재지|주소|근무지|근\s*무\s*지|근무\s*지역|근무지역|지역|사업내용|홈페이지|연혁|재직\s*인원|채용\s*직무\s*\/?\s*분야|담당\s*직무|모집\s*직무|모집\s*부문|모집\s*분야|포지션명|포지션|직무명|직무|분야|주요업무|주요\s*업무|세부\s*업무\s*내용\s*및\s*기술스택|세부\s*업무|담당업무|기술스택|기술\s*스택|스킬|Skill|채용\s*인원|채용예정인원|모집\s*인원|연봉|급여|보수\s*수준|고용형태|근무형태|채용\s*구분|채용\s*우대사항|우대사항|지원\s*자격|자격요건|응시\s*자격|복리후생|기업문화|근무지위치|접수기간\s*및\s*방법|접수기간|지원서\s*접수|채용\s*일정)(?:\s*\([^)]*\))?\s*[:：-]?\s*/i,
     '',
   ).trim()
   return /^\([^)]{1,30}\)$/.test(stripped) ? '' : stripped
@@ -282,6 +295,8 @@ const extractCompanyName = (line: string) => {
     .reverse()
   const picked = candidates.find(candidate => /주식회사|\(주\)|㈜/.test(candidate) && candidate.length <= 60)
   if (picked) return picked
+  const titleCompany = stripped.match(/^([가-힣A-Za-z0-9().&\s]{2,40})\s+채용정보$/)
+  if (titleCompany) return titleCompany[1].trim()
   const wantedLine = stripped.match(/^([가-힣A-Za-z0-9().&\s]{2,40})\s*[∙·]\s*(서울|경기|인천|부산|대구|광주|대전|울산|세종|강원|충북|충남|전북|전남|경북|경남|제주|해외)/)
   if (wantedLine) return wantedLine[1].trim()
   return /주식회사|\(주\)|㈜/.test(stripped) && stripped.length <= 60 ? stripped : ''
@@ -323,20 +338,20 @@ const cleanLocation = (value: string) => {
     .replace(/\s+/g, ' ')
     .trim()
   if (!cleaned || cleaned.length < 2 || cleaned === '역' || /^[가-힣]역$/.test(cleaned)) return ''
-  if (!/(서울|경기|인천|부산|대구|광주|대전|울산|세종|강원|충북|충남|전북|전남|경북|경남|제주|해외|재택|원격|remote|시|군|구|동|읍|면|로|길|타워|빌딩|전체)/i.test(cleaned)) return ''
+  if (!/(서울|경기|인천|부산|대구|광주|대전|울산|세종|강원|충북|충남|전북|전남|경북|경남|제주|해외|재택|원격|remote|본점|지점|digital|square|시|군|구|동|읍|면|로|길|타워|빌딩|전체)/i.test(cleaned)) return ''
   return cleaned
 }
 
 const findLocationValue = (lines: string[]) => {
   const candidates = [
     findInlineValue(lines, /근무\s*지역|근무지역/, /경력|학력|근무형태|우대사항|급여|근무일시|복리후생|접수기간|AI\s*서류|마감일/),
-    findLabeledValue(lines, /소재지|주소|근무지|근무\s*지역|근무지역/),
-    ...getSectionLines(lines, /근무지위치|근무지|근무\s*지역|근무지역|지역/, 5),
+    findLabeledValue(lines, /소재지|주소|근무지|근\s*무\s*지|근무\s*지역|근무지역/),
+    ...getSectionLines(lines, /근무지위치|근무지|근\s*무\s*지|근무\s*지역|근무지역|지역/, 5),
   ]
   return candidates.map(cleanLocation).find(Boolean) ?? ''
 }
 
-const SECTION_HEADING = /^(\[?(기업명|회사명|기관명|소재지|주소|근무지|근무\s*지역|근무지역|지역|사업내용|홈페이지|연혁|재직\s*인원|채용\s*직무|모집\s*직무|모집\s*부문|모집\s*분야|포지션명|직무명|세부\s*업무|주요업무|주요\s*업무|담당업무|기술스택|기술\s*스택|기술스택\s*및\s*역량|스킬|Skill|채용\s*인원|모집\s*인원|연봉|급여|고용형태|근무형태|채용\s*우대사항|우대사항|지원\s*자격|자격요건|복리후생|기업문화|핵심\s*정보|근무지위치|접수기간)\]?)/i
+const SECTION_HEADING = /^(\[?(기업명|회사명|기관명|소재지|주소|근무지|근\s*무\s*지|근무\s*지역|근무지역|지역|사업내용|홈페이지|연혁|재직\s*인원|채용\s*직무|담당\s*직무|모집\s*직무|모집\s*부문|모집\s*분야|포지션명|직무명|세부\s*업무|주요업무|주요\s*업무|담당업무|기술스택|기술\s*스택|기술스택\s*및\s*역량|스킬|Skill|채용\s*인원|채용예정인원|모집\s*인원|연봉|급여|보수\s*수준|고용형태|근무형태|채용\s*구분|채용\s*우대사항|우대사항|지원\s*자격|자격요건|응시\s*자격|복리후생|기업문화|핵심\s*정보|근무지위치|접수기간|지원서\s*접수|채용\s*일정)\]?)/i
 
 const getSectionLines = (lines: string[], labelPattern: RegExp, maxLines = 8) => {
   const start = lines.findIndex(line => {
@@ -399,7 +414,7 @@ const inferDutySummary = (lines: string[]) => {
 
 const isRoleLine = (line: string) => {
   const lower = line.toLowerCase()
-  if (/^Title\s*:|사업내용|담당업무|주요업무|기술스택|지원\s*자격|자격요건|복리후생|홈페이지|소재지|근무지역|연봉|인원|마감일|접수기간|저작권|개인정보|사람인|원티드/.test(line)) return false
+  if (/^Title\s*:|사업내용|담당업무|담당\s*직무|주요업무|기술스택|지원\s*자격|자격요건|응시\s*자격|복리후생|홈페이지|소재지|근무지역|연봉|인원|마감일|접수기간|지원서\s*접수|저작권|개인정보|사람인|원티드/.test(line)) return false
   if (/개발\s*및\s*공급업/.test(line)) return false
   if (/기반|유지보수|신규\s*기능|애플리케이션|컴포넌트\s*구조|아키텍처|보안\s*수준|시스템을/.test(line)) return false
   return line.length <= 80 && (ROLE_HINTS.some(hint => lower.includes(hint)) || /웹\s*\((백엔드|프론트엔드)\)/.test(line))
@@ -451,10 +466,14 @@ export const inferJobPostingFromText = (text: string): JobPostingDraft => {
     lines.map(extractCompanyName).find(Boolean) ||
     ''
   const titlePosition = inferPositionFromTitle(lines, company)
-  const positionSection = getSectionLines(lines, /채용\s*직무\s*\/?\s*분야|모집\s*직무|모집\s*부문|모집\s*분야|직무명|포지션명|직무\s*\/?\s*분야/, 6)
+  const labeledPosition = findLabeledValue(lines, /채용\s*직무\s*\/?\s*분야|담당\s*직무|모집\s*직무|모집\s*부문|모집\s*분야|직무명|포지션명|직무\s*\/?\s*분야/)
+  const positionSection = labeledPosition
+    ? []
+    : getSectionLines(lines, /채용\s*직무\s*\/?\s*분야|담당\s*직무|모집\s*직무|모집\s*부문|모집\s*분야|직무명|포지션명|직무\s*\/?\s*분야/, 6)
   const roleLines = lines.map(stripFieldLabel).filter(isRoleLine)
   const positions = Array.from(new Set([
     titlePosition,
+    labeledPosition,
     ...positionSection.filter(line => line.length <= 90),
     ...roleLines,
   ].map(cleanPositionValue).filter(Boolean)))
@@ -462,18 +481,18 @@ export const inferJobPostingFromText = (text: string): JobPostingDraft => {
   const location = findLocationValue(lines)
   const employmentType =
     findInlineValue(lines, /근무형태|근무\s*형태/, /경력|학력|우대사항|급여|근무일시|근무지역|근무\s*지역|복리후생/) ||
-    findLabeledValue(lines, /고용형태|근무형태|근무\s*형태/) ||
-    findSectionValue(lines, /고용형태|근무형태|근무\s*형태/)
+    findLabeledValue(lines, /고용형태|근무형태|근무\s*형태|채용\s*구분/) ||
+    findSectionValue(lines, /고용형태|근무형태|근무\s*형태|채용\s*구분/)
   const business = findLabeledValue(lines, /사업내용/) || findInlineValue(lines, /사업내용|업종/, /홈페이지|기업주소|사원수|설립일|매출액|대표자명/)
   const headcount =
-    findLabeledValue(lines, /채용\s*인원|모집\s*인원/) ||
-    findInlineValue(lines, /채용\s*인원|모집\s*인원/, /연봉|급여|고용형태|근무형태|지원\s*자격|자격요건/) ||
-    findSectionSummary(lines, /채용\s*인원|모집\s*인원/, 3)
+    findLabeledValue(lines, /채용\s*인원|채용예정인원|모집\s*인원/) ||
+    findInlineValue(lines, /채용\s*인원|채용예정인원|모집\s*인원/, /연봉|급여|보수\s*수준|고용형태|근무형태|채용\s*구분|지원\s*자격|자격요건|응시\s*자격/) ||
+    findSectionSummary(lines, /채용\s*인원|채용예정인원|모집\s*인원/, 3)
   const salary =
-    findLabeledValue(lines, /연봉|급여/) ||
-    findInlineValue(lines, /연봉|급여/, /근무일시|근무지역|근무\s*지역|복리후생|접수기간|지원방법|고용형태/) ||
-    findSectionValue(lines, /연봉|급여/)
-  const requirements = findLabeledValue(lines, /지원\s*자격|자격요건/) || findSectionValue(lines, /지원\s*자격|자격요건/)
+    findLabeledValue(lines, /연봉|급여|보수\s*수준/) ||
+    findInlineValue(lines, /연봉|급여|보수\s*수준/, /근무일시|근무지역|근무\s*지역|근\s*무\s*지|복리후생|접수기간|지원방법|고용형태|채용\s*구분/) ||
+    findSectionValue(lines, /연봉|급여|보수\s*수준/)
+  const requirements = findLabeledValue(lines, /지원\s*자격|자격요건|응시\s*자격/) || findSectionValue(lines, /지원\s*자격|자격요건|응시\s*자격/)
   const preference = findLabeledValue(lines, /채용\s*우대사항|우대사항/) || findSectionValue(lines, /채용\s*우대사항|우대사항/)
   const dutySummary = inferDutySummary(lines)
   const positionSummary = positions.join(' / ')

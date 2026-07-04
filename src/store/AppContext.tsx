@@ -7,6 +7,7 @@ import { toLocalDateKey } from '../utils/date'
 import { normalizeTopGoalsForToday } from '../utils/goals'
 import { HABITS_VERSION, isHabitScheduled, migrateHabits } from '../utils/habits'
 import { createDefaultCounters, migrateCounters } from '../utils/counters'
+import { syncPastTodoHistory } from '../utils/todos'
 import {
   DEFAULT_CAREER_CATEGORY, DEFAULT_CAREER_STATUS,
   isCareerEventCategory, isCareerEventStatus,
@@ -370,43 +371,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!dataLoaded) return
-
-    const pastDates = [...new Set(
-      todos
-        .map(todo => todo.date)
-        .filter((date): date is string => Boolean(date && date < currentDate))
-    )]
-
-    if (pastDates.length === 0) return
-
-    setTodoHistory(previous => {
-      const recordedDates = new Set(previous.map(result => result.date))
-      const trashedDates = new Set(todoHistoryTrash.map(result => result.date))
-      const permanentlyDeletedDates = new Set(todoHistoryDeletedDates)
-      const missing = pastDates.filter(date =>
-        !recordedDates.has(date)
-        && !trashedDates.has(date)
-        && !permanentlyDeletedDates.has(date)
-      )
-      if (missing.length === 0) return previous
-
-      const savedAt = new Date().toISOString()
-      const automaticResults: TodoDailyResult[] = missing.map(date => {
-        const items = todos.filter(todo => todo.date === date).map(todo => ({ ...todo }))
-        const done = items.filter(todo => todo.done).length
-        return {
-          date,
-          total: items.length,
-          done,
-          completionRate: items.length === 0 ? 0 : Math.round((done / items.length) * 100),
-          savedAt,
-          source: 'auto',
-          items,
-        }
-      })
-
-      return [...automaticResults, ...previous].sort((a, b) => b.date.localeCompare(a.date))
-    })
+    setTodoHistory(previous => syncPastTodoHistory({
+      currentDate,
+      todos,
+      todoHistory: previous,
+      todoHistoryTrash,
+      todoHistoryDeletedDates,
+    }))
   }, [currentDate, dataLoaded, todos, todoHistoryTrash, todoHistoryDeletedDates])
 
   useEffect(() => {

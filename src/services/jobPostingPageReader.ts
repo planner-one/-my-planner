@@ -6,7 +6,7 @@ export interface JobPostingPageTextResult {
   imageUrls: string[]
 }
 
-const READER_FIRST_HOSTS = ['sites.google.com', 'saramin.co.kr']
+const READER_FIRST_HOSTS = ['sites.google.com', 'saramin.co.kr', 'incruit.com']
 
 const isReaderFirstHost = (url: string) => {
   try {

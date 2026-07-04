@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "check:job-draft": "node scripts/check-job-posting-draft.mjs",
+    "check:todo-history": "node scripts/check-todo-history.mjs",
     "build": "vite build",
     "preview": "vite preview"
   },

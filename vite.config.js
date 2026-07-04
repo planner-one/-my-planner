@@ -2,7 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { Buffer } from 'node:buffer'
 
-const READER_FIRST_HOSTS = ['sites.google.com', 'saramin.co.kr']
+const READER_FIRST_HOSTS = ['sites.google.com', 'saramin.co.kr', 'incruit.com']
 
 const normalizeTargetUrl = (raw) => {
   const value = String(raw ?? '').trim()
@@ -19,8 +19,35 @@ const isReaderFirstHost = (url) => {
   return READER_FIRST_HOSTS.some(host => parsed.hostname === host || parsed.hostname.endsWith(`.${host}`))
 }
 
+const isIncruitHost = (url) => {
+  const parsed = new URL(url)
+  return parsed.hostname === 'incruit.com' || parsed.hostname.endsWith('.incruit.com')
+}
+
+const getReaderTargetUrls = (url) => {
+  const targets = [url]
+  try {
+    if (isIncruitHost(url)) {
+      const parsed = new URL(url)
+      if (parsed.protocol === 'https:') {
+        parsed.protocol = 'http:'
+        targets.unshift(parsed.toString())
+      }
+    }
+  } catch {
+    // Keep the original URL as the only target.
+  }
+  return Array.from(new Set(targets))
+}
+
 const toReaderUrl = (url) =>
-  `https://r.jina.ai/http://r.jina.ai/http://${url}`
+  `https://r.jina.ai/http://${url}`
+
+const JOB_CONTENT_HINTS =
+  /기업명|회사명|기관명|채용\s*직무|담당\s*직무|모집\s*직무|모집\s*부문|포지션|주요\s*업무|세부\s*업무|담당업무|기술스택|기술\s*스택|스킬|채용\s*인원|채용예정인원|연봉|급여|보수\s*수준|고용형태|근무형태|채용\s*구분|지원\s*자격|자격요건|응시\s*자격|우대사항|소재지|근무지|근\s*무\s*지|근무\s*지역|사업내용|핵심\s*정보|접수\s*기간|지원서\s*접수|마감일|채용\s*일정|원티드|사람인|블록체인|보안|프론트엔드|백엔드|개발자|엔지니어|engineer|developer/i
+
+const hasUsefulJobText = (text) =>
+  compactText(text).length > 40 && JOB_CONTENT_HINTS.test(text)
 
 const compactText = (value) =>
   String(value ?? '')
@@ -164,11 +191,14 @@ const fetchText = async (url, source) => {
 }
 
 const readJobPostingPage = async (url) => {
-  const readers = isReaderFirstHost(url) ? ['reader'] : ['direct', 'reader']
-  for (const source of readers) {
+  const readerTasks = getReaderTargetUrls(url).map(targetUrl => ({ source: 'reader', targetUrl }))
+  const readers = isReaderFirstHost(url)
+    ? readerTasks
+    : [{ source: 'direct', targetUrl: url }, ...readerTasks]
+  for (const { source, targetUrl } of readers) {
     try {
-      const result = await fetchText(url, source)
-      if (result.text.trim() || result.imageUrls.length) return { ...result, source }
+      const result = await fetchText(targetUrl, source)
+      if (result.imageUrls.length || hasUsefulJobText(result.text)) return { ...result, source }
     } catch {
       // Try the next reader strategy.
     }

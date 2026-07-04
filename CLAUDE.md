@@ -7,6 +7,7 @@
 1. [AGENTS.md](AGENTS.md)를 먼저 읽고 공통 작업 방식을 따릅니다.
 2. [NEXT_CHAT_HANDOFF.md](NEXT_CHAT_HANDOFF.md)를 읽어 현재 HEAD, 미완료 작업, 주의 사항을 확인합니다.
 3. 필요하면 [REQUIREMENTS.md](REQUIREMENTS.md), [SCENARIOS.md](SCENARIOS.md), [PROGRESS.md](PROGRESS.md), [RELEASES.md](RELEASES.md)를 함께 대조합니다.
+4. 현재 구조를 파악할 때는 [PLANNER_SYSTEM_AUDIT_2026-07-04.md](PLANNER_SYSTEM_AUDIT_2026-07-04.md)를 먼저 보고, 다음 개선 순서는 [UPDATE_SCHEDULE.md](UPDATE_SCHEDULE.md)를 기준으로 확인합니다.
 
 ## 작업 방식
 
