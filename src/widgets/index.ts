@@ -6,7 +6,7 @@ import TodoWidget, { meta as todoMeta } from './TodoWidget'
 import HabitWidget, { meta as habitMeta } from './HabitWidget'
 import PomodoroWidget, { meta as pomodoroMeta } from './PomodoroWidget'
 import CounterWidget, { meta as counterMeta } from './CounterWidget'
-import ChartWidget, { meta as chartMeta } from './ChartWidget'
+import ChartWidget, { meta as chartMeta, ChartActions } from './ChartWidget'
 import GoalWidget, { meta as goalMeta } from './GoalWidget'
 import WorkOverviewWidget, { meta as workOverviewMeta } from './WorkOverviewWidget'
 import MenuWidget, { meta as menuMeta } from './MenuWidget'
@@ -37,7 +37,7 @@ export const WIDGETS: WidgetMeta[] = [
   { ...habitMeta,    component: HabitWidget },
   { ...pomodoroMeta, component: PomodoroWidget },
   { ...counterMeta,  component: CounterWidget },
-  { ...chartMeta,    component: ChartWidget },
+  { ...chartMeta,    component: ChartWidget,          Actions: ChartActions },
   { ...goalMeta,     component: GoalWidget },
   { ...workOverviewMeta, component: WorkOverviewWidget },
   { ...menuMeta,     component: MenuWidget },

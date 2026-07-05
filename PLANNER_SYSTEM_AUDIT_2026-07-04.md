@@ -17,7 +17,7 @@ _기준 커밋: `d339be2`_
 - 앱은 React/Vite/TypeScript + Firebase Auth/Firestore/Hosting 기반의 Firebase-only 프론트엔드 앱입니다.
 - 별도 운영 백엔드는 없습니다. 다만 지원 공고 Reader는 로컬 Vite 미들웨어로만 동작하는 `/api/job-posting-page`, `/api/job-posting-image` 경계를 가지고 있어 운영 배포에서 동일 기능을 유지하려면 Firebase Functions 또는 별도 백엔드로 이관해야 합니다.
 - 사용자 앱 데이터는 `users/{uid}` 단일 문서에 저장되고, 문의 데이터만 `inquiries` 컬렉션에 분리 저장됩니다.
-- 페이지는 17개, 위젯은 15개가 실제 코드에 등록되어 있으며 문서의 SC-07/SC-08 체크와 대체로 일치합니다.
+- 페이지는 18개, 위젯은 15개가 실제 코드에 등록되어 있으며 문서의 SC-07/SC-08 체크와 대체로 일치합니다.
 - `NEXT_CHAT_HANDOFF.md`, `PROGRESS.md`, `RELEASES.md`의 오래된 "다음 작업/현재 HEAD" 문구는 2026-07-04 기준으로 갱신했습니다.
 
 ## 아키텍처
@@ -51,6 +51,7 @@ _기준 커밋: `d339be2`_
 | `counters`, `chartHistory` | `users/{uid}` | 카운터, 집중 타이머, 생산성 추이 | 집중 타이머는 자동 카운터를 갱신 |
 | `dashboardLayout`, `dashboardActive`, `uiScale` | `users/{uid}` | 대시보드, 대시보드 편집, 프로필 | 레이아웃은 저장 버튼과 `saveWithOverrides`로 즉시 저장 |
 | `nickname` | `users/{uid}` | 프로필 | 사용자 표시용 |
+| `notificationPreferences` | `users/{uid}` | 프로필, Codex/Gmail/Slack/Discord 알림 후보 | 내 계정 브리핑 알림 설정, 범위는 `ownAccount` 고정 |
 | `inquiries` | `inquiries/{id}` | 문의 | Firestore rules로 본인/관리자 접근 제한 |
 
 ## 저장/마이그레이션 기준
@@ -80,6 +81,7 @@ _기준 커밋: `d339be2`_
 | `daily` | 일일 | `src/pages/DailyPlanner.tsx` | 일일 Todo/예정/루틴/시간 블록/마감 | 구현됨 |
 | `notes` | 노트 | `src/pages/Notes.tsx` | `notes`, `quickMemos` | 구현됨 |
 | `journal` | 저널 | `src/pages/Journal.tsx` | `journal`, 당일 Todo/루틴 요약 | 구현됨 |
+| `productivity` | 생산성 기록 | `src/pages/ProductivityLog.tsx` | Todo/루틴/예정/집중/저널/회고 기록, 추이/구성 그래프 | 구현됨 |
 | `profile` | 프로필 | `src/pages/ProfilePage.tsx` | 프로필, 데이터 수, 버전 | 구현됨 |
 | `inquiries` | 문의 | `src/pages/Inquiries.tsx` | `inquiries` 컬렉션 | 구현됨 |
 | `print` | 플래너 출력 | `src/pages/PrintPlanner.tsx` | 일일/주간/빈 양식 출력 데이터 | 구현됨 |
@@ -95,7 +97,7 @@ _기준 커밋: `d339be2`_
 | `habit` | 일일 루틴 | `src/widgets/HabitWidget.tsx` | `habits`, `habitHistory`, `habitSavedAt` | 구현됨 |
 | `pomodoro` | 집중 타이머 | `src/widgets/PomodoroWidget.tsx` | `counters` 자동 갱신 | 구현됨 |
 | `counter` | 카운터 | `src/widgets/CounterWidget.tsx` | `counters` | 구현됨 |
-| `chart` | 생산성 추이 | `src/widgets/ChartWidget.tsx` | Todo/루틴/예정/집중 | 구현됨 |
+| `chart` | 생산성 추이 | `src/widgets/ChartWidget.tsx` | Todo/루틴/예정/집중 | 구현됨. 생산성 기록 페이지와 상세 그래프 연결 |
 | `goal` | 목표 | `src/widgets/GoalWidget.tsx` | 날짜별 오늘 방향, 장기 목표 | 구현됨 |
 | `workOverview` | 작업 흐름 | `src/widgets/WorkOverviewWidget.tsx` | 작업/프로젝트/목표 | 구현됨 |
 | `menu` | 메뉴 | `src/widgets/MenuWidget.tsx` | 라우팅 | 구현됨 |
@@ -124,7 +126,7 @@ _기준 커밋: `d339be2`_
 
 - SC-01~SC-11은 완료로 기록되어 있고 코드 기준 기능도 존재합니다.
 - SC-12는 "기반 구현"입니다. 링크 정리/지원 공고 파서의 1차 기능은 있으나 운영 백엔드/유료 권한/AI 정밀 추출은 아직 아닙니다.
-- SC-07 위젯 15개와 SC-08 페이지 17개는 실제 등록 상태와 문서가 대체로 일치합니다.
+- SC-07 위젯 15개와 SC-08 페이지 18개는 실제 등록 상태와 문서가 대체로 일치합니다.
 - v0.3.10 기준 목표 위젯의 오늘 방향 날짜 분리는 코드와 문서에 반영되어 있습니다.
 
 ## 발견한 보완점
@@ -135,7 +137,7 @@ _기준 커밋: `d339be2`_
 | P0 | 운영 배포에서 지원 공고 Reader API 부재 | Vite 미들웨어는 Hosting에서 동작하지 않음 | v0.4.0에서 Firebase Functions 이관 |
 | 완료 | Reader URL 조합부 재확인 필요 | `vite.config.js`의 `toReaderUrl()`이 `r.jina.ai` 경로를 중복 조합하는 형태였음 | 2026-07-04 KDB 인크루트 샘플로 재검증 후 Reader URL과 인크루트 `http` 대상 재시도 수정 |
 | P1 | 실제 기기 반응형 QA 미완료 | 문서상 코드 기준 완료, 실기기 확인 필요 | 모바일 390px, 태블릿 768/1024px 체크리스트화 |
-| P1 | 디자인 시스템 불균일 | 인라인 스타일, 카드 반경/폼 밀도/패널 패턴이 페이지별로 다름 | v0.3.12 UI System Pass 진행 |
+| P1 | 디자인 시스템 불균일 | 인라인 스타일, 카드 반경/폼 밀도/패널 패턴이 페이지별로 다름 | v0.3.17 UI System Pass 진행 |
 | P1 | 자동 점검 스크립트 부족 | page id/위젯 등록/문서 체크가 수동 중심 | 스크립트로 문서-코드 일치 확인 추가 |
 | P2 | 데이터 내보내기/삭제 정책 없음 | 유료 AI/개인정보 기능 전 필수 | 프로필에 export/delete 설계 추가 |
 | P2 | 약관/개인정보/라이선스 초안 없음 | 서비스 운영과 유료화 전 필요 | `LICENSE.md`, `TERMS.md`, `PRIVACY.md`, `THIRD_PARTY_NOTICES.md` 작성 |

@@ -1,7 +1,7 @@
 # 플래너 업데이트 스케줄
 
 _작성일: 2026-07-04_
-_현재 기준: v0.3.10 Goal Focus Reset_
+_현재 기준: v0.3.15 Productivity Log Charts_
 
 이 문서는 다음 업데이트 버전에서 무엇을 먼저 개선할지 기록하는 일정표입니다. 실제 구현은 사용자 확인 후 기능 하나씩 진행합니다.
 
@@ -9,14 +9,68 @@ _현재 기준: v0.3.10 Goal Focus Reset_
 
 | 버전 | 이름 | 목표 | 상태 |
 |---|---|---|---|
-| v0.3.11 | Documentation & QA Baseline | 설계 감사 문서화, 오래된 문서 문구 정리, 자동 점검 후보 확정 | 후보 |
-| v0.3.12 | UI System Pass | 전체 UI 밀도, 카드/폼/패널 패턴, 모바일/태블릿 시각 QA 정리 | 후보 |
-| v0.3.13 | Planner Flow Clarity | Todo/작업/프로젝트/목표/오늘 방향 역할을 더 선명하게 연결 | 후보 |
-| v0.3.14 | Data Quality & AI Readiness | 키워드, 원본 링크, 상태 변경 이력, 검색/필터, 데이터 내보내기 준비 | 후보 |
+| v0.3.11 | Next Day Briefing | 내일 Todo 미리 작성, 다음 날 브리핑, Codex 알림 기준 준비 | 완료 |
+| v0.3.12 | Todo Auto Carry | 지난 날짜 미완료 Todo를 오늘 날짜로 자동 이월 | 완료 |
+| v0.3.13 | Account Scoped Briefing | 내 계정 기준 브리핑 알림 설정과 Codex 자동화 범위 고정 | 완료 |
+| v0.3.14 | Productivity Day Log | 생산성 추이 점수의 날짜별 완료 기록 상세 | 완료 |
+| v0.3.15 | Productivity Log Charts | 생산성 기록 페이지 요약 UX와 추이/구성 그래프 보강 | 완료 |
+| v0.3.16 | Documentation & QA Baseline | 설계 감사 문서화, 오래된 문서 문구 정리, 자동 점검 후보 확정 | 후보 |
+| v0.3.17 | UI System Pass | 전체 UI 밀도, 카드/폼/패널 패턴, 모바일/태블릿 시각 QA 정리 | 후보 |
+| v0.3.18 | Planner Flow Clarity | Todo/작업/프로젝트/목표/오늘 방향 역할을 더 선명하게 연결 | 후보 |
+| v0.3.19 | Data Quality & AI Readiness | 키워드, 원본 링크, 상태 변경 이력, 검색/필터, 데이터 내보내기 준비 | 후보 |
 | v0.4.0 | Integration Ready | Firebase Functions 또는 백엔드 API 경계 도입, 운영 Reader/OCR 준비 | 후보 |
 | v0.5.0 | Paid Intelligence Candidate | 링크 자동 분석, AI 맞춤 추천, 사용량 제한, 유료 권한 설계 | 후보 |
 
-## v0.3.11 Documentation & QA Baseline
+## v0.3.11 Next Day Briefing
+
+목표: 내일 할 일을 미리 적고, 다음 날 챙길 항목을 한 번에 볼 수 있게 합니다.
+
+- 완료: 오늘 할 일 위젯에서 오늘/내일 Todo 선택, 추가, 체크, 삭제
+- 완료: Todo 페이지에서 오늘/내일 추가 대상 선택과 내일 필터 제공
+- 완료: `plannerBriefing` 유틸로 Todo, 하루 방향, 예정 작업, 기회 일정, 내 신청, 지원 공고, 작업/목표/프로젝트 마감 통합
+- 완료: Todo 페이지 내일 브리핑 패널과 `npm run check:planner-briefing` 회귀 체크 추가
+- 완료: Codex 자동화 알림을 먼저 만들고, 추후 Gmail/Slack/Discord 채널로 바꿀 수 있는 기준을 문서화
+
+## v0.3.12 Todo Auto Carry
+
+목표: 오늘 하지 못한 Todo가 다음 날 자동으로 오늘 할 일에 보이게 합니다.
+
+- 완료: 지난 날짜의 미완료 Todo를 오늘 날짜로 자동 이월
+- 완료: 원래 날짜 Todo 결과는 기록으로 보존하고 실시간 Todo 목록에서는 최신 날짜 항목만 유지
+- 완료: 오늘 또는 미래 날짜에 같은 내용/카테고리 Todo가 있으면 오래된 중복 항목 정리
+- 완료: 앱 로드와 날짜 변경 시 자동 이월 실행
+- 완료: `npm run check:todo-history`에 자동 이월 회귀 체크 추가
+
+## v0.3.13 Account Scoped Briefing
+
+목표: 브리핑 알림이 여러 사용자 데이터와 섞이지 않고 내 계정 기준으로만 동작하게 합니다.
+
+- 완료: `NotificationPreferences` 타입과 `users/{uid}.notificationPreferences` 저장 흐름 추가
+- 완료: 프로필에 내 계정 브리핑 알림 설정 추가
+- 완료: 알림 범위를 `ownAccount`로 고정
+- 완료: Codex, Gmail, Slack, Discord 채널 후보를 사용자별 설정으로 저장
+- 완료: Codex 자동화 프롬프트를 본인 계정 export만 요약하도록 갱신
+
+## v0.3.14 Productivity Day Log
+
+목표: 생산성 추이 점수가 어떤 하루 기록에서 나왔는지 날짜별로 확인합니다.
+
+- 완료: 생산성 추이 위젯 오른쪽 상단에 기록 페이지 이동 버튼 추가
+- 완료: `productivity` 페이지를 사이드바, 전체 메뉴, 메뉴 위젯에 연결
+- 완료: Todo, 루틴, 예정 작업, 집중 세션의 점수 구성 표시
+- 완료: 하루 방향, 마감 작업, 시간 블록, 저널, 회고 기록을 같은 날짜 기준으로 표시
+- 완료: `npm run check:productivity-log` 회귀 체크 추가
+
+## v0.3.15 Productivity Log Charts
+
+목표: 생산성 기록 페이지를 더 빠르게 읽고, 그래프로 추이를 확인하게 합니다.
+
+- 완료: 상단 요약을 선택일 점수, 완료/기록, 남은 항목, 집중 세션, 30일 평균으로 재구성
+- 완료: 최근 14일 생산성 점수 흐름 그래프 추가
+- 완료: 선택일 Todo, 루틴, 예정 작업, 집중 세션 점수 구성 그래프 추가
+- 완료: 상세 기록 목록은 대표 항목 중심으로 표시하고 초과 개수를 안내
+
+## v0.3.16 Documentation & QA Baseline
 
 목표: 지금 무엇이 만들어졌는지 문서와 코드가 같은 말을 하게 만듭니다.
 
@@ -27,7 +81,7 @@ _현재 기준: v0.3.10 Goal Focus Reset_
 - 완료된 기반: `vite.config.js`의 Reader URL 조합부를 KDB 인크루트 샘플 링크로 재검증하고 인크루트 `http` 대상 재시도 추가
 - `PLANNER_SYSTEM_AUDIT_2026-07-04.md`를 기준 감사 문서로 유지
 
-## v0.3.12 UI System Pass
+## v0.3.17 UI System Pass
 
 목표: 기능은 많은데 화면이 복잡해지는 문제를 줄입니다.
 
@@ -38,7 +92,7 @@ _현재 기준: v0.3.10 Goal Focus Reset_
 - 긴 텍스트, 버튼, 날짜 입력, 셀렉트가 잘리지 않는지 확인
 - 사이드바/모바일 전체 메뉴의 진입 우선순위 재검토
 
-## v0.3.13 Planner Flow Clarity
+## v0.3.18 Planner Flow Clarity
 
 목표: 사용자가 "어디에 뭘 적어야 하는지" 헷갈리지 않게 합니다.
 
@@ -58,7 +112,7 @@ _현재 기준: v0.3.10 Goal Focus Reset_
 - 캘린더에서 날짜 항목을 "해야 할 일 / 신청·지원 / 마감 / 기록"으로 묶어 보기
 - 목표 페이지의 오늘 방향 히스토리 표시 여부 검토
 
-## v0.3.14 Data Quality & AI Readiness
+## v0.3.19 Data Quality & AI Readiness
 
 목표: 추후 AI 맞춤 기능에 쓸 수 있는 데이터를 깨끗하게 쌓습니다.
 
@@ -108,6 +162,7 @@ _현재 기준: v0.3.10 Goal Focus Reset_
 |---|---|---|
 | P0 | 운영 배포용 지원 공고 Reader API | `jobPostings`, `sourceUrl`, `imageText`, `note` |
 | 완료 | 로컬 Reader URL 조합부 재검증 | `vite.config.js`, `/api/job-posting-page` |
+| 완료 | Codex 지원공고 정밀 정리 보조 | `jobPostings`, `sourceUrl`, `imageText`, `note`, `keywords` |
 | P0 | 실제 기기 반응형 QA 체크리스트 | 전체 페이지/위젯 |
 | P1 | 통합 검색 | Todo, 작업, 프로젝트, 목표, 노트, 신청, 공고 |
 | P1 | 내 신청/지원 공고 상태 변경 이력 | `personalApplications`, `jobPostings` |
@@ -115,7 +170,8 @@ _현재 기준: v0.3.10 Goal Focus Reset_
 | P1 | 지원 공고 이미지 후보 선택 OCR | `jobPostings.imageText` |
 | P2 | 데이터 내보내기/삭제 | `UserData` 전체 |
 | P2 | 약관/개인정보/라이선스 문서 | 서비스 운영 문서 |
-| P2 | 알림/리마인더 | 마감일, 신청일, 결과일, 루틴 |
+| 완료 | Codex 내 계정 브리핑 알림 기준 | Todo, 일정, 신청/지원, 마감 |
+| P2 | 알림/리마인더 채널 확장 | 마감일, 신청일, 결과일, 루틴 |
 
 ## 보류/결정 필요
 
@@ -127,7 +183,7 @@ _현재 기준: v0.3.10 Goal Focus Reset_
 
 ## 다음 작업 제안
 
-1. v0.3.11 문서/QA 기준 정리
-2. v0.3.12 UI System Pass 중 `지원 공고`, `내 신청`, `오늘 할 일`부터 화면 밀도 개선
-3. v0.3.13 Planner Flow Clarity로 목표/프로젝트/작업/오늘 방향 역할 정리
+1. v0.3.16 문서/QA 기준 정리
+2. v0.3.17 UI System Pass 중 `지원 공고`, `내 신청`, `오늘 할 일`부터 화면 밀도 개선
+3. v0.3.18 Planner Flow Clarity로 목표/프로젝트/작업/오늘 방향 역할 정리
 4. v0.4.0 운영 Reader API 설계 여부 결정

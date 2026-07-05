@@ -10,10 +10,12 @@ import {
   getUnresolvedIncompleteTodos,
   hasLaterTodoOccurrence,
 } from '../utils/todos'
+import { getPlannerDayBriefing } from '../utils/plannerBriefing'
 
 type Category = 'work' | 'personal' | 'study'
 type FilterType = 'all' | Category
-type DateFilter = 'today' | 'week' | 'all'
+type DateFilter = 'today' | 'tomorrow' | 'week' | 'all'
+type AddTarget = 'today' | 'tomorrow'
 
 const CATEGORY_CONFIG: Record<Category, { label: string; color: string }> = {
   work:     { label: '업무', color: '#4A90E2' },
@@ -51,10 +53,13 @@ export default function TodoPage() {
     todoHistory, setTodoHistory,
     todoHistoryTrash, setTodoHistoryTrash,
     todoHistoryDeletedDates, setTodoHistoryDeletedDates,
+    scheduledTasks, careerEvents, personalApplications, jobPostings,
+    tasks, goals, projects, topGoals,
     saveWithOverrides,
   } = useApp()
   const [input, setInput] = useState('')
   const [newCategory, setNewCategory] = useState<Category>('work')
+  const [addTarget, setAddTarget] = useState<AddTarget>('today')
   const [filterCat, setFilterCat] = useState<FilterType>('all')
   const [filterDate, setFilterDate] = useState<DateFilter>('today')
   const [composing, setComposing] = useState(false)
@@ -73,12 +78,15 @@ export default function TodoPage() {
 
   const today = toLocalDateKey()
   const tomorrow = toLocalDateKey(addLocalDays(new Date(`${today}T12:00:00`), 1))
+  const addTargetDate = addTarget === 'today' ? today : tomorrow
+  const addTargetLabel = addTarget === 'today' ? '오늘' : '내일'
   const weekAgo = toLocalDateKey(addLocalDays(new Date(), -6))
 
   useEffect(() => { if (editId) editRef.current?.focus() }, [editId])
 
   const dateFiltered = todos.filter(t => {
     if (filterDate === 'today') return !t.date || t.date === today
+    if (filterDate === 'tomorrow') return t.date === tomorrow
     if (filterDate === 'week') return !t.date || t.date >= weekAgo
     return true
   })
@@ -98,6 +106,21 @@ export default function TodoPage() {
   const todayAdded = todos.filter(t => t.date === today).length
   const todayItems = todos.filter(t => !t.date || t.date === today)
   const todayIncomplete = todayItems.filter(t => !t.done)
+  const tomorrowItems = todos.filter(t => t.date === tomorrow)
+  const tomorrowIncomplete = tomorrowItems.filter(t => !t.done)
+  const tomorrowDone = tomorrowItems.length - tomorrowIncomplete.length
+  const tomorrowBriefing = getPlannerDayBriefing({
+    todos,
+    topGoals,
+    scheduledTasks,
+    careerEvents,
+    personalApplications,
+    jobPostings,
+    tasks,
+    goals,
+    projects,
+  }, tomorrow, today)
+  const tomorrowBriefingSections = tomorrowBriefing.sections.filter(section => section.items.length > 0)
 
   const catStat = (c: Category) => {
     const items = todos.filter(t => (!t.date || t.date === today) && cat(t) === c)
@@ -111,9 +134,10 @@ export default function TodoPage() {
     if (!text) return
     const item: Todo = {
       id: Date.now().toString(), text, done: false,
-      priority: 'medium', category: newCategory, date: today,
+      priority: 'medium', category: newCategory, date: addTargetDate,
     }
     setTodos(prev => [item, ...prev])
+    setFilterDate(addTarget)
     setInput('')
   }
 
@@ -537,7 +561,7 @@ export default function TodoPage() {
             오늘 할 일
           </h1>
           <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>
-            오늘 해야 할 일을 체크하고 날짜별 완료 기록을 남기는 페이지입니다.
+            오늘 할 일을 체크하고 내일 할 일도 미리 정리합니다.
           </p>
           <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
             {new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' })}
@@ -580,6 +604,7 @@ export default function TodoPage() {
             <div style={{ display: 'flex', gap: 12, fontSize: 12, color: 'var(--muted)' }}>
               <span>오늘 추가 <b style={{ color: 'var(--text)' }}>{todayAdded}</b>개</span>
               <span>완료 <b style={{ color: 'var(--accent)' }}>{doneAll}</b> / {totalAll}</span>
+              <span>내일 Todo <b style={{ color: 'var(--text)' }}>{tomorrowDone}</b> / {tomorrowItems.length}</span>
             </div>
           </div>
           <ProgressBar pct={pctAll} color="var(--accent)" height={8} />
@@ -621,7 +646,20 @@ export default function TodoPage() {
       {/* 입력 + 필터 */}
       <div style={{ background: 'var(--bg2)', borderRadius: 14, padding: '16px 18px', border: '1px solid var(--border)', boxShadow: 'var(--shadow)', display: 'flex', flexDirection: 'column', gap: 12 }}>
         {/* 입력 */}
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <select
+            value={addTarget}
+            onChange={e => setAddTarget(e.target.value as AddTarget)}
+            aria-label="추가할 날짜"
+            style={{
+              border: '1px solid var(--border)', borderRadius: 8,
+              background: 'var(--bg3)', color: 'var(--text)',
+              fontSize: 12, padding: '8px 8px', cursor: 'pointer', fontWeight: 700,
+            }}
+          >
+            <option value="today">오늘</option>
+            <option value="tomorrow">내일</option>
+          </select>
           <select
             value={newCategory}
             onChange={e => setNewCategory(e.target.value as Category)}
@@ -641,9 +679,9 @@ export default function TodoPage() {
             onCompositionStart={() => setComposing(true)}
             onCompositionEnd={() => setComposing(false)}
             onKeyDown={e => { if (e.key === 'Enter' && !composing) add() }}
-            placeholder="새 할 일을 입력하세요..."
+            placeholder={`${addTargetLabel} 할 일을 입력하세요...`}
             style={{
-              flex: 1, border: '1px solid var(--border)', borderRadius: 8,
+              flex: '1 1 220px', border: '1px solid var(--border)', borderRadius: 8,
               background: 'var(--bg3)', color: 'var(--text)', fontSize: 14,
               padding: '8px 12px', outline: 'none',
             }}
@@ -678,6 +716,7 @@ export default function TodoPage() {
           <div style={{ display: 'flex', gap: 4 }}>
             {([
               { id: 'today', label: '오늘' },
+              { id: 'tomorrow', label: '내일' },
               { id: 'week',  label: '이번 주' },
               { id: 'all',   label: '전체 기간' },
             ] as { id: DateFilter; label: string }[]).map(opt => (
@@ -729,6 +768,134 @@ export default function TodoPage() {
           onToggle={toggle} onRemove={remove} onStartEdit={startEdit} onSave={saveEdit} onCancel={cancelEdit}
           onEditTextChange={setEditText} onEditCategoryChange={setEditCategory} />)}
       </div>
+
+      <section style={{
+        background: 'var(--bg2)',
+        border: '1px solid var(--border)',
+        borderRadius: 8,
+        padding: '16px 18px',
+        boxShadow: 'var(--shadow)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12,
+      }}>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          gap: 12,
+          flexWrap: 'wrap',
+        }}>
+          <div>
+            <h2 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', margin: 0 }}>
+              내일 브리핑
+            </h2>
+            <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>
+              {tomorrow} · Todo, 일정, 신청, 지원, 마감
+            </p>
+          </div>
+          <div style={{
+            display: 'flex',
+            gap: 6,
+            flexWrap: 'wrap',
+            justifyContent: 'flex-end',
+          }}>
+            {[
+              ['Todo', tomorrowBriefing.summary.todos],
+              ['방향', tomorrowBriefing.summary.focus],
+              ['일정', tomorrowBriefing.summary.schedules],
+              ['마감', tomorrowBriefing.summary.deadlines],
+              ['신청/지원', tomorrowBriefing.summary.applications],
+            ].map(([label, count]) => (
+              <span key={label} style={{
+                padding: '5px 8px',
+                borderRadius: 999,
+                background: Number(count) > 0 ? 'var(--accent-soft)' : 'var(--bg3)',
+                color: Number(count) > 0 ? 'var(--accent)' : 'var(--muted)',
+                fontSize: 11,
+                fontWeight: 800,
+                whiteSpace: 'nowrap',
+              }}>
+                {label} {count}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {tomorrowBriefing.total === 0 ? (
+          <div style={{
+            padding: '18px 12px',
+            borderRadius: 8,
+            background: 'var(--bg3)',
+            color: 'var(--muted)',
+            fontSize: 13,
+            textAlign: 'center',
+          }}>
+            내일 예정된 항목이 없습니다.
+          </div>
+        ) : (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+            gap: 10,
+          }}>
+            {tomorrowBriefingSections.map(section => (
+              <article key={section.id} style={{
+                minWidth: 0,
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                background: 'var(--bg3)',
+                padding: '11px 12px',
+              }}>
+                <strong style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: 8,
+                  color: 'var(--text)',
+                  fontSize: 12,
+                  marginBottom: 8,
+                }}>
+                  <span>{section.label}</span>
+                  <span style={{ color: 'var(--accent)' }}>{section.items.length}</span>
+                </strong>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  {section.items.slice(0, 4).map(item => (
+                    <div key={item.id} style={{ minWidth: 0 }}>
+                      <div style={{
+                        color: 'var(--text)',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}>
+                        {item.title}
+                      </div>
+                      {(item.meta || item.detail) && (
+                        <div style={{
+                          color: 'var(--muted)',
+                          fontSize: 10,
+                          lineHeight: 1.45,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {[item.meta, item.detail].filter(Boolean).join(' · ')}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {section.items.length > 4 && (
+                    <span style={{ color: 'var(--muted)', fontSize: 10, fontWeight: 700 }}>
+                      외 {section.items.length - 4}개
+                    </span>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
 
       <section style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 4 }}>
         <div>

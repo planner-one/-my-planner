@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useApp } from '../store/AppContext'
 import type { Todo } from '../types'
-import { toLocalDateKey } from '../utils/date'
+import { addLocalDays, toLocalDateKey } from '../utils/date'
 
 export const meta = {
   id: 'todo',
@@ -16,6 +16,7 @@ export const meta = {
 
 type Category = 'work' | 'personal' | 'study'
 type FilterType = 'all' | Category
+type DateScope = 'today' | 'tomorrow'
 
 const DEFAULT_CATEGORY: Category = 'work'
 const cat = (t: Todo): Category => t.category ?? DEFAULT_CATEGORY
@@ -33,10 +34,16 @@ const FILTER_OPTIONS: { id: FilterType; label: string }[] = [
   { id: 'study',    label: '공부' },
 ]
 
+const DATE_OPTIONS: { id: DateScope; label: string }[] = [
+  { id: 'today', label: '오늘' },
+  { id: 'tomorrow', label: '내일' },
+]
+
 export default function TodoWidget() {
   const { todos, setTodos } = useApp()
   const [input, setInput] = useState('')
   const [category, setCategory] = useState<Category>('work')
+  const [dateScope, setDateScope] = useState<DateScope>('today')
   const [filter, setFilter] = useState<FilterType>('all')
   const [composing, setComposing] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
@@ -45,16 +52,19 @@ export default function TodoWidget() {
   const editRef = useRef<HTMLInputElement>(null)
 
   const today = toLocalDateKey()
-  const todayTodos = todos.filter(t => !t.date || t.date === today)
+  const tomorrow = toLocalDateKey(addLocalDays(new Date(`${today}T12:00:00`), 1))
+  const selectedDate = dateScope === 'today' ? today : tomorrow
+  const selectedDateLabel = dateScope === 'today' ? '오늘' : '내일'
+  const selectedTodos = todos.filter(t => t.date ? t.date === selectedDate : selectedDate === today)
 
-  const filtered = todayTodos.filter(t => filter === 'all' || cat(t) === filter)
+  const filtered = selectedTodos.filter(t => filter === 'all' || cat(t) === filter)
   const active = filtered.filter(t => !t.done)
   const done = filtered.filter(t => t.done)
   const sorted = [...active, ...done]
-  const completedCount = todayTodos.filter(t => t.done).length
-  const completionRate = todayTodos.length === 0
+  const completedCount = selectedTodos.filter(t => t.done).length
+  const completionRate = selectedTodos.length === 0
     ? 0
-    : Math.round((completedCount / todayTodos.length) * 100)
+    : Math.round((completedCount / selectedTodos.length) * 100)
 
   useEffect(() => {
     if (editId) editRef.current?.focus()
@@ -69,7 +79,7 @@ export default function TodoWidget() {
       done: false,
       priority: 'medium',
       category,
-      date: today,
+      date: selectedDate,
     }
     setTodos(prev => [item, ...prev])
     setInput('')
@@ -124,7 +134,7 @@ export default function TodoWidget() {
           onCompositionStart={() => setComposing(true)}
           onCompositionEnd={() => setComposing(false)}
           onKeyDown={e => { if (e.key === 'Enter' && !composing) add() }}
-          placeholder="할 일 추가..."
+          placeholder={`${selectedDateLabel} 할 일 추가...`}
           style={{
             flex: 1, border: '1px solid var(--border)', borderRadius: 6,
             background: 'var(--bg3)', color: 'var(--text)', fontSize: 13,
@@ -137,8 +147,27 @@ export default function TodoWidget() {
         }}>+</button>
       </div>
 
-      {/* 필터 */}
+      {/* 날짜 선택 */}
       <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+        {DATE_OPTIONS.map(opt => {
+          const active = dateScope === opt.id
+          return (
+            <button key={opt.id} onClick={() => setDateScope(opt.id)} style={{
+              padding: '3px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer',
+              border: active ? '1.5px solid var(--accent)' : '1.5px solid var(--border)',
+              background: active ? 'var(--accent-soft)' : 'transparent',
+              color: active ? 'var(--accent)' : 'var(--muted)',
+              fontWeight: active ? 800 : 500,
+            }}>{opt.label}</button>
+          )
+        })}
+        <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--muted)', alignSelf: 'center' }}>
+          {completedCount}/{selectedTodos.length} · {completionRate}%
+        </span>
+      </div>
+
+      {/* 필터 */}
+      <div style={{ display: 'flex', gap: 4, flexShrink: 0, overflowX: 'auto' }}>
         {FILTER_OPTIONS.map(opt => {
           const active = filter === opt.id
           const color = opt.id !== 'all' ? CATEGORY_CONFIG[opt.id as Category].color : 'var(--accent)'
@@ -153,9 +182,6 @@ export default function TodoWidget() {
             }}>{opt.label}</button>
           )
         })}
-        <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--muted)', alignSelf: 'center' }}>
-          {completedCount}/{todayTodos.length} · {completionRate}%
-        </span>
       </div>
 
       {/* 목록 */}

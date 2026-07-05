@@ -8,7 +8,7 @@ import LinkOrganizerModal from './LinkOrganizerModal'
 type PageId =
   | 'dashboard' | 'calendar' | 'habits' | 'tasks' | 'todos' | 'goals' | 'projects'
   | 'weekly' | 'daily' | 'notes' | 'journal' | 'profile' | 'inquiries' | 'print' | 'career'
-  | 'personalApplications' | 'jobPostings'
+  | 'personalApplications' | 'jobPostings' | 'productivity'
 
 type NavGroupId = 'core' | 'plan' | 'record' | 'system'
 type Theme = 'light' | 'dark' | 'coral' | 'blue'
@@ -111,6 +111,10 @@ const NAV_ITEMS: NavItem[] = [
   {
     id: 'journal', label: '저널', group: 'record',
     paths: ['M4 19.5A2.5 2.5 0 016.5 17H20', 'M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z'],
+  },
+  {
+    id: 'productivity', label: '생산성 기록', group: 'record',
+    paths: ['M3 3v18h18', 'M7 15l4-4 3 3 5-7', 'M7 19h12'],
   },
   {
     id: 'profile', label: '프로필', group: 'system',

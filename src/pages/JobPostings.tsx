@@ -76,6 +76,169 @@ const emptyForm = () => ({
   note: '',
 })
 
+type JobPostingForm = ReturnType<typeof emptyForm>
+
+type CodexAnalysisField =
+  | 'company'
+  | 'position'
+  | 'deadline'
+  | 'location'
+  | 'employmentType'
+  | 'keywords'
+  | 'nextAction'
+  | 'responsibilities'
+  | 'requirements'
+  | 'preferred'
+  | 'benefits'
+  | 'process'
+  | 'documents'
+  | 'etc'
+  | 'uncertainties'
+
+type CodexAnalysisDraft = Partial<Record<CodexAnalysisField, string>>
+
+const CODEX_RESULT_LABELS: Array<[CodexAnalysisField, RegExp]> = [
+  ['company', /^(회사|기업|기업명|기관|기관명|회사\/기관|company)$/i],
+  ['position', /^(포지션|직무|채용\s*직무|채용\s*분야|모집\s*직무|모집\s*부문|role|position)$/i],
+  ['deadline', /^(마감일|지원\s*마감|접수\s*마감|마감|deadline)$/i],
+  ['location', /^(근무지|근무\s*지역|지역|소재지|location)$/i],
+  ['employmentType', /^(고용형태|근무형태|채용\s*구분|employment\s*type)$/i],
+  ['keywords', /^(키워드|기술스택|기술\s*스택|스택|skills?|keywords?)$/i],
+  ['nextAction', /^(다음\s*행동|다음\s*액션|준비\s*할\s*일)$/],
+  ['responsibilities', /^(주요\s*업무|담당\s*업무|업무|responsibilities?)$/i],
+  ['requirements', /^(자격요건|지원\s*자격|응시\s*자격|필수\s*조건|requirements?|qualifications?)$/i],
+  ['preferred', /^(우대사항|우대\s*조건|preferred\s*qualifications?)$/i],
+  ['benefits', /^(복지|혜택|복지\/혜택|복지\s*및\s*혜택|혜택\s*및\s*복지|복리후생|근무\s*환경|benefits?)$/i],
+  ['process', /^(전형절차|채용\s*절차|전형\s*과정|전형\s*일정|전형\s*단계|채용\s*프로세스|process)$/i],
+  ['documents', /^(제출서류|제출\s*서류|필요\s*서류|필요\s*문서|documents?)$/i],
+  ['etc', /^(기타사항|기타|유의사항|추가사항|notes?)$/i],
+  ['uncertainties', /^(불확실한\s*점|확인\s*필요|확인할\s*점)$/],
+]
+
+const NOTE_SECTION_LABELS: Array<[CodexAnalysisField, string]> = [
+  ['responsibilities', '주요 업무'],
+  ['requirements', '자격요건'],
+  ['preferred', '우대사항'],
+  ['benefits', '복지/혜택'],
+  ['process', '전형절차'],
+  ['documents', '제출서류'],
+  ['etc', '기타사항'],
+  ['uncertainties', '확인 필요'],
+]
+
+const stripBullet = (value: string) =>
+  value.replace(/^\s*[-*•▪·ㆍ]\s*/, '').trim()
+
+const cleanCodexValue = (value?: string) => {
+  const cleaned = (value ?? '')
+    .split(/\n+/)
+    .map(stripBullet)
+    .filter(Boolean)
+    .join('\n')
+    .trim()
+  if (!cleaned || /^(없음|미정|알\s*수\s*없음|확인\s*필요|해당\s*없음)$/i.test(cleaned)) return ''
+  return cleaned
+}
+
+const normalizeCodexDate = (value?: string) => {
+  const cleaned = cleanCodexValue(value)
+  if (!cleaned || /상시|채용\s*시|수시|없음|미정|확인/i.test(cleaned)) return ''
+  if (/^\d{4}-\d{2}-\d{2}$/.test(cleaned)) return cleaned
+  const match = cleaned.match(/(20\d{2})[.\-/년\s]+(\d{1,2})[.\-/월\s]+(\d{1,2})/)
+  if (!match) return ''
+  return `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`
+}
+
+const parseCodexKeywords = (value?: string) =>
+  cleanCodexValue(value)
+    .split(/[,\n/·|]+/)
+    .map(item => stripBullet(item).replace(/^#+\s*/, '').trim())
+    .filter(Boolean)
+
+const findCodexField = (label: string): CodexAnalysisField | null => {
+  const normalized = label.replace(/^#+\s*/, '').replace(/\s+/g, ' ').trim()
+  const found = CODEX_RESULT_LABELS.find(([, matcher]) => matcher.test(normalized))
+  return found?.[0] ?? null
+}
+
+const parseCodexAnalysisResult = (text: string): CodexAnalysisDraft => {
+  const draft: CodexAnalysisDraft = {}
+  let currentField: CodexAnalysisField | null = null
+
+  text.split(/\n+/).forEach(rawLine => {
+    const line = rawLine.trim()
+    if (!line) return
+    const normalized = line.replace(/^[-*•▪·ㆍ]\s*/, '').trim()
+    const labelMatch = normalized.match(/^#{0,4}\s*([^:：]+?)\s*[:：]\s*(.*)$/)
+    const headingField = findCodexField(normalized)
+    const field = labelMatch ? findCodexField(labelMatch[1]) : headingField
+
+    if (field) {
+      currentField = field
+      const value = labelMatch ? labelMatch[2].trim() : ''
+      if (value) draft[field] = [draft[field], value].filter(Boolean).join('\n')
+      return
+    }
+
+    if (currentField) {
+      draft[currentField] = [draft[currentField], line].filter(Boolean).join('\n')
+    }
+  })
+
+  return draft
+}
+
+const formatCodexNote = (draft: CodexAnalysisDraft, fallback: string) => {
+  const sections = NOTE_SECTION_LABELS
+    .map(([field, label]) => {
+      const value = cleanCodexValue(draft[field])
+      return value ? `${label}\n${value}` : ''
+    })
+    .filter(Boolean)
+  return sections.length ? sections.join('\n\n') : fallback.trim()
+}
+
+const buildCodexAnalysisPrompt = (form: JobPostingForm, linkDraftUrl: string, linkDraftText: string) => {
+  const sourceUrl = form.sourceUrl.trim() || linkDraftUrl.trim()
+  const currentValues = [
+    form.company.trim() && `회사: ${form.company.trim()}`,
+    form.position.trim() && `포지션: ${form.position.trim()}`,
+    form.deadline && `마감일: ${form.deadline}`,
+    form.location.trim() && `근무지: ${form.location.trim()}`,
+    form.employmentType.trim() && `고용형태: ${form.employmentType.trim()}`,
+    form.keywords.trim() && `키워드: ${form.keywords.trim()}`,
+    form.nextAction.trim() && `다음 행동: ${form.nextAction.trim()}`,
+  ].filter(Boolean).join('\n')
+
+  return [
+    '아래 지원공고를 플래너에 저장할 수 있게 구조화해줘.',
+    '',
+    '출력은 아래 라벨을 그대로 쓰고, 모르는 값은 "확인 필요"라고 적어줘.',
+    '',
+    '회사:',
+    '포지션:',
+    '마감일:',
+    '근무지:',
+    '고용형태:',
+    '키워드:',
+    '다음 행동:',
+    '주요 업무:',
+    '자격요건:',
+    '우대사항:',
+    '복지/혜택:',
+    '전형절차:',
+    '제출서류:',
+    '기타사항:',
+    '불확실한 점:',
+    '',
+    sourceUrl ? `공고 링크:\n${sourceUrl}` : '',
+    currentValues ? `현재 플래너 입력값:\n${currentValues}` : '',
+    linkDraftText.trim() ? `페이지 내용 붙여넣기:\n${linkDraftText.trim()}` : '',
+    form.imageText.trim() ? `공고 원문/OCR:\n${form.imageText.trim()}` : '',
+    form.note.trim() ? `기존 추출 상세/메모:\n${form.note.trim()}` : '',
+  ].filter(Boolean).join('\n\n')
+}
+
 const dateDistance = (date?: string) => {
   if (!date) return Number.POSITIVE_INFINITY
   const today = new Date(`${toLocalDateKey()}T12:00:00`).getTime()
@@ -122,6 +285,8 @@ export default function JobPostings() {
   const [linkDraftBusy, setLinkDraftBusy] = useState(false)
   const [showManualLinkText, setShowManualLinkText] = useState(false)
   const [linkImageUrls, setLinkImageUrls] = useState<string[]>([])
+  const [codexAnalysisText, setCodexAnalysisText] = useState('')
+  const [codexStatus, setCodexStatus] = useState('')
   const [selectedPostingId, setSelectedPostingId] = useState<string | null>(null)
 
   const applyLinkDraftToForm = async () => {
@@ -239,6 +404,43 @@ export default function JobPostings() {
     }
   }
 
+  const copyCodexAnalysisPrompt = async () => {
+    const prompt = buildCodexAnalysisPrompt(form, linkDraftUrl, linkDraftText)
+    try {
+      await navigator.clipboard.writeText(prompt)
+      setCodexStatus('Codex 분석용 템플릿을 복사했습니다.')
+    } catch {
+      setCodexStatus('복사 권한이 막혔습니다. 링크, 원문/OCR, 기존 메모를 Codex에 직접 전달해 주세요.')
+    }
+  }
+
+  const applyCodexAnalysisToForm = () => {
+    const text = codexAnalysisText.trim()
+    if (!text) return
+    const parsed = parseCodexAnalysisResult(text)
+    const textDraft = inferJobPostingFromText(text)
+    const note = formatCodexNote(parsed, text)
+    const nextKeywords = mergeTokenLists(parseCodexKeywords(parsed.keywords), textDraft.keywords)
+    const deadline = normalizeCodexDate(parsed.deadline) || textDraft.deadline
+
+    setForm(previous => ({
+      ...previous,
+      company: !isPlaceholderCompany(previous.company)
+        ? previous.company
+        : cleanCodexValue(parsed.company) || textDraft.company || previous.company,
+      position: !isPlaceholderPosition(previous.position)
+        ? previous.position
+        : cleanCodexValue(parsed.position) || textDraft.position || previous.position,
+      deadline: previous.deadline || deadline,
+      location: previous.location || cleanCodexValue(parsed.location) || textDraft.location,
+      employmentType: previous.employmentType || cleanCodexValue(parsed.employmentType) || textDraft.employmentType,
+      keywords: joinTokens(mergeTokens(previous.keywords, nextKeywords)),
+      nextAction: previous.nextAction || cleanCodexValue(parsed.nextAction) || '공고 확인 후 지원서 맞춤 수정',
+      note: note || previous.note,
+    }))
+    setCodexStatus('Codex 분석 결과를 작성 폼에 반영했습니다.')
+  }
+
   const runOcr = async (file?: File) => {
     if (!file) return
     setOcrBusy(true)
@@ -350,6 +552,8 @@ export default function JobPostings() {
     setLinkDraftStatus('')
     setShowManualLinkText(false)
     setLinkImageUrls([])
+    setCodexAnalysisText('')
+    setCodexStatus('')
     setOcrStatus('')
   }
 
@@ -463,6 +667,33 @@ export default function JobPostings() {
             </div>
           )}
           {linkDraftStatus && <small>{linkDraftStatus}</small>}
+        </div>
+      </details>
+
+      <details className="job-codex-assist">
+        <summary>
+          <span>Codex로 정밀 정리</span>
+          <small>API 비용 없음</small>
+        </summary>
+        <div className="job-codex-assist-body">
+          <div>
+            <button type="button" onClick={copyCodexAnalysisPrompt}>분석 템플릿 복사</button>
+            <button type="button" className="secondary" onClick={applyCodexAnalysisToForm}>결과를 폼에 반영</button>
+          </div>
+          <textarea
+            value={codexAnalysisText}
+            onChange={event => {
+              setCodexAnalysisText(event.target.value)
+              setCodexStatus('')
+            }}
+            placeholder="Codex가 정리한 회사, 포지션, 마감일, 주요 업무, 자격요건, 우대사항, 복지/혜택, 전형절차를 붙여넣으세요."
+            rows={7}
+          />
+          <p>
+            템플릿에는 현재 링크, 공고 원문/OCR, 기존 메모가 함께 들어갑니다.
+            Codex 답변을 붙여넣으면 지원 공고 폼의 핵심 필드와 추출 상세/메모로 정리합니다.
+          </p>
+          {codexStatus && <small>{codexStatus}</small>}
         </div>
       </details>
 
@@ -650,7 +881,7 @@ export default function JobPostings() {
         .job-header h2 { margin: 0 0 6px; font-size: 24px; letter-spacing: 0; }
         .job-header p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
         .job-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-        .job-summary-card, .job-next, .job-platforms, .job-link-assist, .job-add, .job-tools, .job-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; }
+        .job-summary-card, .job-next, .job-platforms, .job-link-assist, .job-codex-assist, .job-add, .job-tools, .job-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; }
         .job-summary-card { padding: 13px; min-width: 0; }
         .job-summary-card span, .job-next span, .job-platforms > span { color: var(--accent); font-size: 11px; font-weight: 900; }
         .job-summary-card b { display: block; margin: 5px 0 3px; font-size: 21px; }
@@ -661,10 +892,10 @@ export default function JobPostings() {
         .job-next p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
         .job-platforms > div { display: flex; flex-wrap: wrap; gap: 7px; }
         .job-platforms small { border-radius: 999px; background: var(--bg3); color: var(--muted); padding: 6px 9px; font-size: 11px; font-weight: 800; }
-        .job-link-assist { padding: 0; overflow: hidden; }
-        .job-link-assist summary { min-height: 42px; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer; color: var(--text); font-size: 13px; font-weight: 900; }
-        .job-link-assist summary::marker { color: var(--muted); }
-        .job-link-assist summary small { border-radius: 999px; background: var(--bg3); color: var(--muted); padding: 4px 8px; font-size: 10px; font-weight: 900; white-space: nowrap; }
+        .job-link-assist, .job-codex-assist { padding: 0; overflow: hidden; }
+        .job-link-assist summary, .job-codex-assist summary { min-height: 42px; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer; color: var(--text); font-size: 13px; font-weight: 900; }
+        .job-link-assist summary::marker, .job-codex-assist summary::marker { color: var(--muted); }
+        .job-link-assist summary small, .job-codex-assist summary small { border-radius: 999px; background: var(--bg3); color: var(--muted); padding: 4px 8px; font-size: 10px; font-weight: 900; white-space: nowrap; }
         .job-link-assist-body { border-top: 1px solid var(--border); padding: 11px 12px 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
         .job-link-assist-body input, .job-link-assist-body textarea { min-width: 0; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); font-family: inherit; font-size: 13px; outline: none; }
         .job-link-assist-body input { height: 34px; padding: 0 9px; }
@@ -676,6 +907,13 @@ export default function JobPostings() {
         .job-link-images { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); padding: 8px 9px; }
         .job-link-images span { min-width: 0; color: var(--muted); font-size: 11px; font-weight: 800; }
         .job-link-images button { min-height: 30px; background: var(--bg2); color: var(--text); border: 1px solid var(--border); }
+        .job-codex-assist-body { border-top: 1px solid var(--border); padding: 11px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+        .job-codex-assist-body > div { display: flex; flex-wrap: wrap; gap: 8px; }
+        .job-codex-assist-body button { min-height: 34px; border: 0; border-radius: 7px; background: var(--accent); color: #fff; padding: 0 12px; font-size: 12px; font-weight: 900; cursor: pointer; }
+        .job-codex-assist-body button.secondary { border: 1px solid var(--border); background: var(--bg3); color: var(--text); }
+        .job-codex-assist-body textarea { min-width: 0; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); padding: 9px; font-family: inherit; font-size: 13px; line-height: 1.5; resize: vertical; outline: none; }
+        .job-codex-assist-body p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+        .job-codex-assist-body small { color: var(--accent); font-size: 11px; font-weight: 800; }
         .job-add { padding: 12px; display: flex; flex-direction: column; gap: 9px; }
         .job-add-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) 120px 120px 138px; gap: 8px; }
         .job-add-dates { display: grid; grid-template-columns: minmax(160px, 220px); gap: 8px; }

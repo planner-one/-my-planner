@@ -8,7 +8,7 @@ import { Suspense, lazy, type ComponentType, type LazyExoticComponent } from 're
 type PageId =
   | 'dashboard' | 'calendar' | 'habits' | 'tasks' | 'todos' | 'goals' | 'projects'
   | 'weekly' | 'daily' | 'notes' | 'journal' | 'profile' | 'inquiries' | 'print' | 'career'
-  | 'personalApplications' | 'jobPostings'
+  | 'personalApplications' | 'jobPostings' | 'productivity'
 
 type PageComponent = LazyExoticComponent<ComponentType>
 
@@ -32,6 +32,7 @@ const PAGE_MAP: Record<PageId, PageComponent> = {
   career:    loadPage(() => import('./pages/CareerEvents')),
   personalApplications: loadPage(() => import('./pages/PersonalApplications')),
   jobPostings: loadPage(() => import('./pages/JobPostings')),
+  productivity: loadPage(() => import('./pages/ProductivityLog')),
 }
 
 function Loading() {

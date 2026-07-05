@@ -274,6 +274,16 @@ export interface LayoutItem {
   minH?: number
 }
 
+export type NotificationChannel = 'codex' | 'gmail' | 'slack' | 'discord'
+
+export interface NotificationPreferences {
+  dailyBriefingEnabled: boolean
+  dailyBriefingTime: string
+  dailyBriefingChannel: NotificationChannel
+  dailyBriefingScope: 'ownAccount'
+  timezone: string
+}
+
 export interface UserData {
   todos?: Todo[]
   todoHistory?: TodoDailyResult[]
@@ -307,6 +317,7 @@ export interface UserData {
   dashboardActive?: string[]
   uiScale?: number
   nickname?: string
+  notificationPreferences?: NotificationPreferences
   _lastSaved?: string
   _displayName?: string
   _email?: string

@@ -152,3 +152,66 @@ export function getUnresolvedIncompleteTodos({
   return getIncompleteTodos(items)
     .filter(item => !hasLaterTodoOccurrence({ sourceDate, todo: item, today, todoHistory, todos }))
 }
+
+export function carryIncompleteTodosToDate({
+  currentDate,
+  todos,
+  todoHistory = [],
+}: {
+  currentDate: string
+  todos: Todo[]
+  todoHistory?: TodoDailyResult[]
+}): Todo[] {
+  const getTodoDate = (todo: Todo) => todo.date ?? currentDate
+  const isResolvedByCorrectedHistory = (todo: Todo) => {
+    if (!todo.date) return false
+    const sourceHistory = todoHistory.find(result => result.date === todo.date)
+    if (!sourceHistory) return false
+    if (!sourceHistory.correctedAt && (sourceHistory.correctionHistory?.length ?? 0) === 0) return false
+
+    const key = getTodoCarryKey(todo)
+    const matchingHistoryItem = sourceHistory.items.find(item =>
+      item.id === todo.id || getTodoCarryKey(item) === key
+    )
+
+    return !matchingHistoryItem || matchingHistoryItem.done
+  }
+  const hasLaterOccurrence = (source: Todo, sourceDate: string) => {
+    const key = getTodoCarryKey(source)
+    return todos.some(todo =>
+      todo.id !== source.id
+      && getTodoCarryKey(todo) === key
+      && getTodoDate(todo) > sourceDate
+    )
+  }
+
+  const carried: Todo[] = []
+  const retained: Todo[] = []
+  let changed = false
+
+  todos.forEach(todo => {
+    if (!todo.date || todo.date >= currentDate || todo.done) {
+      retained.push(todo)
+      return
+    }
+
+    if (isResolvedByCorrectedHistory(todo)) {
+      changed = true
+      return
+    }
+
+    if (hasLaterOccurrence(todo, todo.date)) {
+      changed = true
+      return
+    }
+
+    carried.push({
+      ...todo,
+      done: false,
+      date: currentDate,
+    })
+    changed = true
+  })
+
+  return changed ? [...carried, ...retained] : todos
+}

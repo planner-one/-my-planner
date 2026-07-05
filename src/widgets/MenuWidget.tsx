@@ -23,6 +23,7 @@ const PAGES = [
   { id: 'daily',   icon: '⏰', name: '일일 플래너' },
   { id: 'notes',   icon: '📝', name: '노트' },
   { id: 'journal', icon: '📔', name: '저널' },
+  { id: 'productivity', icon: '📈', name: '생산성 기록' },
   { id: 'career',  icon: '💼', name: '기회 일정' },
   { id: 'personalApplications', icon: '📌', name: '내 신청' },
   { id: 'jobPostings', icon: '🏢', name: '지원 공고' },

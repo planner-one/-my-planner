@@ -166,29 +166,90 @@ _릴리즈일: 2026-07-03_
 - 목표 관리 화면에서 Todo, 오늘 방향, 장기 목표의 역할 설명을 명확히 분리
 - 작업 흐름 위젯의 목표 요약도 오늘 날짜의 방향만 집계하도록 보정
 
+## v0.3.11 - Next Day Briefing
+
+_릴리즈일: 2026-07-04_
+
+핵심 변경:
+
+- 오늘 할 일 위젯에서 오늘과 내일을 선택해 Todo를 추가하고 확인 가능
+- 오늘 할 일 페이지의 입력 대상과 기간 필터에 내일 추가
+- Todo 페이지에 내일 브리핑 패널 추가
+- 내일 브리핑은 Todo, 하루 방향, 예정 작업, 기회 일정, 내 신청, 지원 공고, 작업/목표/프로젝트 마감을 통합
+- 향후 Codex, Gmail, Slack, Discord 알림 채널에서 재사용할 수 있도록 `plannerBriefing` 유틸 분리
+- `npm run check:planner-briefing` 회귀 체크 추가
+
+## v0.3.12 - Todo Auto Carry
+
+_릴리즈일: 2026-07-04_
+
+핵심 변경:
+
+- 지난 날짜의 미완료 Todo를 오늘 날짜로 자동 이월
+- 원래 날짜의 Todo 결과는 기록으로 보존하고, 실시간 Todo 목록에서는 최신 날짜 항목만 유지
+- 오늘 또는 미래 날짜에 같은 내용/카테고리 Todo가 있으면 오래된 중복 항목 정리
+- 앱 로드와 날짜 변경 흐름에서 자동 이월 실행
+- `npm run check:todo-history`에 자동 이월 회귀 체크 추가
+
+## v0.3.13 - Account Scoped Briefing
+
+_릴리즈일: 2026-07-04_
+
+핵심 변경:
+
+- 프로필에 내 계정 브리핑 알림 설정 추가
+- 알림 범위를 로그인한 본인 계정 데이터 기준으로 고정
+- 알림 사용 여부, 시간, 채널 후보를 `users/{uid}.notificationPreferences`로 저장
+- 채널 후보는 Codex, Gmail, Slack, Discord를 지원하도록 데이터 구조 준비
+- Codex 자동화 프롬프트를 본인 계정 export만 요약하도록 갱신
+
+## v0.3.14 - Productivity Day Log
+
+_릴리즈일: 2026-07-05_
+
+핵심 변경:
+
+- 생산성 추이 위젯 오른쪽 상단에 생산성 기록 페이지 이동 버튼 추가
+- `productivity` 페이지를 추가하고 사이드바, 전체 메뉴, 메뉴 위젯에 연결
+- 날짜별 생산성 점수와 Todo, 루틴, 예정 작업, 집중 세션 구성 비율 표시
+- 하루 방향, 마감 작업, 시간 블록, 저널, 회고 기록을 같은 날짜 기준으로 함께 표시
+- `npm run check:productivity-log` 회귀 체크 추가
+
+## v0.3.15 - Productivity Log Charts
+
+_릴리즈일: 2026-07-05_
+
+핵심 변경:
+
+- 생산성 기록 페이지 상단을 점수, 완료/기록, 남은 항목, 집중, 30일 평균 요약으로 재구성
+- 최근 14일 생산성 점수 흐름 그래프 추가
+- 선택한 날짜의 Todo, 루틴, 예정 작업, 집중 세션 점수 구성 그래프 추가
+- 상세 기록 목록은 대표 항목 중심으로 보여주고 긴 기록은 남은 개수를 표시
+- `npm run check:productivity-log`, `npx tsc --noEmit`, `npm run build` 기준 검증
+
 ## 다음 후보
 
 상세 일정은 `UPDATE_SCHEDULE.md`를 기준으로 관리합니다.
 
-v0.3.11 Documentation & QA Baseline 후보:
+v0.3.16 Documentation & QA Baseline 후보:
 
 - `PLANNER_SYSTEM_AUDIT_2026-07-04.md` 기준으로 설계/구현/데이터 감사 기록 유지
 - `NEXT_CHAT_HANDOFF.md`, `PROGRESS.md`, `REQUIREMENTS.md`, `SCENARIOS.md`의 오래된 상태 문구 제거
 - page id, 위젯 id, 버전, 데이터 필드 문서-코드 일치 자동 점검 후보 설계
 
-v0.3.12 UI System Pass 후보:
+v0.3.17 UI System Pass 후보:
 
 - 지원 공고, 내 신청, 오늘 할 일처럼 정보량 많은 화면의 폼/카드/패널 밀도 개선
 - 공통 카드 반경, 패딩, 제목 크기, 입력/버튼 스타일 기준 정리
 - 모바일 390px, 태블릿 세로 768px, 태블릿 가로 1024px 실기기 QA 체크리스트 진행
 
-v0.3.13 Planner Flow Clarity 후보:
+v0.3.18 Planner Flow Clarity 후보:
 
 - Todo, 작업 관리, 프로젝트, 목표, 오늘 방향의 역할 설명과 화면 연결 정리
 - 대시보드 작업 흐름 위젯에 오늘 해야 할 것, 이번 주 볼 것, 장기 진행 구분 추가 검토
 - 캘린더 항목을 해야 할 일, 신청/지원, 마감, 기록 기준으로 묶어 보기 검토
 
-v0.3.14 Data Quality & AI Readiness 후보:
+v0.3.19 Data Quality & AI Readiness 후보:
 
 - `sourceUrl`, `keywords`, `createdAt`, `updatedAt`, 상태 변경 이력 기준 점검
 - 노트/지원 공고/내 신청/기회 일정 통합 검색 후보 설계

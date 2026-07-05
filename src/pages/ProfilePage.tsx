@@ -7,6 +7,7 @@ export default function ProfilePage() {
   const {
     nickname, setNickname,
     uiScale, setUiScale,
+    notificationPreferences, setNotificationPreferences,
     todos, habits, goals, projects, notes, journal,
     scheduledTasks, careerEvents, personalApplications, jobPostings,
     dashboardActive, dashboardLayout,
@@ -14,6 +15,13 @@ export default function ProfilePage() {
   } = useApp()
 
   const displayName = nickname.trim() || user?.displayName || '플래너 사용자'
+  const updateNotificationPreferences = (patch: Partial<typeof notificationPreferences>) => {
+    setNotificationPreferences(previous => ({
+      ...previous,
+      ...patch,
+      dailyBriefingScope: 'ownAccount',
+    }))
+  }
   const storageItems = [
     { label: 'Todo', value: todos.length },
     { label: '루틴', value: habits.length },
@@ -74,6 +82,47 @@ export default function ProfilePage() {
           </div>
           <p className="profile-note">테마는 현재 브라우저에 저장되고, 화면 밀도와 플래너 데이터는 Firestore 저장 흐름을 사용합니다.</p>
         </article>
+
+        <article className="profile-panel">
+          <div className="panel-heading">
+            <h3>내 계정 브리핑 알림</h3>
+            <span>내 계정만</span>
+          </div>
+          <label className="inline-check">
+            <input
+              type="checkbox"
+              checked={notificationPreferences.dailyBriefingEnabled}
+              onChange={event => updateNotificationPreferences({ dailyBriefingEnabled: event.target.checked })}
+            />
+            <span>매일 브리핑 받기</span>
+          </label>
+          <label>
+            <span>시간</span>
+            <input
+              type="time"
+              value={notificationPreferences.dailyBriefingTime}
+              onChange={event => updateNotificationPreferences({ dailyBriefingTime: event.target.value || '10:00' })}
+            />
+          </label>
+          <label>
+            <span>채널</span>
+            <select
+              value={notificationPreferences.dailyBriefingChannel}
+              onChange={event => updateNotificationPreferences({
+                dailyBriefingChannel: event.target.value as typeof notificationPreferences.dailyBriefingChannel,
+              })}
+            >
+              <option value="codex">Codex</option>
+              <option value="gmail">Gmail</option>
+              <option value="slack">Slack</option>
+              <option value="discord">Discord</option>
+            </select>
+          </label>
+          <div className="account-scope">
+            <span>범위</span>
+            <b>{user?.email ?? '현재 로그인 계정'}</b>
+          </div>
+        </article>
       </section>
 
       <section className="profile-panel">
@@ -111,11 +160,17 @@ export default function ProfilePage() {
         .profile-header h2 { margin: 0 0 5px; font-size: 24px; letter-spacing: 0; }
         .profile-header p { margin: 0; color: var(--muted); font-size: 13px; }
         .profile-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+        .profile-grid .profile-panel:first-child { grid-row: span 2; }
         .profile-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 13px; }
         .profile-panel h3 { margin: 0; font-size: 15px; }
         .profile-panel label { display: flex; flex-direction: column; gap: 6px; }
         .profile-panel label span, .panel-heading span, .profile-note { color: var(--muted); font-size: 12px; line-height: 1.5; }
-        .profile-panel input[type="text"], .profile-panel input:not([type]) { height: 36px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); padding: 0 10px; font-size: 13px; outline: none; }
+        .profile-panel input[type="text"], .profile-panel input[type="time"], .profile-panel input:not([type]), .profile-panel select { height: 36px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); padding: 0 10px; font-size: 13px; outline: none; }
+        .inline-check { flex-direction: row !important; align-items: center; gap: 8px !important; color: var(--text); font-size: 13px; font-weight: 700; }
+        .inline-check input { width: 16px; height: 16px; accent-color: var(--accent); }
+        .account-scope { display: flex; justify-content: space-between; gap: 10px; align-items: center; border: 1px solid var(--border); border-radius: 8px; background: var(--bg3); padding: 10px 11px; }
+        .account-scope span { color: var(--muted); font-size: 11px; font-weight: 800; }
+        .account-scope b { min-width: 0; color: var(--text); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .scale-row { display: grid; grid-template-columns: minmax(0, 1fr) 52px; gap: 10px; align-items: center; }
         .scale-row b { color: var(--accent); font-size: 13px; text-align: right; }
         .primary-button { height: 36px; border: 0; border-radius: 7px; background: var(--accent); color: #fff; padding: 0 13px; font-size: 12px; font-weight: 800; cursor: pointer; align-self: flex-start; }
@@ -133,6 +188,7 @@ export default function ProfilePage() {
         .release-list li::marker { color: var(--accent); }
         @media (max-width: 760px) {
           .profile-grid, .profile-stats, .storage-grid, .release-summary { grid-template-columns: 1fr; }
+          .profile-grid .profile-panel:first-child { grid-row: auto; }
           .profile-header { align-items: flex-start; }
           .release-panel .panel-heading { flex-direction: column; }
         }

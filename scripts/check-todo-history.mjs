@@ -48,6 +48,7 @@ try {
   const {
     syncPastTodoHistory,
     getUnresolvedIncompleteTodos,
+    carryIncompleteTodosToDate,
   } = await import(pathToFileURL(compiledPath).href)
 
   const oldSnapshot = {
@@ -140,6 +141,103 @@ try {
   })
 
   assert(latestStillOpen.length === 1, 'latest incomplete occurrence should still be importable')
+
+  const autoCarried = carryIncompleteTodosToDate({
+    currentDate: '2026-07-05',
+    todos: [
+      {
+        id: 'old-open',
+        text: '포트폴리오 수정',
+        done: false,
+        priority: 'medium',
+        category: 'work',
+        date: '2026-07-04',
+      },
+      {
+        id: 'old-done',
+        text: '완료된 일',
+        done: true,
+        priority: 'medium',
+        category: 'work',
+        date: '2026-07-04',
+      },
+    ],
+  })
+
+  assert(autoCarried.length === 2, 'one incomplete past todo should be moved to current date')
+  assert(autoCarried[0].id === 'old-open', 'auto-carried todo should keep its original id')
+  assert(autoCarried[0].date === '2026-07-05', 'auto-carried todo should be dated as current date')
+  assert(!autoCarried.some(todo => todo.id === 'old-open' && todo.date === '2026-07-04'), 'original past occurrence should not remain in live todos')
+
+  const notDuplicated = carryIncompleteTodosToDate({
+    currentDate: '2026-07-05',
+    todos: autoCarried,
+  })
+
+  assert(notDuplicated.length === autoCarried.length, 'auto carry should not duplicate an item already on current date')
+
+  const cleanupManualDuplicate = carryIncompleteTodosToDate({
+    currentDate: '2026-07-05',
+    todos: [
+      {
+        id: 'manual-original',
+        text: '포트폴리오 수정',
+        done: false,
+        priority: 'medium',
+        category: 'work',
+        date: '2026-07-04',
+      },
+      {
+        id: 'manual-copy',
+        text: '포트폴리오 수정',
+        done: false,
+        priority: 'medium',
+        category: 'work',
+        date: '2026-07-05',
+      },
+    ],
+  })
+
+  assert(cleanupManualDuplicate.length === 1, 'older duplicate should be removed when a later occurrence exists')
+  assert(cleanupManualDuplicate[0].id === 'manual-copy', 'latest occurrence should be kept')
+
+  const correctedDoneIsNotCarried = carryIncompleteTodosToDate({
+    currentDate: '2026-07-05',
+    todos: [
+      {
+        id: 'corrected-old-open',
+        text: '기록에서 완료로 보정된 일',
+        done: false,
+        priority: 'medium',
+        category: 'work',
+        date: '2026-07-04',
+      },
+    ],
+    todoHistory: [{
+      date: '2026-07-04',
+      total: 1,
+      done: 1,
+      completionRate: 100,
+      savedAt: '2026-07-05T00:00:00.000Z',
+      source: 'manual',
+      correctedAt: '2026-07-05T00:10:00.000Z',
+      correctionHistory: [{
+        correctedAt: '2026-07-05T00:10:00.000Z',
+        note: '완료로 보정',
+        changes: [],
+      }],
+      items: [{
+        id: 'corrected-old-open',
+        text: '기록에서 완료로 보정된 일',
+        done: true,
+        priority: 'medium',
+        category: 'work',
+        date: '2026-07-04',
+      }],
+    }],
+  })
+
+  assert(correctedDoneIsNotCarried.length === 0, 'todo completed through correction should not be carried forward')
 
   console.log('Todo history carry-forward checks passed.')
 } finally {

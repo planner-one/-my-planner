@@ -1,13 +1,44 @@
-import { signInWithGoogle } from '../services/authService'
+import { useState } from 'react'
+import { getLocalhostAuthUrl, signInWithGoogle } from '../services/authService'
+
+const getLoginErrorMessage = (error: unknown) => {
+  const code = typeof error === 'object' && error && 'code' in error && typeof error.code === 'string'
+    ? error.code
+    : ''
+  const message = error instanceof Error ? error.message : ''
+  const reason = `${code} ${message}`
+
+  if (reason.includes('popup-closed-by-user')) return ''
+  if (reason.includes('unauthorized-domain')) {
+    return 'Firebase Auth 승인 도메인 문제가 있어요. 로컬에서는 localhost 주소로 다시 시도해주세요.'
+  }
+  if (reason.includes('popup-blocked')) {
+    return '브라우저가 로그인 팝업을 막았어요. 팝업 허용 후 다시 시도해주세요.'
+  }
+  return code
+    ? `로그인에 실패했습니다. 오류 코드: ${code}`
+    : '로그인에 실패했습니다. 다시 시도해주세요.'
+}
 
 export default function LoginPage() {
+  const [errorMessage, setErrorMessage] = useState('')
+  const [isSigningIn, setIsSigningIn] = useState(false)
+
   const handleLogin = async () => {
+    const localhostUrl = getLocalhostAuthUrl(window.location.href)
+    if (localhostUrl) {
+      window.location.replace(localhostUrl)
+      return
+    }
+
+    setErrorMessage('')
+    setIsSigningIn(true)
     try {
       await signInWithGoogle()
     } catch (e: unknown) {
-      if (e instanceof Error && !e.message.includes('popup-closed-by-user')) {
-        alert('로그인에 실패했습니다. 다시 시도해주세요.')
-      }
+      setErrorMessage(getLoginErrorMessage(e))
+    } finally {
+      setIsSigningIn(false)
     }
   }
 
@@ -25,11 +56,24 @@ export default function LoginPage() {
         display: 'flex', alignItems: 'center', gap: 10,
         padding: '12px 24px', borderRadius: 8, border: '1px solid var(--border)',
         background: 'var(--bg2)', color: 'var(--text)', fontSize: 15,
-        cursor: 'pointer', fontWeight: 500,
+        cursor: isSigningIn ? 'wait' : 'pointer', fontWeight: 500,
+        opacity: isSigningIn ? 0.72 : 1,
       }}>
         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width={20} alt="Google" />
-        Google로 계속하기
+        {isSigningIn ? '로그인 확인 중...' : 'Google로 계속하기'}
       </button>
+      {errorMessage && (
+        <p style={{
+          maxWidth: 420,
+          margin: 0,
+          color: '#d84848',
+          fontSize: 13,
+          lineHeight: 1.5,
+          textAlign: 'center',
+        }}>
+          {errorMessage}
+        </p>
+      )}
     </div>
   )
 }

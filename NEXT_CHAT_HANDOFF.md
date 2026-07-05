@@ -1,14 +1,14 @@
 # 다음 채팅 인수인계
 
 _작성일: 2026-06-28_
-_갱신일: 2026-07-04 (설계 감사와 업데이트 스케줄 정리 기준)_
+_갱신일: 2026-07-05 (생산성 기록 그래프/UX 반영 기준)_
 
 이 파일은 새 Codex 또는 Claude Code 세션에서 바로 이어 작업하기 위한 현재 상태 메모입니다.
 새 세션에서는 먼저 이 파일과 `AGENTS.md`, `PROGRESS.md`, `REQUIREMENTS.md`, `SCENARIOS.md`, `RELEASES.md`, `COPYRIGHT_AND_SERVICE_NOTES.md`, `LINK_IMPORT_GUIDE.md`, `JOB_POSTING_LINK_READER.md`, `PLANNER_SYSTEM_AUDIT_2026-07-04.md`, `UPDATE_SCHEDULE.md`를 읽고 시작하면 됩니다.
 
 ## 한 줄 요약
 
-플래너는 Firebase 기반 React/Vite/TypeScript 앱이며, SC-07 위젯 검토와 SC-08 사이드바 기능 페이지, SC-09 테마 정리, SC-10 태블릿/모바일 반응형 코드 QA까지 완료했습니다. v0.3.0~v0.3.2에서는 작업 흐름 위젯, 주요 페이지 UX, 내 신청/지원 공고/캘린더 연결을 보강했고, v0.3.3~v0.3.9에서는 지원 공고 링크 Reader와 사람인/원티드 파싱을 보강했습니다. v0.3.10에서는 목표 위젯/목표 페이지의 오늘 집중을 날짜별 오늘 방향으로 정리해, 체크된 항목이 다음날에도 그대로 남는 혼동과 미완료 번호 표시를 보정했습니다. 2026-07-04에는 현재 설계, 구현, 데이터 저장 구조를 `PLANNER_SYSTEM_AUDIT_2026-07-04.md`로 감사하고, 다음 개선 순서를 `UPDATE_SCHEDULE.md`로 정리했습니다.
+플래너는 Firebase 기반 React/Vite/TypeScript 앱이며, SC-07 위젯 검토와 SC-08 사이드바 기능 페이지, SC-09 테마 정리, SC-10 태블릿/모바일 반응형 코드 QA까지 완료했습니다. v0.3.0~v0.3.2에서는 작업 흐름 위젯, 주요 페이지 UX, 내 신청/지원 공고/캘린더 연결을 보강했고, v0.3.3~v0.3.9에서는 지원 공고 링크 Reader와 사람인/원티드 파싱을 보강했습니다. v0.3.10에서는 목표 위젯/목표 페이지의 오늘 집중을 날짜별 오늘 방향으로 정리했고, v0.3.11에서는 오늘 할 일 위젯/페이지에 오늘·내일 선택과 다음 날 브리핑을 추가했습니다. v0.3.12에서는 지난 날짜 미완료 Todo를 오늘 날짜로 자동 이월하도록 보강했고, v0.3.13에서는 브리핑 알림 설정을 내 계정 기준으로 저장하도록 보강했습니다. v0.3.14에서는 생산성 추이 위젯에서 날짜별 생산성 기록 상세 페이지로 이동할 수 있게 했고, v0.3.15에서는 생산성 기록 페이지 요약 UX와 추이/구성 그래프를 보강했습니다.
 
 ## 작업 위치와 원격
 
@@ -19,16 +19,16 @@ _갱신일: 2026-07-04 (설계 감사와 업데이트 스케줄 정리 기준)_
 - 배포 URL: `https://my-planner-487bd.web.app`
 - GitHub Pages는 사용하지 않습니다.
 - 현재 HEAD: `d339be2 fix: reset goal focus by date`
-- 현재 앱 버전: `v0.3.10 Goal Focus Reset`
-- 현재 로컬 브랜치 상태: 2026-07-04 설계 감사/업데이트 스케줄 문서화 작업 중, 커밋/푸시 전 사용자 확인 필요
+- 현재 앱 버전: `v0.3.15 Productivity Log Charts`
+- 현재 로컬 브랜치 상태: 2026-07-05 내일 Todo/다음 날 브리핑, Codex 알림 자동화, 미완료 Todo 자동 이월, 내 계정 알림 설정, 지원 공고 Codex 정밀 정리 보조, 생산성 기록 상세와 그래프/UX 보강 작업 중, 커밋/푸시 전 사용자 확인 필요
 - 최근 push와 Firebase Hosting 배포는 `planner-one` 계정으로 성공했습니다.
 
 ## 2026-07-04 설계 감사 반영
 
 현재 구조를 "모르는 게 없을 때까지" 확인하기 위한 기준 문서를 추가했습니다.
 
-- `PLANNER_SYSTEM_AUDIT_2026-07-04.md`: 페이지 17개, 위젯 15개, `UserData` 주요 필드, Firebase 저장 흐름, 로컬 Reader API와 배포 차이, 디자인/반응형 상태, 보완점 정리
-- `UPDATE_SCHEDULE.md`: v0.3.11 문서/QA 기준, v0.3.12 UI System Pass, v0.3.13 플래너 흐름 구분, v0.3.14 데이터 품질/AI 준비, v0.4.0 운영 API 준비, v0.5.0 유료 AI 후보 순서 기록
+- `PLANNER_SYSTEM_AUDIT_2026-07-04.md`: 페이지 18개, 위젯 15개, `UserData` 주요 필드, Firebase 저장 흐름, 로컬 Reader API와 배포 차이, 디자인/반응형 상태, 보완점 정리
+- `UPDATE_SCHEDULE.md`: v0.3.11 내일 브리핑 완료, v0.3.12 미완료 Todo 자동 이월 완료, v0.3.13 내 계정 브리핑 알림 설정 완료, v0.3.14 생산성 기록 완료, v0.3.15 생산성 기록 그래프/UX 보강 완료, v0.3.16 문서/QA 기준, v0.3.17 UI System Pass, v0.3.18 플래너 흐름 구분, v0.3.19 데이터 품질/AI 준비, v0.4.0 운영 API 준비, v0.5.0 유료 AI 후보 순서 기록
 - 확인된 보완점: 운영 배포용 지원 공고 Reader API 부재, 실기기 반응형 QA 필요, 디자인 시스템 불균일, 자동 점검 스크립트 부족, 데이터 내보내기/삭제와 약관/개인정보 문서 필요
 - KDB 인크루트 링크 `https://kdb.incruit.com/hire/viewhire.asp?projectid=125`는 직접 접근 시 잘못된 경로 응답을 주지만, Reader가 `http://kdb.incruit.com/...` 대상으로 접근하면 한국산업은행 공고 본문을 읽을 수 있어 인크루트 `http` 대상 재시도를 추가했습니다.
 - 지원 공고 링크 초안은 이제 본문 추출 없이 URL 슬러그만 잡힌 경우를 성공으로 표시하지 않습니다. `/api/job-posting-page`가 없을 때는 브라우저 Reader fallback을 시도하고, 그래도 실패하면 수동 붙여넣기 안내를 표시합니다.
@@ -136,12 +136,16 @@ firebase deploy --only hosting
 - 2026-07-04 설계 감사/문서 동기화 후 `npm run check:job-draft`, `npx tsc --noEmit`, `npm run build`, `git diff --check`, 충돌 마커 검색 통과
 - 2026-07-04 KDB 인크루트 Reader 보강 후 로컬 `/api/job-posting-page`가 `source: reader`로 한국산업은행 본문을 반환하는 것 확인, `npm run check:job-draft`, `npx tsc --noEmit`, `npm run build`, `git diff --check`, 충돌 마커 검색 통과
 - 2026-07-04 지원 공고 링크 초안 성공 판정/브라우저 Reader fallback 보강 후 `npm run check:job-draft`, `npx tsc --noEmit`, `npm run build` 통과
+- 2026-07-04 내일 Todo/다음 날 브리핑 보강 후 `npm run check:planner-briefing`, `npm run check:todo-history`, `npm run check:job-draft`, `npx tsc --noEmit` 통과
+- 2026-07-04 미완료 Todo 자동 이월 보강 후 `npm run check:todo-history`, `npx tsc --noEmit` 통과
+- 2026-07-04 내 계정 브리핑 알림 설정 보강 후 `npm run check:planner-briefing`, `npm run check:todo-history`, `npx tsc --noEmit` 통과
+- 2026-07-05 v0.3.15 생산성 기록 그래프/UX 보강 후 `npm run check:productivity-log`, `npx tsc --noEmit`, `npm run build`, `git diff --check` 통과
 
 주의:
 
 - dev 서버 포트 `5173`이 사용 중이면 Vite가 다른 포트를 쓸 수 있습니다.
-- 이번 세션에서는 포트 충돌을 피하기 위해 로컬 dev 서버를 `http://127.0.0.1:5182/`로 실행했습니다.
-- 인앱 브라우저 attach가 타임아웃되어 로그인 후 실제 화면 육안 QA는 사용자 세션에서 확인 권장입니다.
+- 이번 세션에서는 로컬 dev 서버가 `http://localhost:5173/`에서 응답 중입니다.
+- 인앱 브라우저는 로그인 전 화면만 확인되어, 로그인 후 실제 생산성 기록 화면 육안 QA는 사용자 세션에서 확인 권장입니다.
 - 배포 후 사용자가 실제 Firebase Hosting URL에서 확인하는 흐름이 자주 있었습니다.
 
 ## 현재 앱 구조
@@ -155,6 +159,7 @@ firebase deploy --only hosting
 - `src/types/index.ts`: 앱 데이터 타입
 - `src/widgets/index.ts`: 위젯 등록 목록
 - `src/version.ts`: 앱 버전, 릴리즈 날짜, 릴리즈 이름, 프로필 표시용 릴리즈 노트
+- `src/utils/plannerBriefing.ts`: 다음 날 Todo, 하루 방향, 예정 작업, 기회 일정, 내 신청, 지원 공고, 작업/목표/프로젝트 마감을 알림용 브리핑으로 모으는 공통 유틸
 
 데이터 저장:
 
@@ -162,6 +167,7 @@ firebase deploy --only hosting
 - 일반 상태 변경은 1초 debounce 저장입니다.
 - 레이아웃 저장, 로그아웃 전 저장 등은 즉시 저장 함수가 있습니다.
 - 사용자별 화면 비율 `uiScale`은 Firestore에 저장됩니다.
+- 사용자별 브리핑 알림 설정 `notificationPreferences`는 Firestore `users/{uid}`에 저장되며 알림 범위는 `ownAccount`로 고정합니다.
 - 사용자 전환 시 이전 계정 pending save가 새 계정에 들어가지 않도록 저장 UID와 계정 메타데이터를 캡처하고, `weather_location`, `theme`, `clock_widget_mode` localStorage도 계정 전환 시 정리합니다.
 
 위젯 제목줄 액션 + 모달 패턴:
@@ -180,7 +186,7 @@ firebase deploy --only hosting
 | `dashboard` | 홈 | ✅ 구현됨 |
 | `calendar` | 캘린더 | ✅ 구현됨 |
 | `tasks` | 작업 관리 | ✅ 구현됨 |
-| `todos` | 오늘 할 일 | ✅ 구현됨 |
+| `todos` | 오늘 할 일 | ✅ 구현됨, 오늘/내일 Todo와 내일 브리핑 포함 |
 | `habits` | 습관 | ✅ 구현됨 |
 | `goals` | 목표 | ✅ 구현됨 |
 | `projects` | 프로젝트 | ✅ 구현됨 |
@@ -191,6 +197,7 @@ firebase deploy --only hosting
 | `daily` | 일일 | ✅ 구현됨 |
 | `notes` | 노트 | ✅ 구현됨 |
 | `journal` | 저널 | ✅ 구현됨 |
+| `productivity` | 생산성 기록 | ✅ 구현됨 |
 | `profile` | 프로필 | ✅ 구현됨 |
 | `inquiries` | 문의 | ✅ 구현됨 |
 | `print` | 플래너 출력 | ✅ 인쇄 미리보기 구현됨 |
@@ -272,9 +279,12 @@ SC-07 위젯 검토는 완료입니다.
 
 - 계산 로직: `src/utils/productivity.ts`
 - 위젯: `src/widgets/ChartWidget.tsx`
+- 상세 페이지: `src/pages/ProductivityLog.tsx`
 - Todo 40, 습관 30, 예정 작업 15, 집중 세션 15 기준
 - 해당 날짜에 데이터가 없는 항목은 제외하고 남은 항목의 가중치로 재계산
 - 목표는 생산성 점수에 직접 합산하지 않는 방향으로 정리
+- 위젯 오른쪽 상단 버튼으로 날짜별 생산성 기록 상세 페이지에 이동
+- 생산성 기록 페이지는 상단 요약, 최근 14일 추이 그래프, 선택일 점수 구성 그래프, 상세 기록 목록을 표시
 
 ### Todo
 

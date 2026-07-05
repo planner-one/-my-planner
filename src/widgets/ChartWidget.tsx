@@ -7,6 +7,7 @@ import {
 } from 'chart.js'
 import { Line } from 'react-chartjs-2'
 import { calculateProductivityScore, getRecentDateKeys } from '../utils/productivity'
+import { useRouter } from '../store/RouterContext'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler)
 
@@ -29,6 +30,34 @@ export const meta = {
   minW: 6,
   minH: 4,
   order: 8,
+}
+
+export function ChartActions() {
+  const { setPage } = useRouter()
+  return (
+    <button
+      type="button"
+      onClick={() => setPage('productivity')}
+      title="생산성 기록 보기"
+      aria-label="생산성 기록 보기"
+      style={{
+        width: 28,
+        height: 28,
+        borderRadius: 7,
+        border: '1px solid var(--border)',
+        background: 'var(--bg3)',
+        color: 'var(--accent)',
+        cursor: 'pointer',
+        display: 'grid',
+        placeItems: 'center',
+        fontSize: 14,
+        fontWeight: 800,
+        lineHeight: 1,
+      }}
+    >
+      ↗
+    </button>
+  )
 }
 
 export default function ChartWidget() {
@@ -124,24 +153,22 @@ export default function ChartWidget() {
 
   return (
     <div ref={ref} style={{ height: '100%', padding: '8px 12px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexShrink: 0 }}>
+        <span style={{ color: 'var(--muted)', fontSize: 11, fontWeight: 700 }}>하루 생산성 점수</span>
+        {latestScore && (
+          <span style={{ color: 'var(--accent)', fontSize: 16, fontWeight: 800, flexShrink: 0 }}>
+            {latestScore.score}%
+          </span>
+        )}
+      </div>
       {values.length === 0 ? (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--muted)', fontSize: 12 }}>
           데이터가 쌓이면 차트가 표시됩니다
         </div>
       ) : (
-        <>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, flexShrink: 0 }}>
-            <span style={{ color: 'var(--muted)', fontSize: 11, fontWeight: 700 }}>하루 생산성 점수</span>
-            {latestScore && (
-              <span style={{ color: 'var(--accent)', fontSize: 16, fontWeight: 800 }}>
-                {latestScore.score}%
-              </span>
-            )}
-          </div>
-          <div style={{ flex: 1, minHeight: 0 }}>
-            <Line data={data} options={options as any} />
-          </div>
-        </>
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <Line data={data} options={options as any} />
+        </div>
       )}
     </div>
   )

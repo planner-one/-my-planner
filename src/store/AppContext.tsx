@@ -7,7 +7,7 @@ import { toLocalDateKey } from '../utils/date'
 import { normalizeTopGoalsForToday } from '../utils/goals'
 import { HABITS_VERSION, isHabitScheduled, migrateHabits } from '../utils/habits'
 import { createDefaultCounters, migrateCounters } from '../utils/counters'
-import { syncPastTodoHistory } from '../utils/todos'
+import { carryIncompleteTodosToDate, syncPastTodoHistory } from '../utils/todos'
 import {
   DEFAULT_CAREER_CATEGORY, DEFAULT_CAREER_STATUS,
   isCareerEventCategory, isCareerEventStatus,
@@ -15,7 +15,7 @@ import {
 import type {
   Todo, TodoDailyResult, DeletedTodoDailyResult, Habit, Task, Goal, Project, TopGoal, Counters,
   Note, QuickMemoEntry, WeekTask, ScheduledTask, CareerEvent, JournalEntry, LayoutItem, UserData,
-  ReviewDailyEntry, PersonalApplication, JobPosting,
+  ReviewDailyEntry, PersonalApplication, JobPosting, NotificationPreferences,
 } from '../types'
 
 interface AppContextValue {
@@ -64,6 +64,8 @@ interface AppContextValue {
   uiScale: number
   setUiScale: React.Dispatch<React.SetStateAction<number>>
   nickname: string;          setNickname: React.Dispatch<React.SetStateAction<string>>
+  notificationPreferences: NotificationPreferences
+  setNotificationPreferences: React.Dispatch<React.SetStateAction<NotificationPreferences>>
   saveWithOverrides: (overrides?: Partial<UserData>) => Promise<void>
   saveNow: () => Promise<void>
 }
@@ -71,6 +73,14 @@ interface AppContextValue {
 const AppContext = createContext<AppContextValue | null>(null)
 
 const LS_KEYS = ['dashboard_cols_v', 'weather_location', 'theme', 'clock_widget_mode']
+
+const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
+  dailyBriefingEnabled: true,
+  dailyBriefingTime: '10:00',
+  dailyBriefingChannel: 'codex',
+  dailyBriefingScope: 'ownAccount',
+  timezone: 'Asia/Seoul',
+}
 
 const sanitize = (data: UserData): UserData => JSON.parse(JSON.stringify(data))
 
@@ -128,6 +138,18 @@ const migrateJobPostings = (items: UserData['jobPostings'] = []): JobPosting[] =
     keywords: Array.isArray(item.keywords) ? item.keywords : [],
   }))
 
+const migrateNotificationPreferences = (
+  value: UserData['notificationPreferences'],
+): NotificationPreferences => ({
+  ...DEFAULT_NOTIFICATION_PREFERENCES,
+  ...(value ?? {}),
+  dailyBriefingEnabled: value?.dailyBriefingEnabled ?? DEFAULT_NOTIFICATION_PREFERENCES.dailyBriefingEnabled,
+  dailyBriefingTime: value?.dailyBriefingTime || DEFAULT_NOTIFICATION_PREFERENCES.dailyBriefingTime,
+  dailyBriefingChannel: value?.dailyBriefingChannel ?? DEFAULT_NOTIFICATION_PREFERENCES.dailyBriefingChannel,
+  dailyBriefingScope: 'ownAccount',
+  timezone: value?.timezone || DEFAULT_NOTIFICATION_PREFERENCES.timezone,
+})
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
 
@@ -159,6 +181,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [dashboardActive, setDashboardActive] = useState<string[]>([])
   const [uiScale, setUiScale] = useState<number>(90)
   const [nickname, setNickname] = useState<string>('')
+  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES)
   const [dataLoaded, setDataLoaded] = useState<boolean>(false)
   const [currentDate, setCurrentDate] = useState(toLocalDateKey)
 
@@ -191,6 +214,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       dashboardLayout, dashboardActive,
       uiScale,
       nickname,
+      notificationPreferences,
       _lastSaved: new Date().toISOString(),
       _displayName: userMeta.displayName,
       _email: userMeta.email,
@@ -267,6 +291,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setDashboardActive([])
     setUiScale(90)
     setNickname('')
+    setNotificationPreferences(DEFAULT_NOTIFICATION_PREFERENCES)
 
     loadUserData(loadingUid).then(d => {
       if (currentUidRef.current !== loadingUid) return
@@ -328,6 +353,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setDashboardActive(d?.dashboardActive ?? [])
       setNickname(d?.nickname ?? '')
       setUiScale(d?.uiScale ?? 90)
+      setNotificationPreferences(migrateNotificationPreferences(d?.notificationPreferences))
       if (d) {
         localStorage.setItem('dashboard_cols_v', '2')
       }
@@ -381,6 +407,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [currentDate, dataLoaded, todos, todoHistoryTrash, todoHistoryDeletedDates])
 
   useEffect(() => {
+    if (!dataLoaded) return
+    setTodos(previous => carryIncompleteTodosToDate({
+      currentDate,
+      todos: previous,
+      todoHistory,
+    }))
+  }, [currentDate, dataLoaded, todoHistory])
+
+  useEffect(() => {
     if (!user || !dataLoaded || isLoadingRef.current) return
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     const uid = currentUidRef.current
@@ -396,7 +431,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     energy, counters, quickMemos, reviewHistory, notes, weekTasks,
     timeBlockData, scheduledTasks, careerEvents, personalApplications, jobPostings,
     journal, chartHistory,
-    dashboardLayout, dashboardActive, uiScale, nickname, dataLoaded,
+    dashboardLayout, dashboardActive, uiScale, nickname, notificationPreferences, dataLoaded,
   ])
 
   const saveWithOverrides = (overrides: Partial<UserData> = {}): Promise<void> => {
@@ -456,6 +491,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     dashboardActive, setDashboardActive,
     uiScale, setUiScale,
     nickname, setNickname,
+    notificationPreferences, setNotificationPreferences,
     saveWithOverrides,
     saveNow,
   }

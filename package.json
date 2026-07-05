@@ -1,12 +1,14 @@
 {
   "name": "my-planner",
   "private": true,
-  "version": "0.3.10",
+  "version": "0.3.15",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "check:job-draft": "node scripts/check-job-posting-draft.mjs",
     "check:todo-history": "node scripts/check-todo-history.mjs",
+    "check:planner-briefing": "node scripts/check-planner-briefing.mjs",
+    "check:productivity-log": "node scripts/check-productivity-log.mjs",
     "build": "vite build",
     "preview": "vite preview"
   },
