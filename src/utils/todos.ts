@@ -176,14 +176,14 @@ export function carryIncompleteTodosToDate({
 
     return !matchingHistoryItem || matchingHistoryItem.done
   }
-  const hasLaterOccurrence = (source: Todo, sourceDate: string) => {
-    const key = getTodoCarryKey(source)
-    return todos.some(todo =>
-      todo.id !== source.id
-      && getTodoCarryKey(todo) === key
-      && getTodoDate(todo) > sourceDate
-    )
-  }
+  const hasLaterOccurrence = (source: Todo, sourceDate: string) =>
+    hasLaterTodoOccurrence({
+      sourceDate,
+      todo: source,
+      today: currentDate,
+      todoHistory,
+      todos,
+    })
 
   const carried: Todo[] = []
   const retained: Todo[] = []

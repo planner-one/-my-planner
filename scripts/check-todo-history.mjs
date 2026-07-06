@@ -132,6 +132,14 @@ try {
 
   assert(resolvedOldItems.length === 0, 'a todo completed on a later day should not be offered again')
 
+  const laterHistoryDoneIsNotCarried = carryIncompleteTodosToDate({
+    currentDate: '2026-07-04',
+    todos: [missedOnJuly2],
+    todoHistory: [laterDoneHistory],
+  })
+
+  assert(laterHistoryDoneIsNotCarried.length === 0, 'a stale live todo completed in later history should not be carried forward unchecked')
+
   const latestStillOpen = getUnresolvedIncompleteTodos({
     sourceDate: '2026-07-03',
     items: [{ ...carriedAndChecked, id: 'carried-open', done: false }],

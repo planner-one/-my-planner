@@ -190,6 +190,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const currentUidRef = useRef<string | null>(null)
   const currentUserMetaRef = useRef({ displayName: '', email: '', photoURL: '' })
   const currentDataRef = useRef<UserData>({})
+  const currentRemoteSavedAtRef = useRef<string | undefined>(undefined)
+
+  const saveSyncedUserData = (uid: string, data: UserData) =>
+    saveUserData(uid, data, currentRemoteSavedAtRef.current).then(savedData => {
+      if (currentUidRef.current === uid) {
+        currentRemoteSavedAtRef.current = savedData._lastSaved
+      }
+      return savedData
+    })
 
   useEffect(() => {
     const liveUserMeta = {
@@ -230,10 +239,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         clearTimeout(saveTimerRef.current)
         saveTimerRef.current = null
         if (previousUid) {
-          saveUserData(previousUid, previousData).catch(console.error)
+          saveSyncedUserData(previousUid, previousData).catch(console.error)
         }
       }
       currentUidRef.current = null
+      currentRemoteSavedAtRef.current = undefined
       currentUserMetaRef.current = { displayName: '', email: '', photoURL: '' }
       return
     }
@@ -244,7 +254,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       clearTimeout(saveTimerRef.current)
       saveTimerRef.current = null
       if (previousUid && previousUid !== user.uid) {
-        saveUserData(previousUid, previousData).catch(console.error)
+        saveSyncedUserData(previousUid, previousData).catch(console.error)
       }
     }
 
@@ -254,6 +264,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     localStorage.setItem('_uid', user.uid)
     currentUidRef.current = user.uid
+    currentRemoteSavedAtRef.current = undefined
     currentUserMetaRef.current = {
       displayName: user.displayName ?? '',
       email: user.email ?? '',
@@ -295,6 +306,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     loadUserData(loadingUid).then(d => {
       if (currentUidRef.current !== loadingUid) return
+      currentRemoteSavedAtRef.current = d?._lastSaved
 
       const migratedHabits = migrateHabits(
         (d?.habits ?? []) as Array<Partial<Habit> & { name: string }>,
@@ -423,7 +435,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!uid) return
     saveTimerRef.current = setTimeout(() => {
       saveTimerRef.current = null
-      saveUserData(uid, data).catch(console.error)
+      saveSyncedUserData(uid, data).catch(console.error)
     }, 1000)
   }, [
     todos, todoHistory, todoHistoryTrash, todoHistoryDeletedDates,
@@ -441,10 +453,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       clearTimeout(saveTimerRef.current)
       saveTimerRef.current = null
     }
-    return saveUserData(
+    return saveSyncedUserData(
       uid,
       sanitize({ ...currentDataRef.current, ...overrides })
-    ).catch(console.error)
+    ).then(() => undefined).catch(console.error)
   }
 
   const saveNow = (): Promise<void> => {
@@ -456,7 +468,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       saveTimerRef.current = null
     }
     return Promise.race([
-      saveUserData(uid, data),
+      saveSyncedUserData(uid, data).then(() => undefined),
       new Promise<void>(r => setTimeout(r, 3000)),
     ])
   }

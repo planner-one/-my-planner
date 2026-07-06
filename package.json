@@ -7,6 +7,7 @@
     "dev": "vite",
     "check:job-draft": "node scripts/check-job-posting-draft.mjs",
     "check:todo-history": "node scripts/check-todo-history.mjs",
+    "check:user-data-merge": "node scripts/check-user-data-merge.mjs",
     "check:planner-briefing": "node scripts/check-planner-briefing.mjs",
     "check:productivity-log": "node scripts/check-productivity-log.mjs",
     "build": "vite build",
