@@ -1,7 +1,7 @@
 # 다음 채팅 인수인계
 
 _작성일: 2026-06-28_
-_갱신일: 2026-07-05 (생산성 기록 그래프/UX 반영 기준)_
+_갱신일: 2026-07-08 (Todo 이월 기록 보존 보정 기준)_
 
 이 파일은 새 Codex 또는 Claude Code 세션에서 바로 이어 작업하기 위한 현재 상태 메모입니다.
 새 세션에서는 먼저 이 파일과 `AGENTS.md`, `PROGRESS.md`, `REQUIREMENTS.md`, `SCENARIOS.md`, `RELEASES.md`, `COPYRIGHT_AND_SERVICE_NOTES.md`, `LINK_IMPORT_GUIDE.md`, `JOB_POSTING_LINK_READER.md`, `PLANNER_SYSTEM_AUDIT_2026-07-04.md`, `UPDATE_SCHEDULE.md`를 읽고 시작하면 됩니다.
@@ -140,6 +140,7 @@ firebase deploy --only hosting
 - 2026-07-04 미완료 Todo 자동 이월 보강 후 `npm run check:todo-history`, `npx tsc --noEmit` 통과
 - 2026-07-04 내 계정 브리핑 알림 설정 보강 후 `npm run check:planner-briefing`, `npm run check:todo-history`, `npx tsc --noEmit` 통과
 - 2026-07-05 v0.3.15 생산성 기록 그래프/UX 보강 후 `npm run check:productivity-log`, `npx tsc --noEmit`, `npm run build`, `git diff --check` 통과
+- 2026-07-08 Todo 자동 이월 기록 보존 보정 후 `npm run check:todo-history`, `npm run check:user-data-merge`, `npx tsc --noEmit`, `npm run build` 통과
 
 주의:
 

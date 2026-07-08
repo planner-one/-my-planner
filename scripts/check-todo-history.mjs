@@ -61,7 +61,7 @@ try {
     items: [],
   }
 
-  const carriedAndChecked = {
+  const laterCheckedPastTodo = {
     id: 'carried-1',
     text: '지원서 수정',
     done: true,
@@ -72,16 +72,18 @@ try {
 
   const synced = syncPastTodoHistory({
     currentDate: '2026-07-04',
-    todos: [carriedAndChecked],
+    todos: [laterCheckedPastTodo],
     todoHistory: [oldSnapshot],
     savedAt: '2026-07-04T00:00:00.000Z',
   })
 
   const syncedYesterday = synced.find(result => result.date === '2026-07-03')
   assert(syncedYesterday, 'yesterday history should exist after sync')
-  assert(syncedYesterday.total === 1, 'stale existing history should be updated with carried todo')
-  assert(syncedYesterday.done === 1, 'checked carried todo should remain checked in history')
+  assert(syncedYesterday.total === 1, 'stale existing history should keep a record of the carried todo')
+  assert(syncedYesterday.done === 0, 'later checked carry-forward should not complete the original day')
+  assert(syncedYesterday.completionRate === 0, 'original missed day should stay incomplete')
   assert(syncedYesterday.items[0].text === '지원서 수정', 'carried todo text should be preserved')
+  assert(syncedYesterday.items[0].done === false, 'retroactively discovered todo should be recorded as missed')
   assert(syncedYesterday.source === 'manual', 'existing manual source label should be preserved')
 
   const correctedSnapshot = {
@@ -96,7 +98,7 @@ try {
 
   const preserved = syncPastTodoHistory({
     currentDate: '2026-07-04',
-    todos: [carriedAndChecked],
+    todos: [laterCheckedPastTodo],
     todoHistory: [correctedSnapshot],
     savedAt: '2026-07-04T00:00:00.000Z',
   })
@@ -119,7 +121,7 @@ try {
     completionRate: 100,
     savedAt: '2026-07-04T00:00:00.000Z',
     source: 'auto',
-    items: [carriedAndChecked],
+    items: [laterCheckedPastTodo],
   }
 
   const resolvedOldItems = getUnresolvedIncompleteTodos({
@@ -142,7 +144,7 @@ try {
 
   const latestStillOpen = getUnresolvedIncompleteTodos({
     sourceDate: '2026-07-03',
-    items: [{ ...carriedAndChecked, id: 'carried-open', done: false }],
+    items: [{ ...laterCheckedPastTodo, id: 'carried-open', done: false }],
     today: '2026-07-04',
     todoHistory: [],
     todos: [],
@@ -173,7 +175,7 @@ try {
   })
 
   assert(autoCarried.length === 2, 'one incomplete past todo should be moved to current date')
-  assert(autoCarried[0].id === 'old-open', 'auto-carried todo should keep its original id')
+  assert(autoCarried[0].id === 'old-open__carry__2026-07-05', 'auto-carried todo should get a new occurrence id')
   assert(autoCarried[0].date === '2026-07-05', 'auto-carried todo should be dated as current date')
   assert(!autoCarried.some(todo => todo.id === 'old-open' && todo.date === '2026-07-04'), 'original past occurrence should not remain in live todos')
 
@@ -208,6 +210,42 @@ try {
 
   assert(cleanupManualDuplicate.length === 1, 'older duplicate should be removed when a later occurrence exists')
   assert(cleanupManualDuplicate[0].id === 'manual-copy', 'latest occurrence should be kept')
+
+  const missedHistory = syncPastTodoHistory({
+    currentDate: '2026-07-05',
+    todos: [{
+      id: 'missed-yesterday',
+      text: '전날 못한 일',
+      done: false,
+      priority: 'medium',
+      category: 'work',
+      date: '2026-07-04',
+    }],
+    todoHistory: [],
+    savedAt: '2026-07-05T00:00:00.000Z',
+  })
+  const carriedMissed = carryIncompleteTodosToDate({
+    currentDate: '2026-07-05',
+    todos: [{
+      id: 'missed-yesterday',
+      text: '전날 못한 일',
+      done: false,
+      priority: 'medium',
+      category: 'work',
+      date: '2026-07-04',
+    }],
+    todoHistory: missedHistory,
+  })
+  const completedAfterCarry = carriedMissed.map(todo => ({ ...todo, done: true }))
+  const historyAfterTodayCompletion = syncPastTodoHistory({
+    currentDate: '2026-07-05',
+    todos: completedAfterCarry,
+    todoHistory: missedHistory,
+    savedAt: '2026-07-05T08:00:00.000Z',
+  })
+  const preservedMissedDay = historyAfterTodayCompletion.find(result => result.date === '2026-07-04')
+  assert(preservedMissedDay?.done === 0, 'completing the carried todo today should not complete yesterday history')
+  assert(preservedMissedDay?.items[0].done === false, 'yesterday item should remain unchecked after carry-forward completion')
 
   const correctedDoneIsNotCarried = carryIncompleteTodosToDate({
     currentDate: '2026-07-05',

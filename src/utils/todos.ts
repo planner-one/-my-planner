@@ -47,6 +47,25 @@ const todoSnapshot = (todo: Todo) => ({
 const todoItemsMatch = (left: Todo[], right: Todo[]): boolean =>
   JSON.stringify(left.map(todoSnapshot)) === JSON.stringify(right.map(todoSnapshot))
 
+const summarizeTodoDailyResult = (
+  result: TodoDailyResult,
+  items: Todo[],
+  savedAt: string,
+): TodoDailyResult => {
+  const normalizedItems = items.map(item => ({ ...item, date: result.date }))
+  const done = normalizedItems.filter(item => item.done).length
+  return {
+    ...result,
+    total: normalizedItems.length,
+    done,
+    completionRate: normalizedItems.length === 0
+      ? 0
+      : Math.round((done / normalizedItems.length) * 100),
+    savedAt,
+    items: normalizedItems,
+  }
+}
+
 export const isTodoDailyResultCurrent = (
   result: TodoDailyResult,
   date: string,
@@ -94,11 +113,28 @@ export function syncPastTodoHistory({
     if (existing?.correctedAt || (existing?.correctionHistory?.length ?? 0) > 0) return
 
     const items = todos.filter(todo => todo.date === date)
-    if (existing && isTodoDailyResultCurrent(existing, date, items)) return
+    if (existing) {
+      const existingItems = existing.items.map(item => ({ ...item, date }))
+      const existingIds = new Set(existingItems.map(item => item.id))
+      const existingKeys = new Set(existingItems.map(getTodoCarryKey))
+      const missingItems = items
+        .filter(item => !existingIds.has(item.id) && !existingKeys.has(getTodoCarryKey(item)))
+        .map(item => ({ ...item, date, done: false }))
+      const nextItems = [...existingItems, ...missingItems]
+
+      if (missingItems.length === 0 && isTodoDailyResultCurrent(existing, date, existingItems)) return
+
+      resultsByDate.set(
+        date,
+        summarizeTodoDailyResult(existing, nextItems, savedAt),
+      )
+      changed = true
+      return
+    }
 
     resultsByDate.set(
       date,
-      buildTodoDailyResult(date, items, existing?.source ?? 'auto', savedAt),
+      buildTodoDailyResult(date, items, 'auto', savedAt),
     )
     changed = true
   })
@@ -207,6 +243,7 @@ export function carryIncompleteTodosToDate({
 
     carried.push({
       ...todo,
+      id: `${todo.id.split('__carry__')[0]}__carry__${currentDate}`,
       done: false,
       date: currentDate,
     })
