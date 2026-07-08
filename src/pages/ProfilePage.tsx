@@ -1,15 +1,21 @@
+import { useMemo } from 'react'
 import { useAuth } from '../store/AuthContext'
 import { useApp } from '../store/AppContext'
+import { useRouter } from '../store/RouterContext'
+import type { CareerEvent, Goal, JobPosting, PersonalApplication, Project, ScheduledTask, Task, Todo, TopGoal } from '../types'
+import { toLocalDateKey } from '../utils/date'
 import { APP_RELEASE_DATE, APP_RELEASE_NAME, APP_RELEASE_NOTES, APP_VERSION } from '../version'
 
 export default function ProfilePage() {
   const { user } = useAuth()
+  const { setPage } = useRouter()
   const {
     nickname, setNickname,
     uiScale, setUiScale,
     notificationPreferences, setNotificationPreferences,
     todos, habits, goals, projects, notes, journal,
     scheduledTasks, careerEvents, personalApplications, jobPostings,
+    tasks, topGoals,
     dashboardActive, dashboardLayout,
     saveNow,
   } = useApp()
@@ -25,6 +31,7 @@ export default function ProfilePage() {
   const storageItems = [
     { label: 'Todo', value: todos.length },
     { label: '루틴', value: habits.length },
+    { label: '작업', value: tasks.length },
     { label: '목표', value: goals.length },
     { label: '프로젝트', value: projects.length },
     { label: '노트', value: notes.length },
@@ -34,6 +41,17 @@ export default function ProfilePage() {
     { label: '내 신청', value: personalApplications.length },
     { label: '공고', value: jobPostings.length },
   ]
+  const inbox = useMemo(() => buildUnifiedInbox({
+    todos,
+    tasks,
+    goals,
+    projects,
+    topGoals,
+    scheduledTasks,
+    careerEvents,
+    personalApplications,
+    jobPostings,
+  }), [todos, tasks, goals, projects, topGoals, scheduledTasks, careerEvents, personalApplications, jobPostings])
 
   return (
     <div className="profile-page">
@@ -125,6 +143,44 @@ export default function ProfilePage() {
         </article>
       </section>
 
+      <section className="profile-panel inbox-panel">
+        <div className="panel-heading">
+          <div>
+            <h3>통합 인박스</h3>
+            <p className="profile-note">Todo, 작업, 목표, 프로젝트, 일정, 신청, 공고를 한 번에 모아 지금 처리할 흐름으로 묶었습니다.</p>
+          </div>
+          <span>{inbox.totalCount}개 열림</span>
+        </div>
+        <div className="profile-stats inbox-stats">
+          <Stat label="지금 처리" value={`${inbox.nowCount}개`} />
+          <Stat label="7일 이내" value={`${inbox.upcomingCount}개`} />
+          <Stat label="다음 행동" value={`${inbox.nextActionCount}개`} />
+        </div>
+        <div className="inbox-grid">
+          <InboxColumn
+            title="지금 처리"
+            subtitle="오늘 기준 바로 움직일 항목"
+            items={inbox.nowItems}
+            emptyText="오늘 바로 처리할 항목이 없습니다."
+            onOpen={setPage}
+          />
+          <InboxColumn
+            title="곧 마감"
+            subtitle="7일 안에 챙겨야 할 일정과 마감"
+            items={inbox.upcomingItems}
+            emptyText="가까운 마감 항목이 없습니다."
+            onOpen={setPage}
+          />
+          <InboxColumn
+            title="다음 행동"
+            subtitle="다음 액션이 적힌 항목과 오늘 방향"
+            items={inbox.nextActionItems}
+            emptyText="기록된 다음 행동이 없습니다."
+            onOpen={setPage}
+          />
+        </div>
+      </section>
+
       <section className="profile-panel">
         <div className="panel-heading">
           <h3>데이터 현황</h3>
@@ -176,10 +232,27 @@ export default function ProfilePage() {
         .primary-button { height: 36px; border: 0; border-radius: 7px; background: var(--accent); color: #fff; padding: 0 13px; font-size: 12px; font-weight: 800; cursor: pointer; align-self: flex-start; }
         .profile-stats, .storage-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
         .storage-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        .inbox-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
         .stat-card { border: 1px solid var(--border); border-radius: 8px; background: var(--bg3); padding: 12px; min-width: 0; }
         .stat-card span { display: block; color: var(--muted); font-size: 11px; font-weight: 700; }
         .stat-card b { display: block; margin-top: 6px; color: var(--text); font-size: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .panel-heading { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+        .panel-heading > div { min-width: 0; }
+        .inbox-panel { gap: 14px; }
+        .inbox-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+        .inbox-column { border: 1px solid var(--border); border-radius: 10px; background: var(--bg3); padding: 12px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+        .inbox-column h4 { margin: 0; font-size: 14px; }
+        .inbox-column-header { display: flex; flex-direction: column; gap: 4px; }
+        .inbox-column-header span { color: var(--muted); font-size: 11px; line-height: 1.4; }
+        .inbox-list { display: flex; flex-direction: column; gap: 8px; }
+        .inbox-item { width: 100%; border: 1px solid var(--border); border-radius: 9px; background: var(--bg2); padding: 10px; text-align: left; display: flex; flex-direction: column; gap: 4px; cursor: pointer; }
+        .inbox-item strong { color: var(--text); font-size: 13px; line-height: 1.4; }
+        .inbox-item small { color: var(--muted); font-size: 11px; line-height: 1.45; }
+        .inbox-item:hover { border-color: var(--accent); transform: translateY(-1px); transition: border-color 0.2s ease, transform 0.2s ease; }
+        .inbox-item.urgent { background: color-mix(in srgb, var(--bg2) 84%, #ef4444 16%); }
+        .inbox-item.upcoming { background: color-mix(in srgb, var(--bg2) 86%, #f59e0b 14%); }
+        .inbox-item.next { background: color-mix(in srgb, var(--bg2) 86%, var(--accent) 14%); }
+        .inbox-empty { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
         .version-badge { flex-shrink: 0; border: 1px solid var(--accent); border-radius: 999px; background: var(--accent-soft); color: var(--accent); padding: 5px 10px; font-size: 12px; font-weight: 900; }
         .release-panel .panel-heading { align-items: flex-start; }
         .release-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
@@ -187,7 +260,7 @@ export default function ProfilePage() {
         .release-list { margin: 0; padding-left: 18px; color: var(--text); font-size: 13px; line-height: 1.7; }
         .release-list li::marker { color: var(--accent); }
         @media (max-width: 760px) {
-          .profile-grid, .profile-stats, .storage-grid, .release-summary { grid-template-columns: 1fr; }
+          .profile-grid, .profile-stats, .storage-grid, .release-summary, .inbox-grid, .inbox-stats { grid-template-columns: 1fr; }
           .profile-grid .profile-panel:first-child { grid-row: auto; }
           .profile-header { align-items: flex-start; }
           .release-panel .panel-heading { flex-direction: column; }
@@ -204,4 +277,368 @@ function Stat({ label, value }: { label: string; value: number | string }) {
       <b>{value}</b>
     </article>
   )
+}
+
+type InboxPage =
+  | 'calendar'
+  | 'todos'
+  | 'tasks'
+  | 'goals'
+  | 'projects'
+  | 'career'
+  | 'personalApplications'
+  | 'jobPostings'
+
+interface InboxItemData {
+  id: string
+  title: string
+  meta: string
+  page: InboxPage
+  tone: 'urgent' | 'upcoming' | 'next'
+}
+
+function InboxColumn({
+  title,
+  subtitle,
+  items,
+  emptyText,
+  onOpen,
+}: {
+  title: string
+  subtitle: string
+  items: InboxItemData[]
+  emptyText: string
+  onOpen: (page: InboxPage) => void
+}) {
+  return (
+    <article className="inbox-column">
+      <div className="inbox-column-header">
+        <h4>{title}</h4>
+        <span>{subtitle}</span>
+      </div>
+      <div className="inbox-list">
+        {items.length === 0 ? (
+          <p className="inbox-empty">{emptyText}</p>
+        ) : items.map(item => (
+          <button key={item.id} type="button" className={`inbox-item ${item.tone}`} onClick={() => onOpen(item.page)}>
+            <strong>{item.title}</strong>
+            <small>{item.meta}</small>
+          </button>
+        ))}
+      </div>
+    </article>
+  )
+}
+
+const TODO_PRIORITY_WEIGHT: Record<Todo['priority'], number> = {
+  high: 0,
+  medium: 1,
+  low: 2,
+}
+
+const TASK_PRIORITY_WEIGHT: Record<string, number> = {
+  높음: 0,
+  보통: 1,
+  낮음: 2,
+}
+
+const openCareerEvent = (item: CareerEvent) =>
+  !['completed', 'rejected', 'cancelled'].includes(item.status)
+
+const openPersonalApplication = (item: PersonalApplication) =>
+  !['rejected', 'finished', 'cancelled'].includes(item.status)
+
+const openJobPosting = (item: JobPosting) =>
+  !['rejected', 'closed'].includes(item.status)
+
+const openGoalLike = (status?: string, pct?: number) =>
+  status !== '완료' && (pct ?? 0) < 100
+
+const dateDiff = (date?: string, today = toLocalDateKey()) => {
+  if (!date) return Number.POSITIVE_INFINITY
+  const start = new Date(`${today}T12:00:00`).getTime()
+  const target = new Date(`${date}T12:00:00`).getTime()
+  return Math.ceil((target - start) / 86400000)
+}
+
+const isTodayTodo = (todo: Todo, today: string) =>
+  (todo.date ?? today) === today
+
+const formatRelativeDate = (date?: string, today = toLocalDateKey()) => {
+  if (!date) return '날짜 없음'
+  const diff = dateDiff(date, today)
+  if (!Number.isFinite(diff)) return '날짜 없음'
+  if (diff < 0) return `${Math.abs(diff)}일 지남`
+  if (diff === 0) return '오늘'
+  if (diff === 1) return '내일'
+  return `${diff}일 남음`
+}
+
+const firstDefined = (...values: Array<string | undefined>) =>
+  values.find(value => Boolean(value))
+
+const sliceInbox = (items: InboxItemData[], max = 4) => items.slice(0, max)
+
+function buildUnifiedInbox({
+  todos,
+  tasks,
+  goals,
+  projects,
+  topGoals,
+  scheduledTasks,
+  careerEvents,
+  personalApplications,
+  jobPostings,
+}: {
+  todos: Todo[]
+  tasks: Task[]
+  goals: Goal[]
+  projects: Project[]
+  topGoals: TopGoal[]
+  scheduledTasks: ScheduledTask[]
+  careerEvents: CareerEvent[]
+  personalApplications: PersonalApplication[]
+  jobPostings: JobPosting[]
+}) {
+  const today = toLocalDateKey()
+
+  const nowTodos = todos
+    .filter(todo => !todo.done && isTodayTodo(todo, today))
+    .sort((a, b) => (TODO_PRIORITY_WEIGHT[a.priority] ?? 1) - (TODO_PRIORITY_WEIGHT[b.priority] ?? 1))
+    .map(todo => ({
+      id: `todo-${todo.id}`,
+      title: todo.text,
+      meta: `Todo · ${todo.category ?? 'work'} · ${todo.priority === 'high' ? '높은 우선순위' : '오늘 할 일'}`,
+      page: 'todos' as const,
+      tone: 'urgent' as const,
+    }))
+
+  const nowTasks = tasks
+    .filter(task => !task.done && task.status !== '완료' && (!task.due || task.due <= today))
+    .sort((a, b) => {
+      const dueCompare = dateDiff(a.due, today) - dateDiff(b.due, today)
+      if (dueCompare !== 0) return dueCompare
+      return (TASK_PRIORITY_WEIGHT[a.priority ?? '보통'] ?? 1) - (TASK_PRIORITY_WEIGHT[b.priority ?? '보통'] ?? 1)
+    })
+    .map(task => ({
+      id: `task-${task.id}`,
+      title: task.name,
+      meta: `작업 관리 · ${task.priority ?? '보통'} · ${formatRelativeDate(task.due, today)}`,
+      page: 'tasks' as const,
+      tone: 'urgent' as const,
+    }))
+
+  const nowSchedules = scheduledTasks
+    .filter(task => !task.done && task.date === today)
+    .sort((a, b) => (a.time ?? '').localeCompare(b.time ?? ''))
+    .map(task => ({
+      id: `scheduled-${task.id}`,
+      title: task.title,
+      meta: `예정 작업 · ${task.time ?? '시간 미정'} · ${task.mode ?? '일정'}`,
+      page: 'calendar' as const,
+      tone: 'urgent' as const,
+    }))
+
+  const nowCareer = careerEvents
+    .filter(event =>
+      openCareerEvent(event)
+      && [event.date, event.applicationDeadline, event.resultDate].includes(today),
+    )
+    .sort((a, b) => (a.time ?? '').localeCompare(b.time ?? ''))
+    .map(event => ({
+      id: `career-now-${event.id}`,
+      title: event.title,
+      meta: `기회 일정 · ${event.organization ?? '기관 미정'} · ${event.time ?? formatRelativeDate(firstDefined(event.applicationDeadline, event.date, event.resultDate), today)}`,
+      page: 'career' as const,
+      tone: 'urgent' as const,
+    }))
+
+  const upcomingTasks = tasks
+    .filter(task => !task.done && task.status !== '완료')
+    .filter(task => {
+      const diff = dateDiff(task.due, today)
+      return Number.isFinite(diff) && diff >= 0 && diff <= 7
+    })
+    .sort((a, b) => dateDiff(a.due, today) - dateDiff(b.due, today))
+    .map(task => ({
+      id: `task-upcoming-${task.id}`,
+      title: task.name,
+      meta: `작업 마감 · ${formatRelativeDate(task.due, today)} · ${task.priority ?? '보통'}`,
+      page: 'tasks' as const,
+      tone: 'upcoming' as const,
+    }))
+
+  const upcomingGoals = goals
+    .filter(goal => openGoalLike(goal.status, goal.pct))
+    .filter(goal => {
+      const diff = dateDiff(goal.due, today)
+      return Number.isFinite(diff) && diff >= 0 && diff <= 7
+    })
+    .sort((a, b) => dateDiff(a.due, today) - dateDiff(b.due, today))
+    .map(goal => ({
+      id: `goal-${goal.id}`,
+      title: goal.name,
+      meta: `목표 마감 · ${formatRelativeDate(goal.due, today)} · ${goal.pct}%`,
+      page: 'goals' as const,
+      tone: 'upcoming' as const,
+    }))
+
+  const upcomingProjects = projects
+    .filter(project => openGoalLike(project.status, project.pct))
+    .filter(project => {
+      const diff = dateDiff(project.due, today)
+      return Number.isFinite(diff) && diff >= 0 && diff <= 7
+    })
+    .sort((a, b) => dateDiff(a.due, today) - dateDiff(b.due, today))
+    .map(project => ({
+      id: `project-${project.id}`,
+      title: project.name,
+      meta: `프로젝트 마감 · ${formatRelativeDate(project.due, today)} · ${project.pct}%`,
+      page: 'projects' as const,
+      tone: 'upcoming' as const,
+    }))
+
+  const upcomingCareer = careerEvents
+    .filter(openCareerEvent)
+    .map(event => ({
+      item: event,
+      nextDate: firstDefined(event.applicationDeadline, event.date, event.resultDate, event.operationStartDate),
+    }))
+    .filter(({ nextDate }) => {
+      const diff = dateDiff(nextDate, today)
+      return Number.isFinite(diff) && diff >= 0 && diff <= 7
+    })
+    .sort((a, b) => dateDiff(a.nextDate, today) - dateDiff(b.nextDate, today))
+    .map(({ item, nextDate }) => ({
+      id: `career-${item.id}`,
+      title: item.title,
+      meta: `기회 일정 · ${formatRelativeDate(nextDate, today)} · ${item.organization ?? '기관 미정'}`,
+      page: 'career' as const,
+      tone: 'upcoming' as const,
+    }))
+
+  const upcomingApplications = personalApplications
+    .filter(openPersonalApplication)
+    .map(item => ({
+      item,
+      nextDate: firstDefined(item.deadline, item.resultDate, item.startDate),
+    }))
+    .filter(({ nextDate }) => {
+      const diff = dateDiff(nextDate, today)
+      return Number.isFinite(diff) && diff >= 0 && diff <= 7
+    })
+    .sort((a, b) => dateDiff(a.nextDate, today) - dateDiff(b.nextDate, today))
+    .map(({ item, nextDate }) => ({
+      id: `personal-${item.id}`,
+      title: item.title,
+      meta: `내 신청 · ${formatRelativeDate(nextDate, today)} · ${item.status}`,
+      page: 'personalApplications' as const,
+      tone: 'upcoming' as const,
+    }))
+
+  const upcomingJobs = jobPostings
+    .filter(openJobPosting)
+    .map(item => ({
+      item,
+      nextDate: firstDefined(item.deadline, item.resultDate),
+    }))
+    .filter(({ nextDate }) => {
+      const diff = dateDiff(nextDate, today)
+      return Number.isFinite(diff) && diff >= 0 && diff <= 7
+    })
+    .sort((a, b) => dateDiff(a.nextDate, today) - dateDiff(b.nextDate, today))
+    .map(({ item, nextDate }) => ({
+      id: `job-${item.id}`,
+      title: `${item.company} · ${item.position}`,
+      meta: `지원 공고 · ${formatRelativeDate(nextDate, today)} · ${item.status}`,
+      page: 'jobPostings' as const,
+      tone: 'upcoming' as const,
+    }))
+
+  const nextDirections = topGoals
+    .filter(goal => !goal.done && (goal.date ?? today) === today)
+    .map(goal => ({
+      id: `top-goal-${goal.id}`,
+      title: goal.text,
+      meta: '오늘 방향 · 목표 페이지에서 관리',
+      page: 'goals' as const,
+      tone: 'next' as const,
+    }))
+
+  const nextApplicationActions = personalApplications
+    .filter(item => openPersonalApplication(item) && item.nextAction?.trim())
+    .map(item => ({
+      id: `personal-action-${item.id}`,
+      title: item.title,
+      meta: `내 신청 · 다음 행동: ${item.nextAction?.trim()}`,
+      page: 'personalApplications' as const,
+      tone: 'next' as const,
+    }))
+
+  const nextJobActions = jobPostings
+    .filter(item => openJobPosting(item) && item.nextAction?.trim())
+    .map(item => ({
+      id: `job-action-${item.id}`,
+      title: `${item.company} · ${item.position}`,
+      meta: `지원 공고 · 다음 행동: ${item.nextAction?.trim()}`,
+      page: 'jobPostings' as const,
+      tone: 'next' as const,
+    }))
+
+  const nextProjectSteps = projects
+    .filter(project => openGoalLike(project.status, project.pct))
+    .map(project => ({
+      project,
+      nextStep: project.steps?.find(step => !step.done)?.text,
+    }))
+    .filter(item => Boolean(item.nextStep))
+    .map(({ project, nextStep }) => ({
+      id: `project-step-${project.id}`,
+      title: project.name,
+      meta: `프로젝트 · 다음 작업: ${nextStep}`,
+      page: 'projects' as const,
+      tone: 'next' as const,
+    }))
+
+  const nowItems = sliceInbox([...nowTodos, ...nowTasks, ...nowSchedules, ...nowCareer])
+  const upcomingItems = sliceInbox([
+    ...upcomingTasks,
+    ...upcomingGoals,
+    ...upcomingProjects,
+    ...upcomingCareer,
+    ...upcomingApplications,
+    ...upcomingJobs,
+  ])
+  const nextActionItems = sliceInbox([
+    ...nextDirections,
+    ...nextApplicationActions,
+    ...nextJobActions,
+    ...nextProjectSteps,
+  ])
+
+  const totalCount = new Set([
+    ...nowItems.map(item => item.id),
+    ...upcomingItems.map(item => item.id),
+    ...nextActionItems.map(item => item.id),
+  ]).size
+
+  return {
+    nowItems,
+    upcomingItems,
+    nextActionItems,
+    nowCount: nowTodos.length + nowTasks.length + nowSchedules.length + nowCareer.length,
+    upcomingCount:
+      upcomingTasks.length
+      + upcomingGoals.length
+      + upcomingProjects.length
+      + upcomingCareer.length
+      + upcomingApplications.length
+      + upcomingJobs.length,
+    nextActionCount:
+      nextDirections.length
+      + nextApplicationActions.length
+      + nextJobActions.length
+      + nextProjectSteps.length,
+    totalCount,
+  }
 }
