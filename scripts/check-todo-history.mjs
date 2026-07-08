@@ -247,6 +247,38 @@ try {
   assert(preservedMissedDay?.done === 0, 'completing the carried todo today should not complete yesterday history')
   assert(preservedMissedDay?.items[0].done === false, 'yesterday item should remain unchecked after carry-forward completion')
 
+  const repairedExistingWrongHistory = syncPastTodoHistory({
+    currentDate: '2026-07-05',
+    todos: [{
+      id: 'same-id-carry',
+      text: '이미 잘못 완료 처리된 이월 항목',
+      done: true,
+      priority: 'medium',
+      category: 'work',
+      date: '2026-07-05',
+    }],
+    todoHistory: [{
+      date: '2026-07-04',
+      total: 1,
+      done: 1,
+      completionRate: 100,
+      savedAt: '2026-07-05T00:00:00.000Z',
+      source: 'auto',
+      items: [{
+        id: 'same-id-carry',
+        text: '이미 잘못 완료 처리된 이월 항목',
+        done: true,
+        priority: 'medium',
+        category: 'work',
+        date: '2026-07-04',
+      }],
+    }],
+    savedAt: '2026-07-05T09:00:00.000Z',
+  })
+  const repairedWrongDay = repairedExistingWrongHistory.find(result => result.date === '2026-07-04')
+  assert(repairedWrongDay?.done === 0, 'existing history completed by same-id carry should be repaired as missed')
+  assert(repairedWrongDay?.items[0].done === false, 'same-id carried history item should be unchecked after repair')
+
   const correctedDoneIsNotCarried = carryIncompleteTodosToDate({
     currentDate: '2026-07-05',
     todos: [

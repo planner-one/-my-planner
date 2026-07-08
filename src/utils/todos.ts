@@ -99,8 +99,6 @@ export function syncPastTodoHistory({
       .filter((date): date is string => Boolean(date && date < currentDate))
   )]
 
-  if (pastDates.length === 0) return todoHistory
-
   const trashedDates = new Set(todoHistoryTrash.map(result => result.date))
   const permanentlyDeletedDates = new Set(todoHistoryDeletedDates)
   const resultsByDate = new Map(todoHistory.map(result => [result.date, result]))
@@ -135,6 +133,41 @@ export function syncPastTodoHistory({
     resultsByDate.set(
       date,
       buildTodoDailyResult(date, items, 'auto', savedAt),
+    )
+    changed = true
+  })
+
+  const historyResults = [...resultsByDate.values()]
+  historyResults.forEach(result => {
+    if (
+      result.date >= currentDate
+      || trashedDates.has(result.date)
+      || permanentlyDeletedDates.has(result.date)
+      || result.correctedAt
+      || (result.correctionHistory?.length ?? 0) > 0
+    ) return
+
+    const repairedItems = result.items.map(item => {
+      if (!item.done) return item
+      const key = getTodoCarryKey(item)
+      const hasSameTodoLater = todos.some(todo => {
+        const todoDate = todo.date ?? currentDate
+        return todo.id === item.id && todoDate > result.date && getTodoCarryKey(todo) === key
+      }) || historyResults.some(laterResult =>
+        laterResult.date > result.date
+        && laterResult.items.some(laterItem =>
+          laterItem.id === item.id && getTodoCarryKey(laterItem) === key
+        )
+      )
+
+      return hasSameTodoLater ? { ...item, date: result.date, done: false } : item
+    })
+
+    if (todoItemsMatch(result.items, repairedItems)) return
+
+    resultsByDate.set(
+      result.date,
+      summarizeTodoDailyResult(result, repairedItems, savedAt),
     )
     changed = true
   })
