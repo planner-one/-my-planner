@@ -390,23 +390,27 @@ export default function ProductivityLog() {
           </div>
           {recentLogs.length === 0 ? (
             <p className="empty-text">최근 생산성 기록이 없습니다.</p>
-          ) : recentLogs.map(log => {
-            const active = log.date === selectedDate
-            const doneUnits = log.sections.reduce((sum, section) =>
-              sum + (section.total > 0 ? Math.min(section.done, section.total) : section.done), 0)
-            return (
-              <button
-                key={log.date}
-                type="button"
-                className={active ? 'recent-productivity-item active' : 'recent-productivity-item'}
-                onClick={() => setSelectedDate(log.date)}
-              >
-                <span>{log.date}</span>
-                <strong>{log.score ? `${log.score.score}%` : '-'}</strong>
-                <small>완료/기록 {doneUnits}개</small>
-              </button>
-            )
-          })}
+          ) : (
+            <div className="recent-productivity-list" aria-label="최근 생산성 기록 목록">
+              {recentLogs.map(log => {
+                const active = log.date === selectedDate
+                const doneUnits = log.sections.reduce((sum, section) =>
+                  sum + (section.total > 0 ? Math.min(section.done, section.total) : section.done), 0)
+                return (
+                  <button
+                    key={log.date}
+                    type="button"
+                    className={active ? 'recent-productivity-item active' : 'recent-productivity-item'}
+                    onClick={() => setSelectedDate(log.date)}
+                  >
+                    <span>{log.date}</span>
+                    <strong>{log.score ? `${log.score.score}%` : '-'}</strong>
+                    <small>완료/기록 {doneUnits}개</small>
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </aside>
       </section>
 
@@ -456,6 +460,10 @@ export default function ProductivityLog() {
         .activity-status.open { background: var(--bg4); color: var(--muted); }
         .activity-item strong { display: block; min-width: 0; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .recent-productivity-panel { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+        .recent-productivity-list { max-height: 430px; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding-right: 2px; display: flex; flex-direction: column; gap: 10px; }
+        .recent-productivity-list::-webkit-scrollbar { width: 8px; }
+        .recent-productivity-list::-webkit-scrollbar-track { background: transparent; }
+        .recent-productivity-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
         .panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
         .panel-heading div { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
         .panel-heading span { color: var(--muted); font-size: 12px; font-weight: 700; }
@@ -470,6 +478,7 @@ export default function ProductivityLog() {
         @media (max-width: 960px) {
           .productivity-score-board, .productivity-content-grid, .productivity-chart-grid { grid-template-columns: 1fr; }
           .score-parts, .productivity-summary-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .recent-productivity-list { max-height: 340px; }
         }
         @media (max-width: 640px) {
           .productivity-log-header { align-items: stretch; flex-direction: column; }
