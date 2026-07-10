@@ -12,6 +12,11 @@ import {
   type JobPostingDraft,
 } from '../utils/jobPostingDraft'
 import { getJobPostingImageBlob, getJobPostingPageText } from '../services/jobPostingPageReader'
+import { Drawer } from '../components/ui/Drawer'
+import { Button } from '../components/ui/Button'
+import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { PageHeader } from '../components/ui/PageHeader'
+import { useToast } from '../components/ui/ToastProvider'
 
 const PLATFORMS: JobPostingPlatform[] = ['saramin', 'jobplanet', 'wanted', 'jumpit', 'groupby', 'incruit', 'company', 'other']
 const STATUSES: JobPostingStatus[] = ['saved', 'preparing', 'applied', 'interview', 'offer', 'rejected', 'closed']
@@ -273,6 +278,7 @@ const sortPostings = (items: JobPosting[]) =>
   })
 
 export default function JobPostings() {
+  const { showToast } = useToast()
   const { jobPostings, setJobPostings } = useApp()
   const [form, setForm] = useState(emptyForm)
   const [filter, setFilter] = useState<Filter>('all')
@@ -288,6 +294,7 @@ export default function JobPostings() {
   const [codexAnalysisText, setCodexAnalysisText] = useState('')
   const [codexStatus, setCodexStatus] = useState('')
   const [selectedPostingId, setSelectedPostingId] = useState<string | null>(null)
+  const [deleteId, setDeleteId] = useState<string | null>(null)
 
   const applyLinkDraftToForm = async () => {
     setLinkDraftBusy(true)
@@ -373,7 +380,7 @@ export default function JobPostings() {
         : hasReadableContent ? '저장 공고 링크 주소와 기존 OCR 텍스트를 기준으로 다시 반영했습니다.' : '저장 공고 링크 본문을 추출하지 못했습니다. 공고 원문/OCR 칸을 채운 뒤 다시 반영해 주세요.'
       setLinkDraftStatus(pageTextResult.imageUrls.length ? `${source} 페이지 이미지 후보 ${pageTextResult.imageUrls.length}개도 찾았습니다.` : source)
     } catch {
-      window.alert('올바른 공고 링크를 입력해 주세요.')
+      showToast({ message: '공고 링크를 확인한 뒤 다시 시도해 주세요.', tone: 'danger' })
     } finally {
       setLinkDraftBusy(false)
     }
@@ -571,9 +578,13 @@ export default function JobPostings() {
   }
 
   const removePosting = (id: string) => {
-    if (!window.confirm('이 지원 공고 기록을 삭제할까요?')) return
-    setJobPostings(previous => previous.filter(item => item.id !== id))
-    setSelectedPostingId(previous => previous === id ? null : previous)
+    setDeleteId(id)
+  }
+
+  const confirmRemove = () => {
+    if (!deleteId) return
+    setJobPostings(previous => previous.filter(item => item.id !== deleteId))
+    setSelectedPostingId(previous => previous === deleteId ? null : previous)
   }
 
   const sorted = useMemo(() => sortPostings(jobPostings), [jobPostings])
@@ -596,12 +607,10 @@ export default function JobPostings() {
 
   return (
     <div className="job-page">
-      <header className="job-header">
-        <div>
-          <h2>지원 공고 모음</h2>
-          <p>사람인, 잡플래닛, 원티드, 점핏, 그룹바이 등에서 본 공고를 링크·이미지 텍스트·키워드와 함께 따로 모아 둡니다.</p>
-        </div>
-      </header>
+      <PageHeader
+        title="지원 공고"
+        description="공고 링크와 지원 준비 정보를 한곳에서 비교하고 다음 행동을 관리합니다."
+      />
 
       <section className="job-summary">
         <Summary label="열린 공고" value={`${activeItems.length}개`} sub="불합격/마감 제외" />
@@ -844,18 +853,20 @@ export default function JobPostings() {
         </div>
       </section>
 
-      {selectedPosting && (
-        <div className="job-detail-backdrop" onMouseDown={() => setSelectedPostingId(null)}>
-          <aside className="job-detail-panel" onMouseDown={event => event.stopPropagation()}>
-            <header className="job-detail-header">
-              <div>
-                <span>{STATUS_LABELS[selectedPosting.status]}</span>
-                <h3>{selectedPosting.company}</h3>
-                <p>{selectedPosting.position}</p>
-              </div>
-              <button type="button" onClick={() => setSelectedPostingId(null)}>닫기</button>
-            </header>
-
+      <Drawer
+        open={Boolean(selectedPosting)}
+        onClose={() => setSelectedPostingId(null)}
+        title={selectedPosting?.company ?? '지원 공고 상세'}
+        description={selectedPosting ? `${selectedPosting.position} · ${STATUS_LABELS[selectedPosting.status]}` : undefined}
+        width="lg"
+        footer={selectedPosting && (
+          <>
+            {selectedPosting.sourceUrl && <a className="job-detail-open-link" href={selectedPosting.sourceUrl} target="_blank" rel="noreferrer">공고 열기</a>}
+            <Button variant="danger" onClick={() => removePosting(selectedPosting.id)}>삭제</Button>
+          </>
+        )}
+      >
+        {selectedPosting && (
             <div className="job-detail-form">
               <label>회사<input value={selectedPosting.company} onChange={event => updatePosting(selectedPosting.id, { company: event.target.value })} /></label>
               <label>포지션<input value={selectedPosting.position} onChange={event => updatePosting(selectedPosting.id, { position: event.target.value })} /></label>
@@ -904,142 +915,20 @@ export default function JobPostings() {
                 </div>
               </details>
             </div>
+        )}
+      </Drawer>
 
-            <footer className="job-detail-footer">
-              {selectedPosting.sourceUrl && <a href={selectedPosting.sourceUrl} target="_blank" rel="noreferrer">공고 열기</a>}
-              <button type="button" onClick={() => removePosting(selectedPosting.id)}>삭제</button>
-            </footer>
-          </aside>
-        </div>
-      )}
+      <ConfirmDialog
+        open={Boolean(deleteId)}
+        onClose={() => setDeleteId(null)}
+        onConfirm={confirmRemove}
+        title="지원 공고 삭제"
+        description={`'${jobPostings.find(item => item.id === deleteId)?.company ?? '선택한 공고'}' 기록을 삭제합니다.`}
+        confirmLabel="삭제"
+        danger
+      />
 
-      <style>{`
-        .job-page { max-width: 1180px; margin: 0 auto; color: var(--text); display: flex; flex-direction: column; gap: 16px; }
-        .job-header h2 { margin: 0 0 6px; font-size: 24px; letter-spacing: 0; }
-        .job-header p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
-        .job-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-        .job-summary-card, .job-next, .job-platforms, .job-link-assist, .job-codex-assist, .job-add, .job-tools, .job-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; }
-        .job-summary-card { padding: 13px; min-width: 0; }
-        .job-summary-card span, .job-next span, .job-platforms > span { color: var(--accent); font-size: 11px; font-weight: 900; }
-        .job-summary-card b { display: block; margin: 5px 0 3px; font-size: 21px; }
-        .job-summary-card small { display: block; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .job-board { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 0.8fr); gap: 12px; }
-        .job-next, .job-platforms { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
-        .job-next strong { font-size: 18px; overflow-wrap: anywhere; }
-        .job-next p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
-        .job-platforms > div { display: flex; flex-wrap: wrap; gap: 7px; }
-        .job-platforms small { border-radius: 999px; background: var(--bg3); color: var(--muted); padding: 6px 9px; font-size: 11px; font-weight: 800; }
-        .job-section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-        .job-section-heading.compact { align-items: center; }
-        .job-section-heading h3 { margin: 0 0 4px; font-size: 15px; letter-spacing: 0; }
-        .job-section-heading p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
-        .job-section-heading small { flex-shrink: 0; color: var(--muted); font-size: 11px; font-weight: 900; white-space: nowrap; }
-        .job-link-assist, .job-codex-assist { padding: 0; overflow: hidden; }
-        .job-link-assist summary, .job-codex-assist summary { min-height: 42px; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer; color: var(--text); font-size: 13px; font-weight: 900; }
-        .job-link-assist summary::marker, .job-codex-assist summary::marker { color: var(--muted); }
-        .job-link-assist summary small, .job-codex-assist summary small { border-radius: 999px; background: var(--bg3); color: var(--muted); padding: 4px 8px; font-size: 10px; font-weight: 900; white-space: nowrap; }
-        .job-link-assist-body { border-top: 1px solid var(--border); padding: 11px 12px 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
-        .job-link-assist-body input, .job-link-assist-body textarea { min-width: 0; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); font-family: inherit; font-size: 13px; outline: none; }
-        .job-link-assist-body input { height: 34px; padding: 0 9px; }
-        .job-link-assist-body textarea { grid-column: 1 / -1; min-height: 84px; padding: 9px; resize: vertical; line-height: 1.5; }
-        .job-link-assist-body button, .job-card-link-row button { min-height: 34px; border: 0; border-radius: 7px; background: var(--accent); color: #fff; padding: 0 12px; font-size: 12px; font-weight: 900; cursor: pointer; white-space: nowrap; }
-        .job-link-assist-body button:disabled { opacity: 0.65; cursor: wait; }
-        .job-link-assist-body p { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
-        .job-link-assist-body small { grid-column: 1 / -1; color: var(--accent); font-size: 11px; font-weight: 800; }
-        .job-link-images { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); padding: 8px 9px; }
-        .job-link-images span { min-width: 0; color: var(--muted); font-size: 11px; font-weight: 800; }
-        .job-link-images button { min-height: 30px; background: var(--bg2); color: var(--text); border: 1px solid var(--border); }
-        .job-codex-assist-body { border-top: 1px solid var(--border); padding: 11px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
-        .job-codex-assist-body > div { display: flex; flex-wrap: wrap; gap: 8px; }
-        .job-codex-assist-body button { min-height: 34px; border: 0; border-radius: 7px; background: var(--accent); color: #fff; padding: 0 12px; font-size: 12px; font-weight: 900; cursor: pointer; }
-        .job-codex-assist-body button.secondary { border: 1px solid var(--border); background: var(--bg3); color: var(--text); }
-        .job-codex-assist-body textarea { min-width: 0; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); padding: 9px; font-family: inherit; font-size: 13px; line-height: 1.5; resize: vertical; outline: none; }
-        .job-codex-assist-body p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
-        .job-codex-assist-body small { color: var(--accent); font-size: 11px; font-weight: 800; }
-        .job-add { padding: 12px; display: flex; flex-direction: column; gap: 9px; }
-        .job-add-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) 132px 132px 146px; gap: 8px; align-items: end; }
-        .job-add-main label, .job-add-extra label { min-width: 0; display: flex; flex-direction: column; gap: 5px; color: var(--muted); font-size: 11px; font-weight: 800; }
-        .job-add-dates { display: grid; grid-template-columns: minmax(160px, 220px); gap: 8px; }
-        .job-add-dates label { min-width: 0; display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 900; }
-        .job-add-media { display: grid; grid-template-columns: minmax(0, 1fr) 150px 150px; gap: 8px; align-items: center; }
-        .job-add-media small { min-width: 0; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .job-add-extra { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 8px; }
-        .job-add input, .job-add select, .job-add textarea, .job-tools input, .job-detail-form input, .job-detail-form select, .job-detail-form textarea { min-width: 0; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); font-family: inherit; font-size: 13px; outline: none; }
-        .job-add input, .job-add select, .job-tools input, .job-detail-form input, .job-detail-form select { height: 34px; padding: 0 9px; }
-        .job-add textarea, .job-detail-form textarea { padding: 9px; resize: vertical; line-height: 1.5; }
-        .job-add button { height: 34px; border: 0; border-radius: 7px; background: var(--accent); color: #fff; padding: 0 13px; font-size: 12px; font-weight: 800; cursor: pointer; }
-        .job-add button.secondary-action { border: 1px solid var(--border); background: var(--bg3); color: var(--text); }
-        .job-add-media label { height: 34px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); display: grid; place-items: center; font-size: 12px; font-weight: 800; cursor: pointer; overflow: hidden; }
-        .job-add-media input[type="file"] { display: none; }
-        .job-add-action { display: flex; align-items: flex-end; }
-        .job-detail-field { display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 800; }
-        .job-detail-field textarea { min-height: 132px; }
-        .job-detail-field span { color: var(--accent); }
-        .ocr-status { color: var(--muted); font-size: 11px; }
-        .job-tools { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
-        .job-tools > div { display: flex; flex-wrap: wrap; gap: 6px; }
-        .job-tools button { min-height: 31px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg3); color: var(--muted); padding: 0 11px; font-size: 12px; cursor: pointer; }
-        .job-tools button.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); font-weight: 800; }
-        .job-list-shell { display: flex; flex-direction: column; gap: 10px; }
-        .job-list-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
-        .job-list-heading h3 { margin: 0 0 4px; font-size: 17px; letter-spacing: 0; }
-        .job-list-heading p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
-        .job-list-heading small { color: var(--muted); font-size: 11px; font-weight: 800; white-space: nowrap; }
-        .job-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-        .job-card { padding: 13px; display: flex; flex-direction: column; gap: 10px; border-left: 4px solid var(--accent); }
-        .job-card.rejected, .job-card.closed { border-left-color: var(--muted); opacity: 0.82; }
-        .job-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-soft); }
-        .job-card-open { width: 100%; border: 0; background: transparent; color: inherit; padding: 0; text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 10px; }
-        .job-card-compact-top { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: start; }
-        .job-card-compact-top h3 { margin: 0 0 5px; font-size: 17px; line-height: 1.3; letter-spacing: 0; overflow-wrap: anywhere; }
-        .job-card-compact-top strong { display: block; font-size: 13px; line-height: 1.45; color: var(--text); overflow-wrap: anywhere; }
-        .job-card-compact-top span { border-radius: 999px; background: var(--accent-soft); color: var(--accent); padding: 5px 9px; font-size: 10px; font-weight: 900; white-space: nowrap; }
-        .job-card-tags { display: flex; flex-wrap: wrap; gap: 6px; }
-        .job-card-tags small { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-radius: 999px; background: var(--bg3); color: var(--muted); padding: 5px 8px; font-size: 10px; font-weight: 800; }
-        .job-card-open p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; display: flex; gap: 8px; overflow-wrap: anywhere; }
-        .job-card-open p b { color: var(--accent); white-space: nowrap; }
-        .job-card-note-preview { display: -webkit-box !important; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-        .wide-label { width: 100%; }
-        .job-card-link-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
-        .job-card-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-        .job-card-actions a { color: var(--accent); font-size: 12px; font-weight: 800; text-decoration: none; }
-        .job-card-actions small { color: var(--muted); font-size: 11px; }
-        .job-card-actions button { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; padding: 6px; }
-        .job-detail-backdrop { position: fixed; inset: 0; z-index: 50; background: rgba(0, 0, 0, 0.32); display: flex; justify-content: flex-end; }
-        .job-detail-panel { width: min(760px, calc(100vw - 32px)); height: 100%; background: var(--bg2); color: var(--text); border-left: 1px solid var(--border); box-shadow: -18px 0 40px rgba(0, 0, 0, 0.22); display: flex; flex-direction: column; }
-        .job-detail-header { padding: 18px 20px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-        .job-detail-header span { display: inline-flex; margin-bottom: 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); padding: 5px 9px; font-size: 10px; font-weight: 900; }
-        .job-detail-header h3 { margin: 0 0 6px; font-size: 22px; line-height: 1.3; letter-spacing: 0; overflow-wrap: anywhere; }
-        .job-detail-header p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
-        .job-detail-header button, .job-detail-footer button { border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); min-height: 34px; padding: 0 12px; font-size: 12px; font-weight: 800; cursor: pointer; white-space: nowrap; }
-        .job-detail-form { padding: 16px 20px 20px; overflow: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-        .job-detail-form label { min-width: 0; display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 900; }
-        .job-detail-form .wide-label, .job-detail-empty-fields { grid-column: 1 / -1; }
-        .job-detail-form textarea { min-height: 132px; }
-        .job-detail-empty-fields { border: 1px solid var(--border); border-radius: 8px; background: var(--bg3); overflow: hidden; }
-        .job-detail-empty-fields summary { min-height: 38px; padding: 0 12px; display: flex; align-items: center; cursor: pointer; color: var(--muted); font-size: 12px; font-weight: 900; }
-        .job-detail-empty-fields > div { border-top: 1px solid var(--border); padding: 12px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-        .job-detail-footer { margin-top: auto; border-top: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-        .job-detail-footer a { color: var(--accent); font-size: 12px; font-weight: 900; text-decoration: none; }
-        .job-detail-footer button { color: var(--muted); }
-        .empty-text { grid-column: 1 / -1; margin: 0; padding: 36px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); color: var(--muted); text-align: center; }
-        @media (max-width: 980px) {
-          .job-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-          .job-board, .job-list { grid-template-columns: 1fr; }
-          .job-add-main, .job-add-media, .job-add-extra { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-          .job-add-action { grid-column: 1 / -1; }
-        }
-        @media (max-width: 560px) {
-          .job-summary, .job-link-assist-body, .job-add-main, .job-add-media, .job-add-extra, .job-card-link-row, .job-detail-form, .job-detail-empty-fields > div { grid-template-columns: 1fr; }
-          .job-section-heading { flex-direction: column; }
-          .job-list-heading { align-items: flex-start; flex-direction: column; }
-          .job-card-actions { align-items: flex-start; flex-direction: column; }
-          .job-detail-panel { width: 100vw; }
-          .job-detail-header { padding: 16px; }
-          .job-detail-form { padding: 14px 16px 18px; }
-          .job-detail-footer { padding: 12px 16px; }
-        }
-      `}</style>
+
     </div>
   )
 }

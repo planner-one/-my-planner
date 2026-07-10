@@ -4,11 +4,11 @@ import { RouterProvider, useRouter } from './store/RouterContext'
 import LoginPage from './pages/LoginPage'
 import PageShell from './components/PageShell'
 import { Suspense, lazy, type ComponentType, type LazyExoticComponent } from 'react'
-
-type PageId =
-  | 'dashboard' | 'calendar' | 'habits' | 'tasks' | 'todos' | 'goals' | 'projects'
-  | 'weekly' | 'daily' | 'notes' | 'journal' | 'profile' | 'inquiries' | 'print' | 'career'
-  | 'personalApplications' | 'jobPostings' | 'productivity'
+import type { PageId } from './config/navigation'
+import { Skeleton } from './components/ui/Skeleton'
+import { ToastProvider } from './components/ui/ToastProvider'
+import { ConfirmProvider } from './components/ui/ConfirmProvider'
+import { ErrorState } from './components/ui/ErrorState'
 
 type PageComponent = LazyExoticComponent<ComponentType>
 
@@ -35,33 +35,37 @@ const PAGE_MAP: Record<PageId, PageComponent> = {
   productivity: loadPage(() => import('./pages/ProductivityLog')),
 }
 
-function Loading() {
+function Loading({ fullScreen = true }: { fullScreen?: boolean }) {
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      height: 'var(--app-viewport-height)', color: 'var(--muted)',
-    }}>
-      불러오는 중...
+    <div className={fullScreen ? 'app-loading app-loading-full' : 'app-loading'} role="status" aria-label="불러오는 중">
+      <div>
+        <Skeleton width={180} height={16} />
+        <Skeleton width={120} height={12} />
+      </div>
     </div>
   )
 }
 
 function PageLoading() {
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      minHeight: 320, color: 'var(--muted)',
-    }}>
-      페이지를 불러오는 중...
-    </div>
-  )
+  return <Loading fullScreen={false} />
 }
 
 function AppMain() {
-  const { dataLoaded } = useApp()
+  const { dataLoaded, dataLoadError, retryLoad } = useApp()
   const { page } = useRouter()
   const PageComponent = PAGE_MAP[page] ?? PAGE_MAP.dashboard
 
+  if (dataLoadError) {
+    return (
+      <ErrorState
+        fullScreen
+        title="플래너 데이터를 불러오지 못했습니다"
+        description={dataLoadError}
+        actionLabel="다시 불러오기"
+        onRetry={retryLoad}
+      />
+    )
+  }
   if (!dataLoaded) return <Loading />
 
   return (
@@ -90,8 +94,12 @@ function AppRouter() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppRouter />
-    </AuthProvider>
+    <ToastProvider>
+      <ConfirmProvider>
+        <AuthProvider>
+          <AppRouter />
+        </AuthProvider>
+      </ConfirmProvider>
+    </ToastProvider>
   )
 }

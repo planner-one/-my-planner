@@ -1,34 +1,45 @@
 # 다음 채팅 인수인계
 
 _작성일: 2026-06-28_
-_갱신일: 2026-07-09 (UI System Pass와 캘린더 기준 정리)_
+_갱신일: 2026-07-10 (운영 복구와 Planner Experience Refresh)_
 
 이 파일은 새 Codex 또는 Claude Code 세션에서 바로 이어 작업하기 위한 현재 상태 메모입니다.
 새 세션에서는 먼저 이 파일과 `AGENTS.md`, `PROGRESS.md`, `REQUIREMENTS.md`, `SCENARIOS.md`, `RELEASES.md`, `COPYRIGHT_AND_SERVICE_NOTES.md`, `LINK_IMPORT_GUIDE.md`, `JOB_POSTING_LINK_READER.md`, `PLANNER_SYSTEM_AUDIT_2026-07-04.md`, `UPDATE_SCHEDULE.md`를 읽고 시작하면 됩니다.
 
 ## 한 줄 요약
 
-플래너는 Firebase 기반 React/Vite/TypeScript 앱이며, SC-07 위젯 검토와 SC-08 사이드바 기능 페이지, SC-09 테마 정리, SC-10 태블릿/모바일 반응형 코드 QA까지 완료했습니다. v0.3.0~v0.3.2에서는 작업 흐름 위젯, 주요 페이지 UX, 내 신청/지원 공고/캘린더 연결을 보강했고, v0.3.3~v0.3.9에서는 지원 공고 링크 Reader와 사람인/원티드 파싱을 보강했습니다. v0.3.10에서는 목표 위젯/목표 페이지의 오늘 집중을 날짜별 오늘 방향으로 정리했고, v0.3.11에서는 오늘 할 일 위젯/페이지에 오늘·내일 선택과 다음 날 브리핑을 추가했습니다. v0.3.12에서는 지난 날짜 미완료 Todo를 오늘 날짜로 자동 이월하도록 보강했고, v0.3.13에서는 브리핑 알림 설정을 내 계정 기준으로 저장하도록 보강했습니다. v0.3.14에서는 생산성 추이 위젯에서 날짜별 생산성 기록 상세 페이지로 이동할 수 있게 했고, v0.3.15에서는 생산성 기록 페이지 요약 UX와 추이/구성 그래프를 보강했습니다. v0.3.16에서는 `check:doc-sync` 문서-코드 자동 점검과 `내 신청`/`지원 공고`/`오늘 할 일`의 빠른 추가·필터 밀도 보정을 반영했고, v0.3.17에서는 공통 패널/버튼/입력 밀도 기준과 캘린더의 표시 항목 패널, sticky agenda, 빠른 추가 패널을 정리했습니다.
+플래너는 Firebase 기반 React/Vite/TypeScript 앱입니다. v0.3.17까지의 페이지·위젯·링크 정리·기회 일정 단계형 날짜 기능을 유지하면서, v0.3.18에서 Firebase 환경 검증과 초기화 오류 화면, 의미 기반 디자인 토큰과 공통 UI, Lucide 아이콘, 단일 탐색 레지스트리와 URL hash, 자동 저장 상태/재시도, 접근 가능한 모달·드로어, 핵심 화면 반응형 UX, Vitest/Testing Library 회귀 테스트를 반영했습니다. Firestore 문서 구조는 변경하지 않았으며 로그인된 실제 사용자 데이터 기준의 전체 화면 육안 QA만 별도 확인이 필요합니다.
 
 ## 작업 위치와 원격
 
 - 로컬 경로: `/Users/minsujeong/planner`
 - GitHub remote: `https://github.com/planner-one/-my-planner.git`
-- 브랜치: `main`
+- 브랜치: `codex/ui-ux-quality-pass`에서 구현 후 `main` 반영
 - 배포: Firebase Hosting
 - 배포 URL: `https://my-planner-487bd.web.app`
 - GitHub Pages는 사용하지 않습니다.
-- 현재 HEAD: `d339be2 fix: reset goal focus by date`
-- 현재 앱 버전: `v0.3.17 UI System Pass`
-- 현재 로컬 브랜치 상태: 2026-07-05 내일 Todo/다음 날 브리핑, Codex 알림 자동화, 미완료 Todo 자동 이월, 내 계정 알림 설정, 지원 공고/기회 일정 Codex 정밀 정리 보조, 기회 일정 단계형 일자 모델, 생산성 기록 상세와 그래프/UX 보강 작업 중, 커밋/푸시 전 사용자 확인 필요
+- 운영 복구 기준 커밋: `d799554 fix: prevent invalid Firebase deployments`
+- 현재 앱 버전: `v0.3.18 Planner Experience Refresh`
+- 현재 로컬 상태: v0.3.18 구현·검증·문서화 후 릴리즈 커밋, push, Firebase Hosting 배포 대상
 - 최근 push와 Firebase Hosting 배포는 `planner-one` 계정으로 성공했습니다.
+
+## 2026-07-10 운영 복구와 v0.3.18
+
+- 운영 빈 화면 원인은 Firebase API 키가 `undefined`인 번들이 배포된 것이었고, 로컬 `.env`를 사용해 다시 빌드·배포해 로그인 화면과 초기화를 복구했습니다.
+- `scripts/env-validation.mjs`, `scripts/check-env.mjs`, Vite 빌드 검증으로 필수 Firebase 환경값 누락 배포를 차단합니다.
+- `src/config/navigation.ts`가 page id, 메뉴 그룹, 아이콘, 모바일 탭의 단일 기준이며 `RouterContext`가 URL hash를 동기화합니다.
+- `src/components/ui`, `src/styles`에 공통 UI와 의미 기반 토큰을 두고 4개 테마, 8px 이하 반경, 44px 터치 영역, 포커스/모션 기준을 공유합니다.
+- `AppContext`는 기존 저장 API를 유지하면서 `saveState`, `saveError`, `retrySave`를 제공하고 PageShell 상단에서 상태를 표시합니다.
+- 기회 일정, 내 신청, 지원 공고는 데스크톱/모바일에서 공통 Drawer와 ConfirmDialog를 사용하며 기존 Firestore 필드와 기회 일정 milestone 동기화는 유지합니다.
+- 공통 버튼, 모달, hash 탐색, 환경 검증은 Vitest/Testing Library 테스트로 고정했습니다.
+- 로그인 전 로컬/운영 화면의 본문, 가로 overflow, Firebase 초기화 오류는 확인했습니다. 로그인 후 18개 페이지·15개 위젯·4개 테마의 전체 viewport 육안 QA는 사용자 세션 확인 전 완료로 표시하지 않습니다.
 
 ## 2026-07-04 설계 감사 반영
 
 현재 구조를 "모르는 게 없을 때까지" 확인하기 위한 기준 문서를 추가했습니다.
 
 - `PLANNER_SYSTEM_AUDIT_2026-07-04.md`: 페이지 18개, 위젯 15개, `UserData` 주요 필드, Firebase 저장 흐름, 로컬 Reader API와 배포 차이, 디자인/반응형 상태, 보완점 정리
-- `UPDATE_SCHEDULE.md`: v0.3.11 내일 브리핑 완료, v0.3.12 미완료 Todo 자동 이월 완료, v0.3.13 내 계정 브리핑 알림 설정 완료, v0.3.14 생산성 기록 완료, v0.3.15 생산성 기록 그래프/UX 보강 완료, v0.3.16 문서/QA 기준, v0.3.17 UI System Pass, v0.3.18 플래너 흐름 구분, v0.3.19 데이터 품질/AI 준비, v0.4.0 운영 API 준비, v0.5.0 유료 AI 후보 순서 기록
+- `UPDATE_SCHEDULE.md`: v0.3.18 Planner Experience Refresh 완료, v0.3.19 데이터 품질/AI 준비, v0.4.0 운영 API 준비, v0.5.0 유료 AI 후보 순서 기록
 - 확인된 보완점: 운영 배포용 지원 공고 Reader API 부재, 실기기 반응형 QA 필요, 디자인 시스템 불균일, 자동 점검 스크립트 부족, 데이터 내보내기/삭제와 약관/개인정보 문서 필요
 - KDB 인크루트 링크 `https://kdb.incruit.com/hire/viewhire.asp?projectid=125`는 직접 접근 시 잘못된 경로 응답을 주지만, Reader가 `http://kdb.incruit.com/...` 대상으로 접근하면 한국산업은행 공고 본문을 읽을 수 있어 인크루트 `http` 대상 재시도를 추가했습니다.
 - 지원 공고 링크 초안은 이제 본문 추출 없이 URL 슬러그만 잡힌 경우를 성공으로 표시하지 않습니다. `/api/job-posting-page`가 없을 때는 브라우저 Reader fallback을 시도하고, 그래도 실패하면 수동 붙여넣기 안내를 표시합니다.
@@ -141,6 +152,7 @@ firebase deploy --only hosting
 - 2026-07-04 내 계정 브리핑 알림 설정 보강 후 `npm run check:planner-briefing`, `npm run check:todo-history`, `npx tsc --noEmit` 통과
 - 2026-07-05 v0.3.15 생산성 기록 그래프/UX 보강 후 `npm run check:productivity-log`, `npx tsc --noEmit`, `npm run build`, `git diff --check` 통과
 - 2026-07-08 Todo 자동 이월 기록 보존 보정 후 `npm run check:todo-history`, `npm run check:user-data-merge`, `npx tsc --noEmit`, `npm run build` 통과
+- 2026-07-10 v0.3.18에서 `npm test`, 전체 `check:*`, `npx tsc --noEmit`, `npm run build`, `git diff --check`, 충돌 마커 검사를 실행하는 기준 추가
 
 주의:
 
@@ -342,10 +354,9 @@ SC-07 위젯 검토는 완료입니다.
 
 ## 다음 작업 제안 순서
 
-1. 현재 문서 보강 미커밋 변경에 대해 사용자 확인
-2. 사용자 로컬 로그인 세션에서 주요 화면 육안 확인
-3. 사용자 지시가 있으면 커밋/푸시
-4. 필요 시 Firebase Hosting 배포
+1. 사용자 로그인 세션에서 1440×900, 1024×768, 768×1024, 390×844 핵심 화면 육안 확인
+2. v0.3.19 Data Quality & AI Readiness 범위 확정
+3. 운영 Reader API가 필요해질 때 Firebase Functions 또는 별도 백엔드 경계 결정
 
 ## 작업 시 주의
 

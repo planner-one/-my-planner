@@ -2,6 +2,11 @@ import { useMemo, useState } from 'react'
 import { useApp } from '../store/AppContext'
 import type { Note, QuickMemoEntry, Todo } from '../types'
 import { toLocalDateKey } from '../utils/date'
+import { PageHeader } from '../components/ui/PageHeader'
+import { Button } from '../components/ui/Button'
+import { useConfirm } from '../components/ui/ConfirmProvider'
+import { Drawer } from '../components/ui/Drawer'
+import { Tabs } from '../components/ui/Tabs'
 
 type View = 'notes' | 'inbox' | 'archive'
 
@@ -62,6 +67,7 @@ const normalizeOptionalUrl = (value: string) => {
 }
 
 export default function Notes() {
+  const confirm = useConfirm()
   const { quickMemos, setQuickMemos, notes, setNotes, setTodos } = useApp()
   const [view, setView] = useState<View>('notes')
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -229,52 +235,61 @@ export default function Notes() {
     }))
   }
 
-  const deleteMemo = (id: string) => {
-    if (!window.confirm('이 빠른 메모를 완전히 삭제할까요?')) return
+  const deleteMemo = async (id: string) => {
+    const accepted = await confirm({
+      title: '빠른 메모 영구 삭제',
+      description: '이 빠른 메모를 완전히 삭제합니다. 이 작업은 되돌릴 수 없습니다.',
+      confirmLabel: '영구 삭제',
+      danger: true,
+    })
+    if (!accepted) return
     setQuickMemos(previous => previous.filter(memo => memo.id !== id))
   }
 
-  const removeNote = (id: string) => {
-    if (!window.confirm('이 노트를 삭제할까요?')) return
+  const removeNote = async (id: string) => {
+    const accepted = await confirm({
+      title: '노트 삭제',
+      description: '선택한 노트를 삭제합니다. 이 작업은 되돌릴 수 없습니다.',
+      confirmLabel: '삭제',
+      danger: true,
+    })
+    if (!accepted) return
     setNotes(previous => previous.filter(note => note.id !== id))
     if (editingNoteId === id) closeNoteComposer()
   }
 
   return (
     <div className="notes-page">
-      <header className="notes-header">
-        <div>
-          <h1>노트</h1>
-          <p>빠른 메모와 분리해서 제목, 날짜, 내용, 키워드, 참고 링크를 갖춘 정식 노트를 작성합니다.</p>
-        </div>
-        <button type="button" className="notes-primary-button" onClick={openNewNote}>
-          새 노트 작성
-        </button>
-      </header>
+      <PageHeader
+        title="노트"
+        description="정리된 노트와 빠른 메모 수집함을 분리해 관리합니다."
+        actions={<Button onClick={openNewNote}>새 노트 작성</Button>}
+      />
 
-      <nav className="notes-tabs" aria-label="노트 보기">
-        {([
-          ['notes', `내 노트 ${notes.length}`],
-          ['inbox', `빠른 메모 ${activeMemos.length}`],
-          ['archive', `처리됨 ${archivedMemos.length}`],
-        ] as [View, string][]).map(([id, label]) => (
-          <button
-            type="button"
-            key={id}
-            className={view === id ? 'is-active' : ''}
-            onClick={() => setView(id)}
-          >
-            {label}
-          </button>
-        ))}
-      </nav>
+      <Tabs
+        value={view}
+        onChange={setView}
+        label="노트 보기"
+        options={[
+          { value: 'notes', label: '내 노트', count: notes.length },
+          { value: 'inbox', label: '빠른 메모', count: activeMemos.length },
+          { value: 'archive', label: '처리됨', count: archivedMemos.length },
+        ]}
+      />
 
-      {noteComposerOpen && (
-        <section className="note-composer" aria-label={editingNoteId ? '노트 수정' : '새 노트 작성'}>
-          <div className="note-composer-head">
-            <strong>{editingNoteId ? '노트 수정' : '새 노트'}</strong>
-            <span>작성 날짜는 자동으로 반영됩니다.</span>
-          </div>
+      <Drawer
+        open={noteComposerOpen}
+        onClose={closeNoteComposer}
+        title={editingNoteId ? '노트 수정' : '새 노트'}
+        description="작성 날짜는 자동으로 반영됩니다."
+        width="md"
+        footer={(
+          <>
+            <Button variant="secondary" onClick={closeNoteComposer}>취소</Button>
+            <Button onClick={saveNote}>{editingNoteId ? '수정 저장' : '노트 저장'}</Button>
+          </>
+        )}
+      >
           <div className="note-form-grid">
             <label>제목
               <input
@@ -311,14 +326,7 @@ export default function Notes() {
               />
             </label>
           </div>
-          <div className="note-composer-actions">
-            <button type="button" onClick={closeNoteComposer}>취소</button>
-            <button type="button" className="notes-primary-button" onClick={saveNote}>
-              {editingNoteId ? '수정 저장' : '노트 저장'}
-            </button>
-          </div>
-        </section>
-      )}
+      </Drawer>
 
       {(view === 'inbox' || view === 'archive') && (
         <div className="memo-groups">
@@ -412,85 +420,7 @@ export default function Notes() {
         </div>
       )}
 
-      <style>{`
-        .notes-page { max-width: 1040px; margin: 0 auto; color: var(--text); display: flex; flex-direction: column; gap: 18px; }
-        .notes-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
-        .notes-header h1 { margin: 0 0 5px; font-size: 24px; letter-spacing: 0; }
-        .notes-header p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
-        .notes-primary-button { border: 0 !important; background: var(--accent) !important; color: #fff !important; font-weight: 700; }
-        .notes-header > button { min-height: 38px; padding: 0 14px; border-radius: 7px; cursor: pointer; white-space: nowrap; }
-        .notes-tabs { display: flex; gap: 4px; padding: 4px; border-radius: 8px; background: var(--bg3); width: fit-content; max-width: 100%; overflow-x: auto; }
-        .notes-tabs button { padding: 7px 12px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; font-size: 12px; white-space: nowrap; }
-        .notes-tabs button.is-active { background: var(--bg2); color: var(--text); font-weight: 700; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
-        .note-composer { display: flex; flex-direction: column; gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); }
-        .note-composer-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
-        .note-composer-head strong { font-size: 15px; }
-        .note-composer-head span { color: var(--muted); font-size: 11px; }
-        .note-form-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(160px, 0.6fr); gap: 10px; }
-        .note-form-grid label { display: flex; flex-direction: column; gap: 5px; color: var(--muted); font-size: 11px; font-weight: 800; }
-        .note-form-grid .span-2 { grid-column: 1 / -1; }
-        .note-form-grid input,
-        .note-form-grid textarea,
-        .memo-edit-input {
-          border: 1px solid var(--border);
-          border-radius: 7px;
-          background: var(--bg3);
-          color: var(--text);
-          outline: none;
-          font-family: inherit;
-          box-sizing: border-box;
-          width: 100%;
-          min-width: 0;
-        }
-        .note-form-grid input { height: 40px; padding: 0 11px; font-size: 14px; }
-        .note-form-grid input[readonly] { color: var(--muted); }
-        .note-form-grid textarea { resize: vertical; padding: 10px 11px; font-size: 13px; line-height: 1.55; }
-        .note-composer-actions { display: flex; justify-content: flex-end; gap: 7px; }
-        .note-composer button, .memo-actions button, .note-card-actions button { padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg3); color: var(--text); cursor: pointer; font-size: 11px; }
-        .memo-groups { display: flex; flex-direction: column; gap: 20px; }
-        .memo-group { display: grid; grid-template-columns: 100px minmax(0, 1fr); gap: 14px; }
-        .memo-date { display: flex; flex-direction: column; gap: 3px; padding-top: 12px; }
-        .memo-date strong { font-size: 13px; }
-        .memo-date span { color: var(--muted); font-size: 10px; }
-        .memo-list { border-top: 1px solid var(--border); }
-        .memo-item { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-height: 68px; padding: 10px 4px; border-bottom: 1px solid var(--border); }
-        .memo-item-main { min-width: 0; flex: 1; }
-        .memo-item-main p { margin: 0 0 6px; line-height: 1.5; font-size: 14px; overflow-wrap: anywhere; }
-        .memo-meta { display: flex; gap: 8px; color: var(--muted); font-size: 10px; }
-        .memo-edit-input { height: 36px; padding: 0 9px; margin-bottom: 5px; }
-        .memo-actions { display: flex; gap: 4px; flex-shrink: 0; flex-wrap: wrap; }
-        .memo-actions button.is-danger,
-        .note-card-actions button.is-danger { color: var(--red); }
-        .note-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-        .note-card { min-height: 170px; padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); display: flex; flex-direction: column; gap: 10px; }
-        .note-card-heading { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
-        .note-card-heading time { color: var(--muted); font-size: 10px; display: block; margin-bottom: 6px; }
-        .note-card h2 { margin: 0; font-size: 16px; line-height: 1.35; overflow-wrap: anywhere; }
-        .note-card-actions { display: flex; gap: 5px; flex-shrink: 0; }
-        .note-card p { margin: 0; color: var(--muted); line-height: 1.6; font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; flex: 1; }
-        .note-keywords { display: flex; flex-wrap: wrap; gap: 5px; }
-        .note-keywords span { border-radius: 999px; background: color-mix(in srgb, var(--accent) 13%, transparent); color: var(--accent); padding: 4px 8px; font-size: 11px; font-weight: 800; }
-        .note-card a { color: var(--accent); font-size: 12px; font-weight: 800; text-decoration: none; width: fit-content; }
-        .note-card small { color: var(--muted); font-size: 10px; }
-        .notes-empty { grid-column: 1 / -1; padding: 44px 16px; border: 1px solid var(--border); border-radius: 8px; color: var(--muted); text-align: center; font-size: 13px; }
-        @media (max-width: 700px) {
-          .notes-header { align-items: flex-start; flex-direction: column; }
-          .notes-header > button { width: 100%; }
-          .note-form-grid { grid-template-columns: 1fr; }
-          .note-form-grid .span-2 { grid-column: auto; }
-          .note-composer-head { flex-direction: column; gap: 3px; }
-          .note-composer-actions { flex-direction: column-reverse; }
-          .note-composer-actions button { width: 100%; }
-          .memo-group { grid-template-columns: 1fr; gap: 4px; }
-          .memo-date { flex-direction: row; align-items: baseline; padding-top: 0; }
-          .memo-item { align-items: flex-start; flex-direction: column; }
-          .memo-actions { width: 100%; }
-          .note-list { grid-template-columns: 1fr; }
-          .note-card-heading { flex-direction: column; }
-          .note-card-actions { width: 100%; }
-          .note-card-actions button { flex: 1; }
-        }
-      `}</style>
+
     </div>
   )
 }

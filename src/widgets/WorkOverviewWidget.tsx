@@ -110,7 +110,7 @@ export default function WorkOverviewWidget() {
             style={{
               flex: 1,
               border: '1px dashed var(--border)',
-              borderRadius: 10,
+              borderRadius: 8,
               background: 'transparent',
               color: 'var(--muted)',
               cursor: 'pointer',
@@ -127,7 +127,7 @@ export default function WorkOverviewWidget() {
             style={{
               minHeight: 0,
               border: 'none',
-              borderRadius: 10,
+              borderRadius: 8,
               background: 'var(--bg3)',
               padding: '8px 9px',
               cursor: 'pointer',
@@ -184,7 +184,7 @@ function Metric({
       style={{
         minWidth: 0,
         border: '1px solid var(--border)',
-        borderRadius: 10,
+        borderRadius: 8,
         background: 'var(--bg3)',
         padding: '9px 8px',
         cursor: 'pointer',

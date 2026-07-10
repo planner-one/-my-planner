@@ -1,5 +1,9 @@
 import { useMemo, useState } from 'react'
+import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react'
 import { useApp } from '../store/AppContext'
+import { PageHeader } from '../components/ui/PageHeader'
+import { IconButton } from '../components/ui/IconButton'
+import { useConfirm } from '../components/ui/ConfirmProvider'
 import type { JournalEntry } from '../types'
 import { addLocalDays, toLocalDateKey } from '../utils/date'
 import { isHabitScheduled } from '../utils/habits'
@@ -13,6 +17,7 @@ const JOURNAL_PROMPTS = [
 ]
 
 export default function Journal() {
+  const confirm = useConfirm()
   const {
     journal, setJournal,
     todos, todoHistory, habits, habitHistory,
@@ -79,8 +84,14 @@ export default function Journal() {
     })
   }
 
-  const removeEntry = (date: string) => {
-    if (!window.confirm('이 저널을 삭제할까요?')) return
+  const removeEntry = async (date: string) => {
+    const accepted = await confirm({
+      title: '저널 삭제',
+      description: `${date} 저널 기록을 삭제합니다.`,
+      confirmLabel: '삭제',
+      danger: true,
+    })
+    if (!accepted) return
     setJournal(prev => prev.filter(entry => entry.date !== date))
     if (date === todayKey) setEnergy(0)
   }
@@ -111,18 +122,16 @@ export default function Journal() {
 
   return (
     <div className="journal-page">
-      <header className="journal-header">
-        <div>
-          <h2>저널</h2>
-          <p>외부 피드 위젯과 별개로, 하루 기록과 컨디션을 직접 남깁니다.</p>
-        </div>
-        <div className="journal-date-controls">
-          <button type="button" onClick={() => shiftDate(-1)}>어제</button>
+      <PageHeader
+        title="저널"
+        description="하루의 컨디션, 생각과 회고를 날짜별로 기록합니다."
+        actions={<div className="journal-date-controls">
+          <IconButton label="어제" icon={<ChevronLeft size={17} />} size="sm" variant="secondary" onClick={() => shiftDate(-1)} />
           <input type="date" value={selectedDate} onChange={event => setSelectedDate(event.target.value)} />
-          <button type="button" onClick={() => shiftDate(1)}>내일</button>
-          <button type="button" onClick={() => setSelectedDate(toLocalDateKey())}>오늘</button>
-        </div>
-      </header>
+          <IconButton label="내일" icon={<ChevronRight size={17} />} size="sm" variant="secondary" onClick={() => shiftDate(1)} />
+          <IconButton label="오늘" icon={<RotateCcw size={16} />} size="sm" variant="secondary" onClick={() => setSelectedDate(toLocalDateKey())} />
+        </div>}
+      />
 
       <section className="journal-summary">
         <Summary label="Todo" value={`${todoDone}/${dayTodos.length}`} />
@@ -223,55 +232,7 @@ export default function Journal() {
         </aside>
       </section>
 
-      <style>{`
-        .journal-page { max-width: 1120px; margin: 0 auto; color: var(--text); display: flex; flex-direction: column; gap: 16px; }
-        .journal-header { display: flex; justify-content: space-between; gap: 14px; align-items: flex-end; }
-        .journal-header h2 { margin: 0 0 6px; font-size: 24px; letter-spacing: 0; }
-        .journal-header p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
-        .journal-date-controls { display: flex; flex-wrap: wrap; gap: 7px; justify-content: flex-end; }
-        .journal-date-controls button, .journal-delete { height: 34px; border: 0; border-radius: 7px; background: var(--accent); color: #fff; padding: 0 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
-        .journal-date-controls input, .journal-title-input, .journal-meta-row input, .journal-meta-row select, .journal-editor textarea { min-width: 0; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); padding: 0 10px; font-family: inherit; font-size: 13px; outline: none; }
-        .journal-date-controls input, .journal-title-input, .journal-meta-row input, .journal-meta-row select { height: 34px; }
-        .journal-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-        .journal-summary-card, .journal-editor, .journal-history { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; }
-        .journal-summary-card { padding: 13px; }
-        .journal-summary-card span { color: var(--muted); font-size: 11px; font-weight: 700; }
-        .journal-summary-card b { display: block; margin-top: 6px; font-size: 22px; }
-        .journal-writing-board { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(280px, 1fr) 160px; gap: 10px; }
-        .journal-today-card, .journal-prompt-card, .journal-trend-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 13px; min-width: 0; }
-        .journal-today-card span, .journal-prompt-card span, .journal-trend-card span { color: var(--accent); font-size: 11px; font-weight: 900; }
-        .journal-today-card strong, .journal-trend-card strong { display: block; margin-top: 7px; color: var(--text); font-size: 18px; overflow-wrap: anywhere; }
-        .journal-today-card p, .journal-trend-card p { margin: 7px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
-        .journal-prompt-card { display: flex; flex-direction: column; gap: 10px; }
-        .journal-prompt-card > div { display: flex; flex-wrap: wrap; gap: 7px; }
-        .journal-prompt-card button { border: 1px solid var(--border); border-radius: 999px; background: var(--bg3); color: var(--text); padding: 7px 10px; font-size: 12px; font-weight: 800; cursor: pointer; }
-        .journal-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(260px, 0.75fr); gap: 14px; align-items: start; }
-        .journal-editor { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
-        .journal-title-input { font-weight: 800; font-size: 16px !important; }
-        .journal-meta-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .journal-editor textarea { padding: 10px; resize: vertical; line-height: 1.55; }
-        .journal-editor small { color: var(--muted); font-size: 11px; }
-        .journal-history { padding: 16px; display: flex; flex-direction: column; gap: 9px; }
-        .panel-heading { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
-        .panel-heading h3 { margin: 0; font-size: 15px; }
-        .panel-heading span { color: var(--accent); font-size: 12px; font-weight: 800; }
-        .journal-history-item { width: 100%; border: 1px solid var(--border); border-radius: 8px; background: var(--bg3); color: var(--text); padding: 10px; cursor: pointer; text-align: left; display: grid; gap: 4px; }
-        .journal-history-item.active { border-color: var(--accent); background: var(--accent-soft); }
-        .journal-history-item strong { font-size: 12px; }
-        .journal-history-item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
-        .journal-history-item small, .empty-text { color: var(--muted); font-size: 11px; }
-        .journal-delete { margin-top: 4px; background: var(--bg4); color: var(--text); }
-        @media (max-width: 900px) {
-          .journal-header { align-items: stretch; flex-direction: column; }
-          .journal-date-controls { justify-content: flex-start; }
-          .journal-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-          .journal-writing-board { grid-template-columns: 1fr; }
-          .journal-grid { grid-template-columns: 1fr; }
-        }
-        @media (max-width: 560px) {
-          .journal-summary, .journal-meta-row { grid-template-columns: 1fr; }
-        }
-      `}</style>
+
     </div>
   )
 }

@@ -1,5 +1,9 @@
 import { useMemo, useState } from 'react'
+import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react'
 import { useApp } from '../store/AppContext'
+import { PageHeader } from '../components/ui/PageHeader'
+import { IconButton } from '../components/ui/IconButton'
+import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import type { ScheduledTask, Todo } from '../types'
 import { addLocalDays, toLocalDateKey } from '../utils/date'
 import { isHabitScheduled } from '../utils/habits'
@@ -12,6 +16,7 @@ const CATEGORY_LABEL: Record<typeof TODO_CATEGORIES[number], string> = {
   study: '공부',
 }
 const TIME_SLOTS = Array.from({ length: 18 }, (_, index) => `${String(index + 6).padStart(2, '0')}:00`)
+type DeleteTarget = { type: 'todo' | 'schedule'; id: string } | null
 
 export default function DailyPlanner() {
   const {
@@ -27,6 +32,7 @@ export default function DailyPlanner() {
   const [todoCategory, setTodoCategory] = useState<typeof TODO_CATEGORIES[number]>('work')
   const [scheduleTitle, setScheduleTitle] = useState('')
   const [scheduleTime, setScheduleTime] = useState('09:00')
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null)
 
   const dateObj = useMemo(() => new Date(`${selectedDate}T12:00:00`), [selectedDate])
   const dayTodos = todos.filter(todo => (!todo.date && selectedDate === toLocalDateKey()) || todo.date === selectedDate)
@@ -83,8 +89,7 @@ export default function DailyPlanner() {
   }
 
   const removeTodo = (id: string) => {
-    if (!window.confirm('이 Todo를 삭제할까요?')) return
-    setTodos(prev => prev.filter(todo => todo.id !== id))
+    setDeleteTarget({ type: 'todo', id })
   }
 
   const addSchedule = () => {
@@ -106,8 +111,16 @@ export default function DailyPlanner() {
   }
 
   const removeSchedule = (id: string) => {
-    if (!window.confirm('이 일정을 삭제할까요?')) return
-    setScheduledTasks(prev => prev.filter(task => task.id !== id))
+    setDeleteTarget({ type: 'schedule', id })
+  }
+
+  const confirmDelete = () => {
+    if (!deleteTarget) return
+    if (deleteTarget.type === 'todo') {
+      setTodos(prev => prev.filter(todo => todo.id !== deleteTarget.id))
+    } else {
+      setScheduledTasks(prev => prev.filter(task => task.id !== deleteTarget.id))
+    }
   }
 
   const updateBlock = (slot: string, value: string) => {
@@ -132,18 +145,16 @@ export default function DailyPlanner() {
 
   return (
     <div className="daily-page">
-      <header className="daily-header">
-        <div>
-          <h2>일일 플래너</h2>
-          <p>하루의 Todo, 루틴, 일정, 시간 블록을 한 화면에서 조정합니다.</p>
-        </div>
-        <div className="daily-date-controls">
-          <button type="button" onClick={() => shiftDate(-1)}>어제</button>
+      <PageHeader
+        title="일일 플래너"
+        description="하루의 실행 항목, 루틴, 일정과 시간 블록을 한 화면에서 조정합니다."
+        actions={<div className="daily-date-controls">
+          <IconButton label="어제" icon={<ChevronLeft size={17} />} size="sm" variant="secondary" onClick={() => shiftDate(-1)} />
           <input type="date" value={selectedDate} onChange={event => setSelectedDate(event.target.value)} />
-          <button type="button" onClick={() => shiftDate(1)}>내일</button>
-          <button type="button" onClick={() => setSelectedDate(toLocalDateKey())}>오늘</button>
-        </div>
-      </header>
+          <IconButton label="내일" icon={<ChevronRight size={17} />} size="sm" variant="secondary" onClick={() => shiftDate(1)} />
+          <IconButton label="오늘" icon={<RotateCcw size={16} />} size="sm" variant="secondary" onClick={() => setSelectedDate(toLocalDateKey())} />
+        </div>}
+      />
 
       <section className="daily-summary">
         <Summary label="Todo" value={`${todoDone}/${dayTodos.length}`} pct={todoPct} />
@@ -280,69 +291,17 @@ export default function DailyPlanner() {
         </div>
       </section>
 
-      <style>{`
-        .daily-page { max-width: 1120px; margin: 0 auto; color: var(--text); display: flex; flex-direction: column; gap: 16px; }
-        .daily-header { display: flex; justify-content: space-between; gap: 14px; align-items: flex-end; }
-        .daily-header h2 { margin: 0 0 6px; font-size: 24px; letter-spacing: 0; }
-        .daily-header p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
-        .daily-date-controls { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
-        .daily-date-controls button, .daily-add button { height: 34px; border: 0; border-radius: 7px; background: var(--accent); color: #fff; padding: 0 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
-        .daily-date-controls input, .daily-add input, .daily-add select, .daily-row input:not([type]), .schedule-row input { min-width: 0; height: 34px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); padding: 0 9px; font-size: 13px; outline: none; }
-        .daily-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-        .daily-summary-card, .daily-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; }
-        .daily-summary-card { padding: 13px; }
-        .daily-summary-card span { color: var(--muted); font-size: 11px; font-weight: 700; }
-        .daily-summary-card b { display: block; margin: 5px 0; font-size: 21px; }
-        .daily-mini-progress { height: 6px; border-radius: 999px; background: var(--bg4); overflow: hidden; }
-        .daily-mini-progress i { display: block; height: 100%; background: var(--accent); }
-        .daily-focus-board { display: grid; grid-template-columns: 150px repeat(3, minmax(0, 1fr)); gap: 10px; }
-        .daily-pace-card, .daily-focus-item { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 13px; min-width: 0; }
-        .daily-pace-card span, .daily-focus-item span { color: var(--accent); font-size: 11px; font-weight: 900; }
-        .daily-pace-card strong { display: block; margin: 7px 0; color: var(--text); font-size: 24px; }
-        .daily-pace-bar { height: 8px; border-radius: 999px; background: var(--bg4); overflow: hidden; }
-        .daily-pace-bar i { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
-        .daily-focus-item strong { display: block; margin-top: 7px; color: var(--text); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .daily-focus-item small { display: block; margin-top: 6px; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .daily-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
-        .daily-panel { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-        .daily-panel h3 { margin: 0; font-size: 15px; }
-        .daily-add { display: grid; grid-template-columns: 88px minmax(0, 1fr) auto; gap: 8px; }
-        .schedule-add { grid-template-columns: 105px minmax(0, 1fr) auto; }
-        .daily-list, .habit-list { display: flex; flex-direction: column; gap: 7px; }
-        .daily-row { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; gap: 7px; align-items: center; padding: 8px; border-radius: 8px; background: var(--bg3); }
-        .daily-row span { padding: 3px 7px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 10px; font-weight: 800; white-space: nowrap; }
-        .schedule-row { display: grid; grid-template-columns: auto 94px minmax(0, 1fr) auto; gap: 7px; align-items: center; padding: 8px; border-radius: 8px; background: var(--bg3); }
-        .career-schedule-row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 8px; align-items: center; padding: 9px; border-radius: 8px; background: var(--bg3); border-left: 3px solid #a855f7; }
-        .career-schedule-row span { padding: 3px 7px; border-radius: 999px; background: rgba(168, 85, 247, 0.14); color: #a855f7; font-size: 10px; font-weight: 800; white-space: nowrap; }
-        .career-schedule-row strong { min-width: 0; color: var(--text); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .career-schedule-row small { grid-column: 1 / -1; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .daily-row button, .schedule-row button { min-width: 44px; min-height: 32px; border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; padding: 7px 9px; }
-        .daily-row input[type="checkbox"], .schedule-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); }
-        .done-text { color: var(--muted) !important; text-decoration: line-through; }
-        .empty-text { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; text-align: center; padding: 12px; }
-        .habit-chip { border: 1px solid var(--border); border-radius: 8px; background: var(--bg3); color: var(--text); padding: 10px; text-align: left; cursor: pointer; font-size: 13px; }
-        .habit-chip.done { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 800; }
-        .deadline-list { display: flex; flex-direction: column; gap: 7px; }
-        .deadline-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 9px; border-radius: 8px; background: var(--bg3); }
-        .deadline-item span { padding: 3px 7px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 10px; font-weight: 900; white-space: nowrap; }
-        .deadline-item strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
-        .deadline-item small { color: var(--muted); font-size: 11px; white-space: nowrap; }
-        .time-panel { grid-column: 1 / -1; }
-        .time-blocks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-        .time-block-row { display: grid; grid-template-columns: 54px minmax(0, 1fr); align-items: center; gap: 7px; }
-        .time-block-row span { color: var(--muted); font-size: 11px; font-weight: 800; }
-        .time-block-row input { min-width: 0; height: 32px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); padding: 0 8px; font-size: 12px; outline: none; }
-        @media (max-width: 900px) {
-          .daily-header { align-items: stretch; flex-direction: column; }
-          .daily-date-controls { justify-content: flex-start; }
-          .daily-grid, .daily-summary, .daily-focus-board { grid-template-columns: 1fr; }
-          .time-blocks { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        }
-        @media (max-width: 560px) {
-          .daily-add, .schedule-add, .daily-row, .schedule-row, .career-schedule-row, .time-blocks { grid-template-columns: 1fr; }
-          .career-schedule-row small { grid-column: auto; }
-        }
-      `}</style>
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title={deleteTarget?.type === 'todo' ? 'Todo 삭제' : '일정 삭제'}
+        description="선택한 항목을 삭제합니다."
+        confirmLabel="삭제"
+        danger
+      />
+
+
     </div>
   )
 }

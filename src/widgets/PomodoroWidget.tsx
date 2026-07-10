@@ -124,7 +124,7 @@ export default function PomodoroWidget() {
       {/* 모드 선택 */}
       <div style={{ display: 'flex', gap: compact ? 4 : 6, flexShrink: 0, maxWidth: '100%' }}>
         {(['focus', 'short', 'long'] as Mode[]).map(m => (
-          <button key={m} onClick={() => switchMode(m)} style={{
+          <button type="button" key={m} onClick={() => switchMode(m)} style={{
             height: modeHeight, fontSize: veryShort ? 10 : compact ? 11 : 12,
             padding: veryShort ? '0 7px' : compact ? '0 9px' : '0 12px', borderRadius: 999,
             border: '1px solid var(--border)', cursor: 'pointer',
@@ -163,7 +163,7 @@ export default function PomodoroWidget() {
 
       {/* 버튼 */}
       <div style={{ display: 'flex', gap: compact ? 6 : 8, flexShrink: 0 }}>
-        <button onClick={toggleRunning} style={{
+        <button type="button" onClick={toggleRunning} style={{
           height: actionHeight, minWidth: veryShort ? 70 : compact ? 92 : 108,
           padding: veryShort ? '0 10px' : compact ? '0 16px' : '0 22px',
           borderRadius: 8, border: 'none',
@@ -172,7 +172,7 @@ export default function PomodoroWidget() {
           fontSize: veryShort ? 11 : compact ? 13 : 14,
           fontWeight: 700, cursor: 'pointer',
         }}>{veryShort ? (running ? '정지' : '시작') : remaining === 0 ? '다시 시작' : running ? '일시정지' : '시작'}</button>
-        <button onClick={reset} style={{
+        <button type="button" onClick={reset} style={{
           height: actionHeight, minWidth: veryShort ? 62 : compact ? 80 : 92,
           padding: veryShort ? '0 9px' : compact ? '0 13px' : '0 16px',
           borderRadius: 8,

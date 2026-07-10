@@ -11,6 +11,10 @@ import {
   hasLaterTodoOccurrence,
 } from '../utils/todos'
 import { getPlannerDayBriefing } from '../utils/plannerBriefing'
+import { PageHeader } from '../components/ui/PageHeader'
+import { Button } from '../components/ui/Button'
+import { useConfirm } from '../components/ui/ConfirmProvider'
+import { Trash2 } from 'lucide-react'
 
 type Category = 'work' | 'personal' | 'study'
 type FilterType = 'all' | Category
@@ -48,6 +52,7 @@ function ProgressBar({ pct, color, height = 6 }: { pct: number; color: string; h
 }
 
 export default function TodoPage() {
+  const confirm = useConfirm()
   const {
     todos, setTodos,
     todoHistory, setTodoHistory,
@@ -221,9 +226,11 @@ export default function TodoPage() {
       window.setTimeout(() => setSaveMessage(''), 2000)
       return
     }
-    const confirmed = window.confirm(
-      `미완료 Todo ${todayIncomplete.length}개를 ${tomorrow}로 가져갈까요?\n오늘 결과도 기록에 저장됩니다.`
-    )
+    const confirmed = await confirm({
+      title: '미완료 Todo 넘기기',
+      description: `미완료 Todo ${todayIncomplete.length}개를 ${tomorrow}로 가져옵니다. 오늘 결과도 기록에 저장됩니다.`,
+      confirmLabel: '내일로 넘기기',
+    })
     if (!confirmed) return
 
     const tomorrowKeys = new Set(
@@ -486,9 +493,12 @@ export default function TodoPage() {
   }
 
   const moveHistoryToTrash = async (result: TodoDailyResult) => {
-    const confirmed = window.confirm(
-      `${result.date} Todo 기록을 휴지통으로 이동할까요?\n휴지통에서 다시 복원할 수 있습니다.`
-    )
+    const confirmed = await confirm({
+      title: 'Todo 기록 휴지통 이동',
+      description: `${result.date} Todo 기록을 휴지통으로 이동합니다. 휴지통에서 다시 복원할 수 있습니다.`,
+      confirmLabel: '휴지통으로 이동',
+      danger: true,
+    })
     if (!confirmed) return
 
     const deleted: DeletedTodoDailyResult = {
@@ -532,9 +542,12 @@ export default function TodoPage() {
   }
 
   const permanentlyDeleteHistory = async (deleted: DeletedTodoDailyResult) => {
-    const confirmed = window.confirm(
-      `${deleted.date} Todo 기록을 영구 삭제할까요?\n이 작업은 되돌릴 수 없습니다.`
-    )
+    const confirmed = await confirm({
+      title: 'Todo 기록 영구 삭제',
+      description: `${deleted.date} Todo 기록을 영구 삭제합니다. 이 작업은 되돌릴 수 없습니다.`,
+      confirmLabel: '영구 삭제',
+      danger: true,
+    })
     if (!confirmed) return
     const nextTrash = todoHistoryTrash.filter(item => item.date !== deleted.date)
     const nextDeletedDates = [
@@ -552,49 +565,32 @@ export default function TodoPage() {
   }
 
   return (
-    <div style={{ maxWidth: 860, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div className="todo-page-shell">
 
       {/* 헤더 */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-        <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', letterSpacing: 0 }}>
-            오늘 할 일
-          </h1>
-          <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>
-            오늘 할 일을 체크하고 내일 할 일도 미리 정리합니다.
-          </p>
-          <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
-            {new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' })}
-          </p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
-          {saveMessage && <span style={{ fontSize: 12, color: 'var(--accent)' }}>{saveMessage}</span>}
-          <button
+      <PageHeader
+        title="오늘 할 일"
+        description={`${new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' })} · 오늘과 내일의 실행 항목`}
+        actions={(
+          <>
+          {saveMessage && <span className="todo-save-message" role="status">{saveMessage}</span>}
+          <Button
+            variant="secondary"
             onClick={rolloverTodayIncomplete}
             disabled={todayIncomplete.length === 0}
             title="오늘 미완료 Todo를 내일 날짜로 복사하고 오늘 결과를 저장합니다."
-            style={{
-              fontSize: 12, padding: '7px 12px', borderRadius: 8,
-              border: '1px solid var(--border)', background: 'var(--bg3)',
-              color: todayIncomplete.length === 0 ? 'var(--muted)' : 'var(--text)',
-              cursor: todayIncomplete.length === 0 ? 'default' : 'pointer',
-              fontWeight: 600, opacity: todayIncomplete.length === 0 ? 0.55 : 1,
-            }}
           >
             미완료 내일로
-          </button>
-          <button onClick={saveTodayResult} style={{
-            fontSize: 12, padding: '7px 14px', borderRadius: 8,
-            border: 'none', background: 'var(--accent)',
-            color: '#fff', cursor: 'pointer', fontWeight: 600,
-          }}>오늘 결과 저장</button>
-        </div>
-      </div>
+          </Button>
+          <Button onClick={saveTodayResult}>오늘 결과 저장</Button>
+          </>
+        )}
+      />
 
       {/* 진행률 카드 */}
       <div style={{
         display: 'grid', gridTemplateColumns: '1fr auto',
-        gap: 16, background: 'var(--bg2)', borderRadius: 14,
+        gap: 16, background: 'var(--bg2)', borderRadius: 8,
         padding: '18px 20px', border: '1px solid var(--border)',
         boxShadow: 'var(--shadow)',
       }}>
@@ -644,7 +640,7 @@ export default function TodoPage() {
       </div>
 
       {/* 입력 + 필터 */}
-      <div style={{ background: 'var(--bg2)', borderRadius: 14, padding: '16px 18px', border: '1px solid var(--border)', boxShadow: 'var(--shadow)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ background: 'var(--bg2)', borderRadius: 8, padding: '16px 18px', border: '1px solid var(--border)', boxShadow: 'var(--shadow)', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{
           display: 'flex',
           alignItems: 'flex-start',
@@ -721,7 +717,7 @@ export default function TodoPage() {
               padding: '8px 12px', outline: 'none',
             }}
           />
-          <button onClick={add} style={{
+          <button type="button" onClick={add} style={{
             border: 'none', borderRadius: 8, background: 'var(--accent)',
             color: '#fff', fontSize: 14, padding: '8px 18px', cursor: 'pointer', fontWeight: 600,
           }}>추가</button>
@@ -735,14 +731,14 @@ export default function TodoPage() {
             gap: 4,
             flexWrap: 'wrap',
             padding: '6px',
-            borderRadius: 12,
+            borderRadius: 8,
             background: 'var(--bg3)',
           }}>
             {([
               { id: 'all', label: '전체', color: 'var(--accent)' },
               ...Object.entries(CATEGORY_CONFIG).map(([id, cfg]) => ({ id, label: cfg.label, color: cfg.color })),
             ] as { id: FilterType; label: string; color: string }[]).map(opt => (
-              <button key={opt.id} onClick={() => setFilterCat(opt.id)} style={{
+              <button type="button" key={opt.id} onClick={() => setFilterCat(opt.id)} style={{
                 padding: '4px 11px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
                 border: filterCat === opt.id ? `1.5px solid ${opt.color}` : '1.5px solid var(--border)',
                 background: filterCat === opt.id ? `${opt.color}15` : 'transparent',
@@ -760,7 +756,7 @@ export default function TodoPage() {
             gap: 4,
             flexWrap: 'wrap',
             padding: '6px',
-            borderRadius: 12,
+            borderRadius: 8,
             background: 'var(--bg3)',
           }}>
             {([
@@ -769,7 +765,7 @@ export default function TodoPage() {
               { id: 'week',  label: '이번 주' },
               { id: 'all',   label: '전체 기간' },
             ] as { id: DateFilter; label: string }[]).map(opt => (
-              <button key={opt.id} onClick={() => setFilterDate(opt.id)} style={{
+              <button type="button" key={opt.id} onClick={() => setFilterDate(opt.id)} style={{
                 padding: '4px 11px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
                 border: filterDate === opt.id ? '1.5px solid var(--accent)' : '1.5px solid var(--border)',
                 background: filterDate === opt.id ? 'var(--accent-soft)' : 'transparent',
@@ -789,7 +785,7 @@ export default function TodoPage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {sorted.length === 0 && (
           <div style={{
-            background: 'var(--bg2)', borderRadius: 14, padding: '40px 20px',
+            background: 'var(--bg2)', borderRadius: 8, padding: '40px 20px',
             border: '1px solid var(--border)', textAlign: 'center',
             color: 'var(--muted)', fontSize: 14,
           }}>
@@ -958,7 +954,7 @@ export default function TodoPage() {
           <div style={{
             border: '1px solid var(--accent)',
             background: 'var(--accent-soft)',
-            borderRadius: 12,
+            borderRadius: 8,
             padding: '12px 14px',
             display: 'flex',
             flexDirection: 'column',
@@ -1334,14 +1330,14 @@ export default function TodoPage() {
                       이 수정은 보정 이력에 남습니다.
                     </span>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <button onClick={cancelCorrection} style={{
+                      <button type="button" onClick={cancelCorrection} style={{
                         padding: '5px 10px', borderRadius: 6,
                         border: '1px solid var(--border)', background: 'transparent',
                         color: 'var(--muted)', fontSize: 11, cursor: 'pointer',
                       }}>
                         취소
                       </button>
-                      <button
+                      <button type="button"
                         onClick={() => saveCorrection(result)}
                         disabled={correctionSaving}
                         style={{
@@ -1361,7 +1357,7 @@ export default function TodoPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5 }}>
                   {result.items.length > 0 && (
                     <>
-                      <button
+                      <button type="button"
                         onClick={() => startCorrection(result)}
                         disabled={correctionDate !== null}
                         style={{
@@ -1375,7 +1371,7 @@ export default function TodoPage() {
                         기록 보정
                       </button>
                       {result.date !== today && result.items.some(item => !item.done) && (
-                        <button
+                        <button type="button"
                           onClick={() => bringIncompleteFromHistory(result)}
                           disabled={correctionDate !== null}
                           title="이 날짜의 미완료 Todo를 오늘 날짜로 복사합니다."
@@ -1391,7 +1387,7 @@ export default function TodoPage() {
                           미완료 오늘로
                         </button>
                       )}
-                      <button
+                      <button type="button"
                         onClick={() => moveHistoryToTrash(result)}
                         disabled={correctionDate !== null}
                         style={{
@@ -1514,17 +1510,7 @@ export default function TodoPage() {
           </details>
         </section>
       )}
-      <style>{`
-        @media (max-width: 640px) {
-          .todo-correction-add-row {
-            grid-template-columns: 84px 1fr !important;
-          }
-          .todo-correction-add-row > label,
-          .todo-correction-add-row > button {
-            min-height: 30px;
-          }
-        }
-      `}</style>
+
     </div>
   )
 }
@@ -1551,7 +1537,7 @@ function TodoRow({ t, editId, editText, editCategory, editRef, onToggle, onRemov
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 10,
-      padding: '12px 14px', borderRadius: 10,
+      padding: '12px 14px', borderRadius: 8,
       background: 'var(--bg2)', border: `1px solid var(--border)`,
       opacity: t.done ? 0.6 : 1, transition: 'opacity 0.2s',
       boxShadow: t.done ? 'none' : 'var(--shadow)',
@@ -1590,11 +1576,11 @@ function TodoRow({ t, editId, editText, editCategory, editRef, onToggle, onRemov
               fontSize: 14, padding: '4px 10px', outline: 'none',
             }}
           />
-          <button onClick={onSave} style={{
+          <button type="button" onClick={onSave} style={{
             border: 'none', background: 'var(--accent)', color: '#fff',
             borderRadius: 7, fontSize: 12, padding: '4px 12px', cursor: 'pointer', flexShrink: 0,
           }}>저장</button>
-          <button onClick={onCancel} style={{
+          <button type="button" onClick={onCancel} style={{
             border: '1px solid var(--border)', background: 'transparent', color: 'var(--muted)',
             borderRadius: 7, fontSize: 12, padding: '4px 10px', cursor: 'pointer', flexShrink: 0,
           }}>취소</button>
@@ -1614,10 +1600,10 @@ function TodoRow({ t, editId, editText, editCategory, editRef, onToggle, onRemov
           {t.date && t.date !== toLocalDateKey() && (
             <span style={{ fontSize: 11, color: 'var(--muted)', flexShrink: 0 }}>{t.date}</span>
           )}
-          <button onClick={() => onRemove(t.id)} style={{
+          <button type="button" onClick={() => onRemove(t.id)} aria-label={`${t.text} 삭제`} title="삭제" style={{
             border: 'none', background: 'transparent', color: 'var(--muted)',
             cursor: 'pointer', fontSize: 18, padding: 0, lineHeight: 1, flexShrink: 0,
-          }}>×</button>
+          }}><Trash2 size={16} aria-hidden="true" /></button>
         </>
       )}
     </div>

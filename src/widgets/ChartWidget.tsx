@@ -8,6 +8,8 @@ import {
 import { Line } from 'react-chartjs-2'
 import { calculateProductivityScore, getRecentDateKeys } from '../utils/productivity'
 import { useRouter } from '../store/RouterContext'
+import { ExternalLink } from 'lucide-react'
+import { IconButton } from '../components/ui/IconButton'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler)
 
@@ -35,28 +37,13 @@ export const meta = {
 export function ChartActions() {
   const { setPage } = useRouter()
   return (
-    <button
-      type="button"
+    <IconButton
       onClick={() => setPage('productivity')}
-      title="생산성 기록 보기"
-      aria-label="생산성 기록 보기"
-      style={{
-        width: 28,
-        height: 28,
-        borderRadius: 7,
-        border: '1px solid var(--border)',
-        background: 'var(--bg3)',
-        color: 'var(--accent)',
-        cursor: 'pointer',
-        display: 'grid',
-        placeItems: 'center',
-        fontSize: 14,
-        fontWeight: 800,
-        lineHeight: 1,
-      }}
-    >
-      ↗
-    </button>
+      label="생산성 기록 보기"
+      icon={<ExternalLink size={14} />}
+      size="sm"
+      variant="secondary"
+    />
   )
 }
 

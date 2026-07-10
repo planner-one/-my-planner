@@ -3,6 +3,7 @@ import { useApp } from '../store/AppContext'
 import { useWidgetSize } from '../hooks/useWidgetSize'
 import { getCounterDisplayValue, updateCounterValue } from '../utils/counters'
 import type { CounterItem, CounterPeriod } from '../types'
+import { Minus, RotateCcw, Trash2 } from 'lucide-react'
 
 export const meta = {
   id: 'counter',
@@ -124,7 +125,7 @@ export default function CounterWidget() {
           const count = getCounterDisplayValue(counter)
           return (
             <div key={counter.id} style={{
-              minHeight: 0, background: 'var(--bg3)', borderRadius: 10,
+              minHeight: 0, background: 'var(--bg3)', borderRadius: 8,
               padding: rowPadding, display: 'grid',
               gridTemplateColumns: isEditing ? '1fr' : 'minmax(0, 1fr) auto',
               gap: veryTight ? 6 : 8,
@@ -184,7 +185,7 @@ export default function CounterWidget() {
                     gridTemplateColumns: `${buttonSize}px minmax(42px, auto) ${buttonSize}px ${buttonSize}px`,
                     alignItems: 'center', gap: 5,
                   }}>
-                    <button type="button" onClick={() => changeValue(counter.id, -1)} style={controlButtonStyle(buttonSize)}>−</button>
+                    <button type="button" aria-label={`${counter.name} 감소`} title="감소" onClick={() => changeValue(counter.id, -1)} style={controlButtonStyle(buttonSize)}><Minus size={14} /></button>
                     <button
                       type="button"
                       onClick={() => changeValue(counter.id, 1)}
@@ -197,7 +198,7 @@ export default function CounterWidget() {
                     >
                       {count}
                     </button>
-                    <button type="button" onClick={() => resetCounter(counter.id)} style={controlButtonStyle(buttonSize)}>0</button>
+                    <button type="button" aria-label={`${counter.name} 초기화`} title="초기화" onClick={() => resetCounter(counter.id)} style={controlButtonStyle(buttonSize)}><RotateCcw size={13} /></button>
                     <button
                       type="button"
                       onClick={() => removeCounter(counter.id)}
@@ -210,7 +211,7 @@ export default function CounterWidget() {
                         cursor: counter.autoKey === 'pomodoro-focus' ? 'default' : 'pointer',
                       }}
                     >
-                      ×
+                      <Trash2 size={13} aria-hidden="true" />
                     </button>
                   </div>
                 </>

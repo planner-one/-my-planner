@@ -115,9 +115,7 @@ const requirementsSource = read('REQUIREMENTS.md')
 const scenariosSource = read('SCENARIOS.md')
 const progressSource = read('PROGRESS.md')
 const appSource = read('src/App.tsx')
-const routerSource = read('src/store/RouterContext.tsx')
-const pageShellSource = read('src/components/PageShell.tsx')
-const menuWidgetSource = read('src/widgets/MenuWidget.tsx')
+const navigationSource = read('src/config/navigation.ts')
 
 const appVersion = expectSingle('APP_VERSION', versionSource.match(/APP_VERSION = '([^']+)'/)?.[1])
 const releaseName = expectSingle('APP_RELEASE_NAME', versionSource.match(/APP_RELEASE_NAME = '([^']+)'/)?.[1])
@@ -133,20 +131,12 @@ compareVersionText('RELEASES.md', releasesSource, appVersion, releaseName, relea
 compareVersionText('UPDATE_SCHEDULE.md', updateScheduleSource, appVersion, releaseName, '')
 
 const appPages = extractObjectKeys(appSource, 'PAGE_MAP')
-const routerPages = extractTypeUnion(routerSource, 'PageId')
-const navItemsBlock = pageShellSource.match(/const NAV_ITEMS:[\s\S]*?=\s*\[([\s\S]*?)\]\n\nconst BOTTOM_TABS/)?.[1] ?? ''
-const pageShellPages = unique([
-  ...extractConstQuotedList(pageShellSource, 'BOTTOM_TABS'),
-  ...[...navItemsBlock.matchAll(/id:\s*'([^']+)'\s*,\s*label:/g)].map(match => match[1]),
-])
-const menuPages = [...menuWidgetSource.matchAll(/\{\s*id:\s*'([^']+)'\s*,\s*icon:/g)].map(match => match[1])
+const navigationPages = extractConstQuotedList(navigationSource, 'PAGE_IDS')
 const requirementPages = extractDocPageIds(requirementsSource)
 const scenarioPages = extractScenarioPageIds(scenariosSource)
 const progressPages = extractProgressPageIds(progressSource)
 
-compareSets('App.tsx ↔ RouterContext page id', appPages, routerPages)
-compareSets('App.tsx ↔ PageShell page id', appPages, pageShellPages)
-compareSets('App.tsx ↔ MenuWidget page id', appPages, menuPages)
+compareSets('App.tsx ↔ navigation registry page id', appPages, navigationPages)
 compareSets('App.tsx ↔ REQUIREMENTS.md page id', appPages, requirementPages)
 compareSets('App.tsx ↔ SCENARIOS.md page id', appPages, scenarioPages)
 compareSets('App.tsx ↔ PROGRESS.md page id', appPages, progressPages)

@@ -18,8 +18,13 @@ import type {
   ReviewDailyEntry, PersonalApplication, JobPosting, NotificationPreferences,
 } from '../types'
 
+export type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error'
+
 interface AppContextValue {
   dataLoaded: boolean
+  dataLoadError: string
+  saveState: SaveState
+  saveError: string
   todos: Todo[];             setTodos: React.Dispatch<React.SetStateAction<Todo[]>>
   todoHistory: TodoDailyResult[]
   setTodoHistory: React.Dispatch<React.SetStateAction<TodoDailyResult[]>>
@@ -68,6 +73,8 @@ interface AppContextValue {
   setNotificationPreferences: React.Dispatch<React.SetStateAction<NotificationPreferences>>
   saveWithOverrides: (overrides?: Partial<UserData>) => Promise<void>
   saveNow: () => Promise<void>
+  retrySave: () => Promise<void>
+  retryLoad: () => void
 }
 
 const AppContext = createContext<AppContextValue | null>(null)
@@ -187,22 +194,54 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [nickname, setNickname] = useState<string>('')
   const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES)
   const [dataLoaded, setDataLoaded] = useState<boolean>(false)
+  const [dataLoadError, setDataLoadError] = useState('')
+  const [loadRevision, setLoadRevision] = useState(0)
+  const [saveState, setSaveState] = useState<SaveState>('idle')
+  const [saveError, setSaveError] = useState('')
   const [currentDate, setCurrentDate] = useState(toLocalDateKey)
 
   const isLoadingRef = useRef(true)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const saveStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const currentUidRef = useRef<string | null>(null)
   const currentUserMetaRef = useRef({ displayName: '', email: '', photoURL: '' })
   const currentDataRef = useRef<UserData>({})
   const currentRemoteSavedAtRef = useRef<string | undefined>(undefined)
 
-  const saveSyncedUserData = (uid: string, data: UserData) =>
-    saveUserData(uid, data, currentRemoteSavedAtRef.current).then(savedData => {
+  const markSaved = () => {
+    if (saveStatusTimerRef.current) clearTimeout(saveStatusTimerRef.current)
+    setSaveError('')
+    setSaveState('saved')
+    saveStatusTimerRef.current = setTimeout(() => {
+      setSaveState(current => current === 'saved' ? 'idle' : current)
+      saveStatusTimerRef.current = null
+    }, 1800)
+  }
+
+  const saveSyncedUserData = async (uid: string, data: UserData) => {
+    if (currentUidRef.current === uid) {
+      setSaveError('')
+      setSaveState('saving')
+    }
+    try {
+      const savedData = await saveUserData(uid, data, currentRemoteSavedAtRef.current)
       if (currentUidRef.current === uid) {
         currentRemoteSavedAtRef.current = savedData._lastSaved
       }
+      if (currentUidRef.current === uid) markSaved()
       return savedData
-    })
+    } catch (error) {
+      if (currentUidRef.current === uid) {
+        setSaveState('error')
+        setSaveError('데이터를 저장하지 못했습니다. 네트워크를 확인하고 다시 시도해 주세요.')
+      }
+      throw error
+    }
+  }
+
+  useEffect(() => () => {
+    if (saveStatusTimerRef.current) clearTimeout(saveStatusTimerRef.current)
+  }, [])
 
   useEffect(() => {
     const liveUserMeta = {
@@ -249,6 +288,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       currentUidRef.current = null
       currentRemoteSavedAtRef.current = undefined
       currentUserMetaRef.current = { displayName: '', email: '', photoURL: '' }
+      setSaveState('idle')
+      setSaveError('')
+      setDataLoadError('')
       return
     }
 
@@ -278,6 +320,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     isLoadingRef.current = true
     setDataLoaded(false)
+    setDataLoadError('')
     setTodos([])
     setTodoHistory([])
     setTodoHistoryTrash([])
@@ -378,13 +421,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
         isLoadingRef.current = false
         setDataLoaded(true)
       }, 300)
+    }).catch(error => {
+      console.error('Planner data load failed.', error)
+      if (currentUidRef.current !== loadingUid) return
+      isLoadingRef.current = true
+      setDataLoaded(false)
+      setDataLoadError('플래너 데이터를 불러오지 못했습니다. 네트워크를 확인한 뒤 다시 시도해 주세요.')
     })
-  }, [user?.uid])
+  }, [loadRevision, user?.uid])
 
   useEffect(() => {
     const scale = Math.min(110, Math.max(80, uiScale)) / 100
-    document.documentElement.style.setProperty('--app-scale', String(scale))
-    document.documentElement.style.setProperty('--app-viewport-height', `${100 / scale}vh`)
+    document.documentElement.style.setProperty('--ui-scale-factor', String(scale))
+    document.documentElement.dataset.density = uiScale <= 90
+      ? 'compact'
+      : uiScale >= 105
+        ? 'spacious'
+        : 'comfortable'
   }, [uiScale])
 
   useEffect(() => {
@@ -434,6 +487,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user || !dataLoaded || isLoadingRef.current) return
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    if (saveStatusTimerRef.current) {
+      clearTimeout(saveStatusTimerRef.current)
+      saveStatusTimerRef.current = null
+    }
+    setSaveState('dirty')
     const uid = currentUidRef.current
     const data = currentDataRef.current
     if (!uid) return
@@ -477,8 +535,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     ])
   }
 
+  const retrySave = (): Promise<void> => saveWithOverrides()
+  const retryLoad = () => setLoadRevision(revision => revision + 1)
+
   const value: AppContextValue = {
     dataLoaded,
+    dataLoadError,
+    saveState,
+    saveError,
     todos, setTodos,
     todoHistory, setTodoHistory,
     todoHistoryTrash, setTodoHistoryTrash,
@@ -510,6 +574,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     notificationPreferences, setNotificationPreferences,
     saveWithOverrides,
     saveNow,
+    retrySave,
+    retryLoad,
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

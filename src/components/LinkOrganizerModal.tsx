@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { useApp } from '../store/AppContext'
 import { useRouter } from '../store/RouterContext'
 import {
@@ -14,6 +13,8 @@ import {
   CAREER_STATUS_LABELS,
   syncCareerEventDateFields,
 } from '../utils/careerEvents'
+import { Drawer } from './ui/Drawer'
+import { Button } from './ui/Button'
 
 type TargetChoice = 'auto' | LinkInsertTarget
 
@@ -39,18 +40,6 @@ const MODE_LABELS: Record<LinkAnalysisDraft['mode'], string> = {
   online: '온라인',
   offline: '오프라인',
   hybrid: '온/오프라인',
-}
-
-const buttonStyle = {
-  border: '1px solid var(--border)',
-  borderRadius: 7,
-  background: 'var(--bg3)',
-  color: 'var(--text)',
-  minHeight: 36,
-  padding: '0 12px',
-  fontSize: 12,
-  fontWeight: 700,
-  cursor: 'pointer',
 }
 
 export default function LinkOrganizerModal({
@@ -248,21 +237,21 @@ export default function LinkOrganizerModal({
     ? '작성 폼에 적용'
     : `${draft ? TARGET_LABELS[draft.target] : '플래너'}에 정리`
 
-  return createPortal(
-    <div
-      className="link-modal-backdrop"
-      role="presentation"
-      onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}
+  return (
+    <Drawer
+      open={open}
+      onClose={onClose}
+      title="링크 정리"
+      description="링크를 붙여넣고 저장 위치를 확인하세요."
+      width="lg"
+      footer={(
+        <>
+          <Button variant="secondary" onClick={onClose}>취소</Button>
+          <Button onClick={save} disabled={!draft || !draft.title.trim()}>{primaryLabel}</Button>
+        </>
+      )}
     >
-      <section className="link-modal" role="dialog" aria-modal="true" aria-labelledby="link-modal-title">
-        <div className="link-modal-head">
-          <div>
-            <h2 id="link-modal-title">링크 정리</h2>
-            <p>링크를 붙여넣고 저장 위치를 확인하세요.</p>
-          </div>
-          <button type="button" onClick={onClose} aria-label="링크 정리 닫기">×</button>
-        </div>
-
+      <div className="link-organizer-content">
         <div className="link-modal-grid">
           <label>자료 유형
             <select
@@ -345,7 +334,7 @@ export default function LinkOrganizerModal({
         {error && <div className="link-modal-error">{error}</div>}
 
         <div className="link-modal-actions">
-          <button type="button" style={buttonStyle} onClick={analyze}>초안 만들기</button>
+          <Button variant="secondary" onClick={analyze}>초안 만들기</Button>
         </div>
 
         {draft && (
@@ -461,174 +450,7 @@ export default function LinkOrganizerModal({
           </div>
         )}
 
-        <div className="link-modal-footer">
-          <button type="button" style={buttonStyle} onClick={onClose}>취소</button>
-          <button
-            type="button"
-            onClick={save}
-            disabled={!draft || !draft.title.trim()}
-            style={{
-              ...buttonStyle,
-              borderColor: 'var(--accent)',
-              background: 'var(--accent)',
-              color: '#fff',
-              opacity: !draft || !draft.title.trim() ? 0.55 : 1,
-            }}
-          >
-            {primaryLabel}
-          </button>
-        </div>
-
-        <style>{`
-          .link-modal-backdrop {
-            position: fixed;
-            inset: 0;
-            z-index: 9999;
-            display: grid;
-            place-items: center;
-            padding: 18px;
-            background: rgba(0, 0, 0, 0.48);
-          }
-          .link-modal {
-            width: min(760px, 100%);
-            max-height: min(86vh, 820px);
-            overflow: auto;
-            box-sizing: border-box;
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            background: var(--bg2);
-            color: var(--text);
-            padding: 18px;
-            box-shadow: 0 20px 70px rgba(0, 0, 0, 0.28);
-            display: flex;
-            flex-direction: column;
-            gap: 13px;
-          }
-          .link-modal-head,
-          .link-preview-head,
-          .link-modal-footer,
-          .link-modal-actions {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-          }
-          .link-modal-head h2 { margin: 0 0 4px; font-size: 20px; letter-spacing: 0; }
-          .link-modal-head p { margin: 0; color: var(--muted); font-size: 12px; }
-          .link-modal-head > button {
-            width: 34px;
-            height: 34px;
-            border: 1px solid var(--border);
-            border-radius: 7px;
-            background: var(--bg3);
-            color: var(--muted);
-            font-size: 22px;
-            cursor: pointer;
-          }
-          .link-modal-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px;
-          }
-          .link-modal-grid label {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            color: var(--muted);
-            font-size: 11px;
-            font-weight: 800;
-          }
-          .link-modal-grid .span-2 { grid-column: 1 / -1; }
-          .link-modal-grid input,
-          .link-modal-grid select,
-          .link-modal-grid textarea {
-            width: 100%;
-            min-width: 0;
-            box-sizing: border-box;
-            border: 1px solid var(--border);
-            border-radius: 7px;
-            background: var(--bg3);
-            color: var(--text);
-            padding: 9px 10px;
-            font: inherit;
-            font-size: 13px;
-            outline: none;
-          }
-          .link-modal-grid textarea { resize: vertical; line-height: 1.55; }
-          .poster-ocr-box {
-            border: 1px dashed var(--border);
-            border-radius: 8px;
-            background: var(--bg);
-            padding: 11px;
-            display: flex;
-            flex-direction: column;
-            gap: 9px;
-          }
-          .poster-ocr-box > div:first-child {
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-          }
-          .poster-ocr-box strong { font-size: 12px; color: var(--text); }
-          .poster-ocr-box span { font-size: 11px; color: var(--muted); line-height: 1.45; }
-          .poster-ocr-box input[type="file"] {
-            font-size: 12px;
-            color: var(--muted);
-          }
-          .poster-ocr-progress {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 8px;
-            border-radius: 7px;
-            background: rgba(49, 130, 206, 0.1);
-            padding: 8px 9px;
-          }
-          .poster-ocr-error {
-            border-radius: 7px;
-            background: rgba(224, 82, 82, 0.1);
-            color: var(--red);
-            padding: 8px 9px;
-            font-size: 12px;
-            line-height: 1.45;
-          }
-          .link-modal-error {
-            border-radius: 7px;
-            background: rgba(224, 82, 82, 0.1);
-            color: var(--red);
-            padding: 9px 10px;
-            font-size: 12px;
-          }
-          .link-modal-notice {
-            border-radius: 7px;
-            background: rgba(245, 158, 11, 0.12);
-            color: #b77900;
-            padding: 9px 10px;
-            font-size: 12px;
-            line-height: 1.5;
-          }
-          .link-preview {
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            background: var(--bg);
-            padding: 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-          }
-          .link-preview-head strong { font-size: 13px; }
-          .link-preview-head span { color: var(--muted); font-size: 11px; }
-          .link-modal-footer { justify-content: flex-end; }
-          @media (max-width: 640px) {
-            .link-modal-backdrop { align-items: end; padding: 10px; }
-            .link-modal { max-height: calc(100vh - 20px); padding: 14px; }
-            .link-modal-grid { grid-template-columns: 1fr; }
-            .link-modal-grid .span-2 { grid-column: auto; }
-            .link-modal-footer { flex-direction: column-reverse; align-items: stretch; }
-          }
-        `}</style>
-      </section>
-    </div>,
-    document.body,
+      </div>
+    </Drawer>
   )
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { ExternalLink } from 'lucide-react'
 import { KOREA_LOCATIONS } from '../data/koreaLocations'
 import { useWidgetSize } from '../hooks/useWidgetSize'
 import {
@@ -7,6 +7,7 @@ import {
   weatherIcon, type DayForecast,
 } from '../services/weatherService'
 import { addLocalDays, toLocalDateKey } from '../utils/date'
+import { Modal } from '../components/ui/Modal'
 
 const FORECAST_DAYS = 7
 const toApiDate = (key: string) => key.replace(/-/g, '')
@@ -242,7 +243,7 @@ export default function WeatherWidget() {
           >
             ⌖
           </button>
-          <button
+          <button type="button"
             onClick={() => setShowPicker(p => !p)}
             style={{
               fontSize: compact ? 10 : 11,
@@ -290,7 +291,7 @@ export default function WeatherWidget() {
               <option key={s.name} value={s.name}>{s.name}</option>
             ))}
           </select>
-          <button
+          <button type="button"
             onClick={applyLocation}
             disabled={!selectedSigungu}
             style={{
@@ -377,48 +378,14 @@ export default function WeatherWidget() {
         </div>
       )}
 
-      {selectedForecast && createPortal(
-        <div
-          role="presentation"
-          onClick={() => setSelectedForecast(null)}
-          style={{
-            position: 'fixed', inset: 0, zIndex: 9998,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: 20, background: 'rgba(0,0,0,0.35)',
-          }}
+      {selectedForecast && (
+        <Modal
+          open
+          onClose={() => setSelectedForecast(null)}
+          title={`${selectedForecast.date.slice(4, 6)}월 ${selectedForecast.date.slice(6, 8)}일 날씨`}
+          description={locationLabel}
+          size="sm"
         >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="날씨 상세"
-            onClick={e => e.stopPropagation()}
-            style={{
-              width: 'min(340px, 100%)', padding: 20,
-              borderRadius: 12, border: '1px solid var(--border)',
-              background: 'var(--bg2)', color: 'var(--text)',
-              boxShadow: '0 16px 48px rgba(0,0,0,0.25)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-              <div>
-                <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>{locationLabel}</div>
-                <div style={{ fontSize: 17, fontWeight: 700 }}>
-                  {`${selectedForecast.date.slice(4, 6)}월 ${selectedForecast.date.slice(6, 8)}일`}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedForecast(null)}
-                aria-label="닫기"
-                style={{
-                  border: 'none', background: 'transparent', color: 'var(--muted)',
-                  fontSize: 22, lineHeight: 1, padding: 2, cursor: 'pointer',
-                }}
-              >
-                ×
-              </button>
-            </div>
-
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 0' }}>
               <div style={{ fontSize: 42, lineHeight: 1 }}>
                 {weatherIcon(selectedForecast.sky, selectedForecast.pty)}
@@ -447,14 +414,12 @@ export default function WeatherWidget() {
                 fontSize: 13, fontWeight: 700, textDecoration: 'none',
               }}
             >
-              상세 실시간 날씨 보기 ↗
+              상세 실시간 날씨 보기 <ExternalLink size={14} aria-hidden="true" />
             </a>
             <div style={{ marginTop: 8, color: 'var(--muted)', fontSize: 11, textAlign: 'center' }}>
               보기 쉬운 지역 날씨 화면이 새 탭에서 열립니다.
             </div>
-          </div>
-        </div>,
-        document.body,
+        </Modal>
       )}
     </div>
   )

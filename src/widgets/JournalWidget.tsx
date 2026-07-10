@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
+import { IconButton } from '../components/ui/IconButton'
 
 const WEBHOOK_URL = 'https://dbp-jack.app.n8n.cloud/webhook/journal-widget'
 
@@ -15,21 +17,13 @@ function subscribeJournalRefresh(listener: () => void) {
 
 export function JournalActions() {
   return (
-    <button
-      type="button"
+    <IconButton
       onClick={requestJournalRefresh}
-      title="새로고침"
-      aria-label="새로고침"
-      style={{
-        width: 26, height: 26, padding: 0,
-        border: '1px solid var(--border)', borderRadius: 6,
-        background: 'transparent', color: 'var(--accent)',
-        fontSize: 14, cursor: 'pointer',
-        display: 'grid', placeItems: 'center', flexShrink: 0,
-      }}
-    >
-      ↻
-    </button>
+      label="새로고침"
+      icon={<RefreshCw size={14} />}
+      size="sm"
+      variant="secondary"
+    />
   )
 }
 
@@ -153,7 +147,7 @@ function JournalCarousel({ items, slide, setSlide }: JournalCarouselProps) {
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div style={{ flex: 1, minHeight: 0, position: 'relative', borderRadius: 12, overflow: 'hidden' }}>
+      <div style={{ flex: 1, minHeight: 0, position: 'relative', borderRadius: 8, overflow: 'hidden' }}>
         <div style={{
           display: 'flex', height: '100%', width: `${count * 100}%`,
           transform: `translateX(-${slide * (100 / count)}%)`,
@@ -211,7 +205,7 @@ function JournalCarousel({ items, slide, setSlide }: JournalCarouselProps) {
           aria-label="이전"
           style={carouselArrowStyle(count < 2, 'left')}
         >
-          ‹
+          <ChevronLeft size={16} aria-hidden="true" />
         </button>
         <button
           type="button"
@@ -220,7 +214,7 @@ function JournalCarousel({ items, slide, setSlide }: JournalCarouselProps) {
           aria-label="다음"
           style={carouselArrowStyle(count < 2, 'right')}
         >
-          ›
+          <ChevronRight size={16} aria-hidden="true" />
         </button>
       </div>
 

@@ -1,6 +1,6 @@
 # 릴리즈 노트
 
-_마지막 업데이트: 2026-07-09_
+_마지막 업데이트: 2026-07-10_
 
 플래너는 기능 범위와 안정화 단계를 기준으로 버전을 나눕니다.
 
@@ -238,6 +238,22 @@ _릴리즈일: 2026-07-09_
 - `오늘 할 일`, `내 신청`, `지원 공고`에서 먼저 적용한 빠른 추가/필터 밀도 보정과 `캘린더`의 패널 구조를 같은 UI System Pass 기준으로 묶었습니다.
 - `npm run check:doc-sync`, `npx tsc --noEmit`, `npm run build` 기준으로 검증했습니다.
 
+## v0.3.18 - Planner Experience Refresh
+
+_릴리즈일: 2026-07-10_
+
+핵심 변경:
+
+- 필수 Firebase 환경값이 없는 Vite 빌드를 중단하고, 초기화 실패 시 흰 화면 대신 설정 오류 화면을 표시
+- 의미 기반 디자인 토큰과 공통 Button, Field, Panel, Badge, Tabs, Modal, Drawer, Toast, ConfirmDialog 도입
+- 사이드바, 상단 바, 모바일 탐색, 메뉴 위젯을 단일 탐색 레지스트리와 Lucide 아이콘으로 통합
+- `RouterContext`의 기존 `setPage` API를 유지하면서 URL hash 직접 진입, 새로고침, 뒤로 가기 지원
+- AppContext 자동 저장의 저장 중, 완료, 실패, 재시도 상태를 앱 상단에 표시
+- 기회 일정, 내 신청, 지원 공고, 캘린더와 주요 플래너 화면의 상세 편집, 삭제 확인, 반응형 밀도 개선
+- 전역 `body zoom`을 제거하고 `100dvh`, 밀도 토큰과 기존 `uiScale` 호환 매핑 적용
+- Vitest와 Testing Library 기반 공통 UI, 키보드 모달, 라우팅, 환경 검증 테스트 추가
+- 기존 Firestore 문서 구조와 기회 일정 `milestones` 하위 호환 규칙 유지
+
 ## v0.3.15 - Productivity Log Charts
 
 _릴리즈일: 2026-07-05_
@@ -257,12 +273,6 @@ _릴리즈일: 2026-07-05_
 ## 다음 후보
 
 상세 일정은 `UPDATE_SCHEDULE.md`를 기준으로 관리합니다.
-
-v0.3.18 Planner Flow Clarity 후보:
-
-- Todo, 작업 관리, 프로젝트, 목표, 오늘 방향의 역할 설명과 화면 연결 정리
-- 대시보드 작업 흐름 위젯에 오늘 해야 할 것, 이번 주 볼 것, 장기 진행 구분 추가 검토
-- 캘린더 항목을 해야 할 일, 신청/지원, 마감, 기록 기준으로 묶어 보기 검토
 
 v0.3.19 Data Quality & AI Readiness 후보:
 

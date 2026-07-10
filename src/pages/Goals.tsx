@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useApp } from '../store/AppContext'
+import { PageHeader } from '../components/ui/PageHeader'
 import type { Goal, TopGoal } from '../types'
 import { calculateGoalPct, createGoalId, getGoalDueText, getRemainingSteps, getTodayTopGoals, sortPriorityGoals } from '../utils/goals'
 import { toLocalDateKey } from '../utils/date'
@@ -88,12 +89,10 @@ export default function Goals() {
 
   return (
     <div className="goals-page">
-      <section className="goals-heading">
-        <div>
-          <h2>목표 관리</h2>
-          <p>Todo는 오늘 끝낼 실행 작업, 오늘 방향은 하루 기준, 장기 목표는 진행률과 마감 기준으로 관리합니다.</p>
-        </div>
-      </section>
+      <PageHeader
+        title="목표"
+        description="오늘의 방향과 장기 목표를 분리해 다음 단계를 선명하게 봅니다."
+      />
 
       <section className="goal-guide">
         <GuideCard title="Todo" text="오늘 끝낼 수 있는 구체적인 작업" example="강의 1개 듣기" />
@@ -289,81 +288,7 @@ export default function Goals() {
         </section>
       )}
 
-      <style>{`
-        .goals-page { max-width: 1120px; margin: 0 auto; color: var(--text); display: flex; flex-direction: column; gap: 18px; }
-        .goals-heading { display: flex; justify-content: space-between; gap: 16px; align-items: flex-end; }
-        .goals-heading h2 { font-size: 24px; margin: 0 0 6px; letter-spacing: 0; }
-        .goals-heading p, .panel-heading p { color: var(--muted); margin: 0; font-size: 13px; line-height: 1.5; }
-        .goal-guide { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-        .goal-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-        .guide-card, .goal-panel, .goal-summary, .goal-stat, .goal-focus-board, .goal-next-board { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; }
-        .guide-card { padding: 14px; }
-        .goal-stat { padding: 13px; }
-        .goal-stat span { color: var(--muted); font-size: 11px; font-weight: 800; }
-        .goal-stat b { display: block; margin: 5px 0 3px; font-size: 21px; color: var(--text); }
-        .goal-stat small { display: block; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .guide-card h3, .panel-heading h3, .goal-summary h3 { margin: 0; font-size: 15px; letter-spacing: 0; }
-        .guide-card p { margin: 7px 0 9px; color: var(--muted); font-size: 12px; line-height: 1.5; }
-        .guide-card small { color: var(--accent); font-size: 11px; font-weight: 700; }
-        .goal-command-board { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(260px, 0.9fr); gap: 12px; }
-        .goal-focus-board, .goal-next-board { padding: 14px; display: flex; flex-direction: column; gap: 11px; }
-        .goal-board-heading { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
-        .goal-board-heading span, .goal-next-board > span { color: var(--accent); font-size: 11px; font-weight: 900; }
-        .goal-board-heading h3 { margin: 4px 0 0; font-size: 17px; letter-spacing: 0; }
-        .goal-board-heading b { color: var(--accent); font-size: 26px; line-height: 1; }
-        .goal-board-progress { height: 10px; border-radius: 999px; background: var(--bg4); overflow: hidden; }
-        .goal-board-progress i { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
-        .goal-focus-preview { display: flex; flex-wrap: wrap; gap: 7px; }
-        .goal-focus-chip { max-width: 100%; border: 1px solid var(--border); border-radius: 999px; background: var(--bg3); color: var(--text); padding: 7px 10px; font-size: 12px; font-weight: 800; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .goal-focus-chip.done { border-color: transparent; background: var(--accent-soft); color: var(--accent); }
-        .goal-next-board strong { color: var(--text); font-size: 17px; overflow-wrap: anywhere; }
-        .goal-next-board p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
-        .goal-next-meta { display: flex; flex-wrap: wrap; gap: 7px; }
-        .goal-next-meta small { border-radius: 999px; background: var(--bg3); color: var(--muted); padding: 6px 9px; font-size: 11px; font-weight: 800; }
-        .goals-grid { display: grid; grid-template-columns: minmax(280px, 0.75fr) minmax(0, 1.25fr); gap: 14px; align-items: start; }
-        .goal-panel { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-        .panel-heading { display: flex; justify-content: space-between; gap: 10px; }
-        .inline-add { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
-        .inline-add input, .goal-card input, .goal-card select, .top-goal-row input { min-width: 0; height: 34px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); padding: 0 10px; font-family: inherit; font-size: 13px; outline: none; }
-        .inline-add button, .subtle-button { height: 34px; border: 0; border-radius: 7px; background: var(--accent); color: #fff; padding: 0 13px; font-size: 12px; font-weight: 700; cursor: pointer; }
-        .inline-add input:disabled, .inline-add button:disabled { opacity: 0.5; cursor: not-allowed; }
-        .top-goal-list, .goal-list { display: flex; flex-direction: column; gap: 8px; }
-        .top-goal-row { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 8px; border-radius: 8px; background: var(--bg3); }
-        .check { width: 32px; height: 32px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); color: var(--muted); cursor: pointer; font-weight: 800; }
-        .check.done { border: 0; background: var(--accent); color: #fff; }
-        .ghost-button { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; padding: 5px; }
-        .goal-card { display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 8px; background: var(--bg3); }
-        .goal-card-top { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
-        .goal-name-input { font-weight: 800; background: transparent !important; border-color: transparent !important; padding-left: 0 !important; font-size: 15px !important; }
-        .goal-meta-row { display: grid; grid-template-columns: 1fr 100px 140px; gap: 8px; }
-        .goal-progress-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 9px; align-items: center; }
-        .goal-progress { height: 7px; border-radius: 999px; background: var(--bg4); overflow: hidden; }
-        .goal-progress span { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width 0.2s ease; }
-        .goal-progress-row b { color: var(--accent); font-size: 13px; }
-        .goal-progress-row small { color: var(--muted); font-size: 11px; white-space: nowrap; }
-        .goal-step-list { display: flex; flex-direction: column; gap: 6px; }
-        .goal-step-list p, .empty-text { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; text-align: center; padding: 12px; }
-        .goal-step-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 7px; align-items: center; }
-        .goal-step-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); }
-        .done-text { color: var(--muted) !important; text-decoration: line-through; }
-        .subtle-button { background: var(--bg4); color: var(--text); }
-        .goal-summary { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
-        .goal-summary > div { display: flex; flex-wrap: wrap; gap: 7px; }
-        .summary-pill { padding: 6px 10px; border-radius: 999px; background: var(--bg3); color: var(--text); font-size: 12px; font-weight: 700; }
-        .summary-pill.done { background: var(--accent-soft); color: var(--accent); }
-        @media (max-width: 760px) {
-          .goals-page { gap: 14px; }
-          .goal-guide, .goals-grid, .goal-command-board { grid-template-columns: 1fr; }
-          .goal-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-          .goal-panel { padding: 14px; }
-          .goal-meta-row { grid-template-columns: 1fr; }
-          .goal-progress-row { grid-template-columns: 1fr auto; }
-          .goal-progress-row small { grid-column: 1 / -1; }
-        }
-        @media (max-width: 520px) {
-          .goal-stats { grid-template-columns: 1fr; }
-        }
-      `}</style>
+
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { LayoutDashboard, Minus, Plus, Settings2 } from 'lucide-react'
 import GridLayout from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
@@ -6,6 +7,9 @@ import { useApp } from '../store/AppContext'
 import { WIDGET_MAP } from '../widgets'
 import type { LayoutItem } from '../types'
 import DashboardEditor from './DashboardEditor'
+import { PageHeader } from '../components/ui/PageHeader'
+import { Button } from '../components/ui/Button'
+import { IconButton } from '../components/ui/IconButton'
 
 const COLS = 48
 const ROW_H = 40
@@ -95,7 +99,7 @@ export default function Dashboard() {
     return (
       <div key={item.i} style={{
         background: 'var(--bg2)', border: '1px solid var(--border)',
-        borderRadius: mobile ? 16 : 20, overflow: 'hidden',
+        borderRadius: 8, overflow: 'hidden',
         display: 'flex', flexDirection: 'column', position: 'relative',
         height: mobile ? mobileHeight : '100%',
         minWidth: 0,
@@ -144,86 +148,39 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="dashboard-page" style={{ position: 'relative', padding: '0 24px 24px' }}>
-      <div className="dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', letterSpacing: 0 }}>나만의 플래너</h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div className="dashboard-scale-control" style={{
-            display: 'flex', alignItems: 'center', height: 31,
-            border: '1px solid var(--border)', borderRadius: 8,
-            background: 'var(--bg2)', overflow: 'hidden',
-          }}>
-            <button
-              type="button"
+    <div className="dashboard-page">
+      <PageHeader
+        title="나만의 플래너"
+        description="오늘의 실행, 일정과 기록을 한눈에 확인합니다."
+        actions={<>
+          <div className="dashboard-scale-control">
+            <IconButton
+              label="화면 축소"
+              icon={<Minus size={15} />}
+              size="sm"
               onClick={() => changeScale(uiScale - 5)}
               disabled={uiScale <= 80}
-              title="화면 축소"
-              aria-label="화면 축소"
-              style={{
-                width: 30, height: '100%', border: 'none',
-                background: 'transparent', color: 'var(--muted)',
-                fontSize: 17, cursor: uiScale <= 80 ? 'default' : 'pointer',
-                opacity: uiScale <= 80 ? 0.35 : 1,
-              }}
-            >
-              −
-            </button>
+            />
             <select
               value={uiScale}
               onChange={event => changeScale(Number(event.target.value))}
               aria-label="화면 비율"
-              style={{
-                height: '100%', border: 'none',
-                borderLeft: '1px solid var(--border)',
-                borderRight: '1px solid var(--border)',
-                background: 'transparent', color: 'var(--text)',
-                fontSize: 12, fontWeight: 600, padding: '0 6px',
-                outline: 'none', cursor: 'pointer',
-              }}
             >
               {[80, 85, 90, 95, 100, 105, 110].map(value => (
                 <option key={value} value={value}>{value}%</option>
               ))}
             </select>
-            <button
-              type="button"
+            <IconButton
+              label="화면 확대"
+              icon={<Plus size={15} />}
+              size="sm"
               onClick={() => changeScale(uiScale + 5)}
               disabled={uiScale >= 110}
-              title="화면 확대"
-              aria-label="화면 확대"
-              style={{
-                width: 30, height: '100%', border: 'none',
-                background: 'transparent', color: 'var(--muted)',
-                fontSize: 17, cursor: uiScale >= 110 ? 'default' : 'pointer',
-                opacity: uiScale >= 110 ? 0.35 : 1,
-              }}
-            >
-              +
-            </button>
+            />
           </div>
-          <button onClick={() => setIsEditing(true)} style={{
-            padding: '6px 16px', borderRadius: 8, border: '1px solid var(--border)',
-            background: 'var(--bg2)', color: 'var(--text)', cursor: 'pointer', fontSize: 13,
-          }}>
-            편집
-          </button>
-        </div>
-      </div>
-
-      <style>{`
-        @media (max-width: 767px) {
-          .dashboard-page {
-            padding: 0 0 18px !important;
-          }
-          .dashboard-header {
-            margin-bottom: 14px !important;
-          }
-          .dashboard-header h2 {
-            font-size: 19px !important;
-          }
-          .dashboard-scale-control { display: none !important; }
-        }
-      `}</style>
+          <Button variant="secondary" icon={<Settings2 size={16} />} onClick={() => setIsEditing(true)}>편집</Button>
+        </>}
+      />
 
       <div ref={containerRef} style={{ width: '100%' }}>
         {containerW > 0 && layout.length > 0 && isMobileDashboard && (
@@ -259,7 +216,7 @@ export default function Dashboard() {
             display: 'flex', flexDirection: 'column', alignItems: 'center',
             justifyContent: 'center', height: 300, color: 'var(--muted)', gap: 12,
           }}>
-            <span style={{ fontSize: 40 }}>📋</span>
+            <LayoutDashboard size={36} aria-hidden="true" />
             <p>위젯이 없습니다. 편집 버튼을 눌러 위젯을 추가해보세요.</p>
           </div>
         )}

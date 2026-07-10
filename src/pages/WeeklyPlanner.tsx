@@ -1,5 +1,8 @@
 import { useMemo, useState } from 'react'
+import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react'
 import { useApp } from '../store/AppContext'
+import { PageHeader } from '../components/ui/PageHeader'
+import { IconButton } from '../components/ui/IconButton'
 import type { Todo, WeekTask } from '../types'
 import { addLocalDays, toLocalDateKey } from '../utils/date'
 import { CAREER_CATEGORY_LABELS, getCareerMilestones } from '../utils/careerEvents'
@@ -102,18 +105,16 @@ export default function WeeklyPlanner() {
 
   return (
     <div className="weekly-page">
-      <header className="weekly-header">
-        <div>
-          <h2>주간 플래너</h2>
-          <p>한 주의 핵심 작업과 날짜별 일정을 함께 보고 조정합니다.</p>
-        </div>
-        <div className="week-controls">
-          <button type="button" onClick={() => moveWeek(-7)}>이전 주</button>
+      <PageHeader
+        title="주간 플래너"
+        description="이번 주의 핵심 작업, 일정과 마감을 날짜 흐름으로 확인합니다."
+        actions={<div className="week-controls">
+          <IconButton label="이전 주" icon={<ChevronLeft size={17} />} size="sm" variant="secondary" onClick={() => moveWeek(-7)} />
           <strong>{formatWeekRange(weekStart)}</strong>
-          <button type="button" onClick={() => moveWeek(7)}>다음 주</button>
-          <button type="button" onClick={() => setWeekStart(getWeekStart())}>이번 주</button>
-        </div>
-      </header>
+          <IconButton label="다음 주" icon={<ChevronRight size={17} />} size="sm" variant="secondary" onClick={() => moveWeek(7)} />
+          <IconButton label="이번 주" icon={<RotateCcw size={16} />} size="sm" variant="secondary" onClick={() => setWeekStart(getWeekStart())} />
+        </div>}
+      />
 
       <section className="weekly-summary">
         <SummaryCard label="주간 작업" value={`${doneCount}/${tasks.length}`} sub={`${pct}% 완료`} />
@@ -219,65 +220,7 @@ export default function WeeklyPlanner() {
         </div>
       </section>
 
-      <style>{`
-        .weekly-page { max-width: 1120px; margin: 0 auto; color: var(--text); display: flex; flex-direction: column; gap: 16px; }
-        .weekly-header { display: flex; justify-content: space-between; gap: 14px; align-items: flex-end; }
-        .weekly-header h2 { margin: 0 0 6px; font-size: 24px; letter-spacing: 0; }
-        .weekly-header p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
-        .week-controls { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 7px; }
-        .week-controls button, .week-add button { height: 34px; border: 0; border-radius: 7px; background: var(--accent); color: #fff; padding: 0 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
-        .week-controls strong { min-width: 150px; text-align: center; font-size: 13px; }
-        .weekly-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-        .summary-card, .weekly-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; }
-        .summary-card { padding: 13px; }
-        .summary-card span { color: var(--muted); font-size: 11px; font-weight: 700; }
-        .summary-card b { display: block; margin-top: 6px; font-size: 22px; color: var(--text); }
-        .summary-card small { color: var(--muted); font-size: 11px; }
-        .weekly-focus-board { display: grid; grid-template-columns: minmax(0, 1.35fr) repeat(3, minmax(0, 1fr)); gap: 10px; }
-        .week-focus-main, .weekly-focus-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 13px; min-width: 0; }
-        .week-focus-main span, .weekly-focus-card span { color: var(--accent); font-size: 11px; font-weight: 900; }
-        .week-focus-main strong, .weekly-focus-card b { display: block; margin-top: 7px; color: var(--text); font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .weekly-focus-card small { display: block; margin-top: 6px; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .week-focus-progress { margin-top: 11px; height: 8px; border-radius: 999px; background: var(--bg4); overflow: hidden; }
-        .week-focus-progress i { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
-        .weekly-grid { display: grid; grid-template-columns: minmax(320px, 0.85fr) minmax(0, 1.15fr); gap: 14px; align-items: start; }
-        .weekly-panel { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-        .panel-heading { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
-        .panel-heading h3 { margin: 0; font-size: 15px; }
-        .panel-heading span { color: var(--accent); font-size: 12px; font-weight: 800; }
-        .week-progress { height: 7px; border-radius: 999px; background: var(--bg4); overflow: hidden; }
-        .week-progress span { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
-        .week-add { display: grid; grid-template-columns: 94px minmax(0, 1fr) auto; gap: 8px; }
-        .week-add input, .week-add select, .week-task-row input:not([type]) { min-width: 0; height: 34px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); padding: 0 9px; font-size: 13px; outline: none; }
-        .week-task-list { display: flex; flex-direction: column; gap: 7px; }
-        .week-task-row { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; gap: 7px; align-items: center; padding: 8px; border-radius: 8px; background: var(--bg3); }
-        .week-task-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); }
-        .week-task-row button { min-width: 44px; min-height: 32px; border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; padding: 7px 9px; }
-        .category-pill { padding: 3px 7px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 10px; font-weight: 800; white-space: nowrap; }
-        .done-text { color: var(--muted) !important; text-decoration: line-through; }
-        .empty-text, .muted { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; text-align: center; padding: 12px; }
-        .week-days { display: grid; grid-template-columns: repeat(7, minmax(96px, 1fr)); gap: 8px; overflow-x: auto; padding-bottom: 2px; }
-        .week-day-card { min-height: 132px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg3); padding: 10px; }
-        .week-day-card strong { display: block; font-size: 12px; margin-bottom: 4px; }
-        .week-day-card small { color: var(--muted); font-size: 10px; }
-        .week-day-card em { display: inline-block; margin-top: 6px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); padding: 3px 7px; font-size: 10px; font-style: normal; font-weight: 900; }
-        .week-day-card p { margin: 7px 0 0; color: var(--text); font-size: 11px; line-height: 1.35; word-break: break-word; }
-        .week-day-card .career-text { color: #a855f7; font-weight: 700; }
-        .week-day-card .due-text { color: var(--accent); font-weight: 700; }
-        .week-day-card .more-text { color: var(--muted); font-weight: 800; }
-        @media (max-width: 900px) {
-          .weekly-header { align-items: stretch; flex-direction: column; }
-          .week-controls { justify-content: flex-start; }
-          .weekly-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-          .weekly-focus-board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-          .week-focus-main { grid-column: 1 / -1; }
-          .weekly-grid { grid-template-columns: 1fr; }
-        }
-        @media (max-width: 560px) {
-          .weekly-summary, .weekly-focus-board { grid-template-columns: 1fr; }
-          .week-add, .week-task-row { grid-template-columns: 1fr; }
-        }
-      `}</style>
+
     </div>
   )
 }

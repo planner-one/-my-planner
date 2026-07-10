@@ -22,6 +22,7 @@ export default function ProfilePage() {
   } = useApp()
 
   const displayName = nickname.trim() || user?.displayName || '플래너 사용자'
+  const densityLabel = uiScale <= 90 ? '촘촘하게' : uiScale >= 105 ? '여유롭게' : '균형 있게'
   const updateNotificationPreferences = (patch: Partial<typeof notificationPreferences>) => {
     setNotificationPreferences(previous => ({
       ...previous,
@@ -84,7 +85,7 @@ export default function ProfilePage() {
                 value={uiScale}
                 onChange={event => setUiScale(Number(event.target.value))}
               />
-              <b>{uiScale}%</b>
+              <b title={`기존 설정값 ${uiScale}%`}>{densityLabel}</b>
             </div>
           </label>
           <button type="button" className="primary-button" onClick={() => void saveNow()}>
@@ -209,64 +210,7 @@ export default function ProfilePage() {
         </ul>
       </section>
 
-      <style>{`
-        .profile-page { max-width: 960px; margin: 0 auto; color: var(--text); display: flex; flex-direction: column; gap: 16px; }
-        .profile-header { display: flex; align-items: center; gap: 14px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; }
-        .profile-avatar { width: 58px; height: 58px; border-radius: 18px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; overflow: hidden; flex-shrink: 0; font-size: 24px; font-weight: 900; }
-        .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
-        .profile-header h2 { margin: 0 0 5px; font-size: 24px; letter-spacing: 0; }
-        .profile-header p { margin: 0; color: var(--muted); font-size: 13px; }
-        .profile-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-        .profile-grid .profile-panel:first-child { grid-row: span 2; }
-        .profile-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 13px; }
-        .profile-panel h3 { margin: 0; font-size: 15px; }
-        .profile-panel label { display: flex; flex-direction: column; gap: 6px; }
-        .profile-panel label span, .panel-heading span, .profile-note { color: var(--muted); font-size: 12px; line-height: 1.5; }
-        .profile-panel input[type="text"], .profile-panel input[type="time"], .profile-panel input:not([type]), .profile-panel select { height: 36px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); padding: 0 10px; font-size: 13px; outline: none; }
-        .inline-check { flex-direction: row !important; align-items: center; gap: 8px !important; color: var(--text); font-size: 13px; font-weight: 700; }
-        .inline-check input { width: 16px; height: 16px; accent-color: var(--accent); }
-        .account-scope { display: flex; justify-content: space-between; gap: 10px; align-items: center; border: 1px solid var(--border); border-radius: 8px; background: var(--bg3); padding: 10px 11px; }
-        .account-scope span { color: var(--muted); font-size: 11px; font-weight: 800; }
-        .account-scope b { min-width: 0; color: var(--text); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .scale-row { display: grid; grid-template-columns: minmax(0, 1fr) 52px; gap: 10px; align-items: center; }
-        .scale-row b { color: var(--accent); font-size: 13px; text-align: right; }
-        .primary-button { height: 36px; border: 0; border-radius: 7px; background: var(--accent); color: #fff; padding: 0 13px; font-size: 12px; font-weight: 800; cursor: pointer; align-self: flex-start; }
-        .profile-stats, .storage-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
-        .storage-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-        .inbox-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-        .stat-card { border: 1px solid var(--border); border-radius: 8px; background: var(--bg3); padding: 12px; min-width: 0; }
-        .stat-card span { display: block; color: var(--muted); font-size: 11px; font-weight: 700; }
-        .stat-card b { display: block; margin-top: 6px; color: var(--text); font-size: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .panel-heading { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
-        .panel-heading > div { min-width: 0; }
-        .inbox-panel { gap: 14px; }
-        .inbox-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-        .inbox-column { border: 1px solid var(--border); border-radius: 10px; background: var(--bg3); padding: 12px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-        .inbox-column h4 { margin: 0; font-size: 14px; }
-        .inbox-column-header { display: flex; flex-direction: column; gap: 4px; }
-        .inbox-column-header span { color: var(--muted); font-size: 11px; line-height: 1.4; }
-        .inbox-list { display: flex; flex-direction: column; gap: 8px; }
-        .inbox-item { width: 100%; border: 1px solid var(--border); border-radius: 9px; background: var(--bg2); padding: 10px; text-align: left; display: flex; flex-direction: column; gap: 4px; cursor: pointer; }
-        .inbox-item strong { color: var(--text); font-size: 13px; line-height: 1.4; }
-        .inbox-item small { color: var(--muted); font-size: 11px; line-height: 1.45; }
-        .inbox-item:hover { border-color: var(--accent); transform: translateY(-1px); transition: border-color 0.2s ease, transform 0.2s ease; }
-        .inbox-item.urgent { background: color-mix(in srgb, var(--bg2) 84%, #ef4444 16%); }
-        .inbox-item.upcoming { background: color-mix(in srgb, var(--bg2) 86%, #f59e0b 14%); }
-        .inbox-item.next { background: color-mix(in srgb, var(--bg2) 86%, var(--accent) 14%); }
-        .inbox-empty { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
-        .version-badge { flex-shrink: 0; border: 1px solid var(--accent); border-radius: 999px; background: var(--accent-soft); color: var(--accent); padding: 5px 10px; font-size: 12px; font-weight: 900; }
-        .release-panel .panel-heading { align-items: flex-start; }
-        .release-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
-        .release-summary .stat-card b { font-size: 16px; }
-        .release-list { margin: 0; padding-left: 18px; color: var(--text); font-size: 13px; line-height: 1.7; }
-        .release-list li::marker { color: var(--accent); }
-        @media (max-width: 760px) {
-          .profile-grid, .profile-stats, .storage-grid, .release-summary, .inbox-grid, .inbox-stats { grid-template-columns: 1fr; }
-          .profile-grid .profile-panel:first-child { grid-row: auto; }
-          .profile-header { align-items: flex-start; }
-          .release-panel .panel-heading { flex-direction: column; }
-        }
-      `}</style>
+
     </div>
   )
 }

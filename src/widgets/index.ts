@@ -1,4 +1,22 @@
-import { type ComponentType } from 'react'
+import { createElement, type ComponentType, type ReactNode } from 'react'
+import {
+  BarChart3,
+  CalendarClock,
+  CalendarDays,
+  Clock3,
+  CloudSun,
+  LayoutGrid,
+  ListOrdered,
+  ListTodo,
+  MoonStar,
+  Newspaper,
+  Repeat2,
+  StickyNote,
+  Target,
+  Timer,
+  Workflow,
+  type LucideIcon,
+} from 'lucide-react'
 import ClockWidget, { meta as clockMeta, ClockActions } from './ClockWidget'
 import MemoWidget, { meta as memoMeta, MemoActions } from './MemoWidget'
 import CalendarWidget, { meta as calendarMeta, CalendarActions } from './CalendarWidget'
@@ -18,7 +36,7 @@ import JournalWidget, { meta as journalFeedMeta } from './JournalWidget'
 export interface WidgetMeta {
   id: string
   name: string
-  icon: string
+  icon: ReactNode
   defaultW: number
   defaultH: number
   minW: number
@@ -29,22 +47,24 @@ export interface WidgetMeta {
   hideHeaderLabel?: boolean
 }
 
+const widgetIcon = (Icon: LucideIcon) => createElement(Icon, { size: 15, 'aria-hidden': true })
+
 export const WIDGETS: WidgetMeta[] = [
-  { ...clockMeta,    component: ClockWidget,         Actions: ClockActions },
-  { ...memoMeta,     component: MemoWidget,           Actions: MemoActions },
-  { ...calendarMeta, component: CalendarWidget, Actions: CalendarActions },
-  { ...todoMeta,     component: TodoWidget },
-  { ...habitMeta,    component: HabitWidget },
-  { ...pomodoroMeta, component: PomodoroWidget },
-  { ...counterMeta,  component: CounterWidget },
-  { ...chartMeta,    component: ChartWidget,          Actions: ChartActions },
-  { ...goalMeta,     component: GoalWidget },
-  { ...workOverviewMeta, component: WorkOverviewWidget },
-  { ...menuMeta,     component: MenuWidget },
-  { ...reviewMeta,   component: ReviewWidget },
-  { ...scheduledMeta,component: ScheduledTaskWidget },
-  { ...weatherMeta,  component: WeatherWidget },
-  { ...journalFeedMeta, component: JournalWidget },
+  { ...clockMeta, icon: widgetIcon(Clock3), component: ClockWidget, Actions: ClockActions },
+  { ...memoMeta, icon: widgetIcon(StickyNote), component: MemoWidget, Actions: MemoActions },
+  { ...calendarMeta, icon: widgetIcon(CalendarDays), component: CalendarWidget, Actions: CalendarActions },
+  { ...todoMeta, icon: widgetIcon(ListTodo), component: TodoWidget },
+  { ...habitMeta, icon: widgetIcon(Repeat2), component: HabitWidget },
+  { ...pomodoroMeta, icon: widgetIcon(Timer), component: PomodoroWidget },
+  { ...counterMeta, icon: widgetIcon(ListOrdered), component: CounterWidget },
+  { ...chartMeta, icon: widgetIcon(BarChart3), component: ChartWidget, Actions: ChartActions },
+  { ...goalMeta, icon: widgetIcon(Target), component: GoalWidget },
+  { ...workOverviewMeta, icon: widgetIcon(Workflow), component: WorkOverviewWidget },
+  { ...menuMeta, icon: widgetIcon(LayoutGrid), component: MenuWidget },
+  { ...reviewMeta, icon: widgetIcon(MoonStar), component: ReviewWidget },
+  { ...scheduledMeta, icon: widgetIcon(CalendarClock), component: ScheduledTaskWidget },
+  { ...weatherMeta, icon: widgetIcon(CloudSun), component: WeatherWidget },
+  { ...journalFeedMeta, icon: widgetIcon(Newspaper), component: JournalWidget },
 ].sort((a, b) => a.order - b.order)
 
 export const WIDGET_MAP: Record<string, WidgetMeta> = Object.fromEntries(

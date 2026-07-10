@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
+import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react'
 import { useApp } from '../store/AppContext'
+import { PageHeader } from '../components/ui/PageHeader'
+import { IconButton } from '../components/ui/IconButton'
 import { addLocalDays, toLocalDateKey } from '../utils/date'
 import {
   getProductivityDayLog,
@@ -291,22 +294,20 @@ export default function ProductivityLog() {
 
   return (
     <div className="productivity-log-page">
-      <header className="productivity-log-header">
-        <div>
-          <h2>생산성 기록</h2>
-          <p>하루 점수, 구성 요소, 실제 기록을 한 화면에서 확인합니다.</p>
-        </div>
-        <div className="productivity-date-controls">
-          <button type="button" onClick={() => shiftDate(-1)}>어제</button>
+      <PageHeader
+        title="생산성 기록"
+        description="하루 점수와 실제 활동 기록을 함께 비교합니다."
+        actions={<div className="productivity-date-controls">
+          <IconButton label="어제" icon={<ChevronLeft size={17} />} size="sm" variant="secondary" onClick={() => shiftDate(-1)} />
           <input
             type="date"
             value={selectedDate}
             onChange={event => setSelectedDate(event.target.value || today)}
           />
-          <button type="button" onClick={() => shiftDate(1)}>내일</button>
-          <button type="button" onClick={() => setSelectedDate(today)}>오늘</button>
-        </div>
-      </header>
+          <IconButton label="내일" icon={<ChevronRight size={17} />} size="sm" variant="secondary" onClick={() => shiftDate(1)} />
+          <IconButton label="오늘" icon={<RotateCcw size={16} />} size="sm" variant="secondary" onClick={() => setSelectedDate(today)} />
+        </div>}
+      />
 
       <section className="productivity-score-board">
         <article className="score-hero">
@@ -414,81 +415,7 @@ export default function ProductivityLog() {
         </aside>
       </section>
 
-      <style>{`
-        .productivity-log-page { max-width: 1180px; margin: 0 auto; color: var(--text); display: flex; flex-direction: column; gap: 14px; }
-        .productivity-log-header { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; }
-        .productivity-log-header h2 { margin: 0 0 6px; font-size: 24px; letter-spacing: 0; }
-        .productivity-log-header p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
-        .productivity-date-controls { display: flex; flex-wrap: wrap; gap: 7px; justify-content: flex-end; padding: 4px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); }
-        .productivity-date-controls button { height: 34px; border: 0; border-radius: 7px; background: var(--bg3); color: var(--text); padding: 0 12px; font-size: 12px; font-weight: 800; cursor: pointer; }
-        .productivity-date-controls button:last-child { background: var(--accent); color: #fff; }
-        .productivity-date-controls input { height: 34px; min-width: 0; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); padding: 0 10px; font-family: inherit; font-size: 13px; outline: none; }
-        .productivity-score-board { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 12px; }
-        .score-hero, .summary-tile, .score-part, .activity-card, .recent-productivity-panel, .chart-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; }
-        .score-hero { padding: 18px; display: flex; flex-direction: column; gap: 10px; min-height: 142px; justify-content: space-between; }
-        .score-hero-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-        .score-hero-top b { flex-shrink: 0; border-radius: 999px; background: var(--accent-soft); color: var(--accent); padding: 4px 8px; font-size: 11px; }
-        .score-hero span, .score-part span, .activity-card-header span, .activity-item span, .empty-text, .recent-productivity-item small, .chart-panel .panel-heading span, .summary-tile span { color: var(--muted); font-size: 12px; line-height: 1.5; }
-        .score-hero strong { font-size: 42px; line-height: 1; color: var(--accent); }
-        .score-hero p { margin: 0; color: var(--muted); font-size: 12px; }
-        .productivity-summary-strip, .score-parts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-        .summary-tile { min-width: 0; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; }
-        .summary-tile strong { font-size: 22px; color: var(--text); }
-        .summary-tile span, .summary-tile small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .summary-tile small { color: var(--muted); font-size: 11px; font-weight: 700; }
-        .productivity-chart-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.8fr); gap: 12px; align-items: stretch; }
-        .chart-panel { min-width: 0; padding: 14px; display: flex; flex-direction: column; gap: 12px; min-height: 268px; }
-        .chart-frame { min-height: 198px; height: 198px; }
-        .chart-frame.compact { height: 188px; min-height: 188px; }
-        .chart-frame .empty-text { height: 100%; display: grid; place-items: center; text-align: center; }
-        .score-part { min-width: 0; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
-        .score-part div { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-        .score-part b { font-size: 13px; }
-        .score-part strong { font-size: 20px; color: var(--text); }
-        .score-part i { height: 6px; border-radius: 999px; background: var(--bg4); overflow: hidden; }
-        .score-part em { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
-        .productivity-content-grid { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 12px; align-items: start; }
-        .activity-section-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-        .activity-card { min-width: 0; padding: 14px; display: flex; flex-direction: column; gap: 11px; }
-        .activity-card-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-        .activity-card-header h3, .panel-heading h3 { margin: 0; font-size: 15px; }
-        .activity-progress { height: 6px; border-radius: 999px; background: var(--bg4); overflow: hidden; }
-        .activity-progress i { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
-        .activity-items { display: flex; flex-direction: column; gap: 7px; }
-        .activity-item { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: start; padding: 9px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg3); }
-        .activity-status { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 900; background: var(--accent-soft); color: var(--accent); }
-        .activity-status.open { background: var(--bg4); color: var(--muted); }
-        .activity-item strong { display: block; min-width: 0; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .recent-productivity-panel { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
-        .recent-productivity-list { max-height: 430px; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding-right: 2px; display: flex; flex-direction: column; gap: 10px; }
-        .recent-productivity-list::-webkit-scrollbar { width: 8px; }
-        .recent-productivity-list::-webkit-scrollbar-track { background: transparent; }
-        .recent-productivity-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
-        .panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-        .panel-heading div { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-        .panel-heading span { color: var(--muted); font-size: 12px; font-weight: 700; }
-        .panel-heading b { flex-shrink: 0; color: var(--accent); font-size: 14px; }
-        .recent-productivity-item { width: 100%; border: 1px solid var(--border); border-radius: 8px; background: var(--bg3); color: var(--text); padding: 10px; text-align: left; cursor: pointer; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 8px; }
-        .recent-productivity-item.active { border-color: var(--accent); background: var(--accent-soft); }
-        .recent-productivity-item span { font-size: 12px; color: var(--muted); }
-        .recent-productivity-item strong { color: var(--accent); }
-        .recent-productivity-item small { grid-column: 1 / -1; }
-        .empty-text { margin: 0; }
-        .activity-overflow { color: var(--muted); font-size: 12px; font-weight: 700; padding: 4px 2px 0; }
-        @media (max-width: 960px) {
-          .productivity-score-board, .productivity-content-grid, .productivity-chart-grid { grid-template-columns: 1fr; }
-          .score-parts, .productivity-summary-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-          .recent-productivity-list { max-height: 340px; }
-        }
-        @media (max-width: 640px) {
-          .productivity-log-header { align-items: stretch; flex-direction: column; }
-          .productivity-date-controls { justify-content: stretch; }
-          .productivity-date-controls input { flex: 1; }
-          .activity-section-list, .score-parts, .productivity-summary-strip { grid-template-columns: 1fr; }
-          .chart-panel { min-height: 246px; }
-          .chart-frame, .chart-frame.compact { height: 176px; min-height: 176px; }
-        }
-      `}</style>
+
     </div>
   )
 }

@@ -221,7 +221,7 @@ export function ClockActions() {
   }
 
   return (
-    <button onClick={toggle} title="시계 모드 전환" style={{
+    <button type="button" onClick={toggle} title="시계 모드 전환" style={{
       fontSize: 11, color: 'var(--muted)', background: 'transparent',
       border: '1px solid var(--border)', borderRadius: 4,
       cursor: 'pointer', padding: '2px 8px', fontFamily: 'inherit',

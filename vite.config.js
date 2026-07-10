@@ -258,7 +258,9 @@ const jobPostingPageApi = () => ({
 })
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '')
+  const env = process.env.PLANNER_TEST_EMPTY_FIREBASE_ENV === '1'
+    ? {}
+    : loadEnv(mode, process.cwd(), '')
   assertFirebaseEnv(env)
 
   return {

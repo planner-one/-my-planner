@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react'
+import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { useRouter } from '../store/RouterContext'
+import { PageHeader } from '../components/ui/PageHeader'
+import { IconButton } from '../components/ui/IconButton'
 import type { CareerEventStatus, ScheduledTask } from '../types'
 import { toLocalDateKey } from '../utils/date'
 import { countCalendarLinkedItems, getCalendarLinkedItems, makeCalendarDays, type CalendarLinkedItems } from '../utils/calendar'
@@ -265,18 +268,18 @@ export default function CalendarPage() {
 
   return (
     <div className="calendar-page">
-      <header className="calendar-page-header">
-        <div>
-          <h2>캘린더</h2>
-          <p>Todo, 예정 작업, 기회 일정, 내 신청, 지원 공고, 작업 관리, 목표와 프로젝트 마감을 날짜 기준으로 모아 봅니다.</p>
-        </div>
-        <div className="calendar-page-controls">
-          <button type="button" onClick={() => moveMonth(-1)}>이전</button>
-          <strong>{monthLabel(year, month)}</strong>
-          <button type="button" onClick={() => moveMonth(1)}>다음</button>
-          <button type="button" onClick={goToday}>오늘</button>
-        </div>
-      </header>
+      <PageHeader
+        title="캘린더"
+        description="날짜가 있는 할 일, 일정, 신청과 마감을 한 흐름에서 확인합니다."
+        actions={(
+          <div className="calendar-page-controls">
+            <IconButton label="이전 달" icon={<ChevronLeft size={17} />} size="sm" variant="secondary" onClick={() => moveMonth(-1)} />
+            <strong>{monthLabel(year, month)}</strong>
+            <IconButton label="다음 달" icon={<ChevronRight size={17} />} size="sm" variant="secondary" onClick={() => moveMonth(1)} />
+            <IconButton label="오늘로 이동" icon={<RotateCcw size={16} />} size="sm" variant="secondary" onClick={goToday} />
+          </div>
+        )}
+      />
 
       <section className="calendar-summary">
         <Summary label="이번 달 항목" value={monthTotal} />
@@ -411,81 +414,7 @@ export default function CalendarPage() {
         </aside>
       </section>
 
-      <style>{`
-        .calendar-page { max-width: 1220px; margin: 0 auto; color: var(--text); display: flex; flex-direction: column; gap: 14px; }
-        .calendar-page-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 14px; }
-        .calendar-page-header h2 { margin: 0 0 6px; font-size: 24px; letter-spacing: 0; }
-        .calendar-page-header p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
-        .calendar-page-controls { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 7px; }
-        .calendar-page-controls button { height: 34px; border: 0; border-radius: 7px; background: var(--accent); color: #fff; padding: 0 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
-        .calendar-page-controls strong { min-width: 130px; text-align: center; font-size: 14px; }
-        .calendar-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-        .calendar-summary-card { min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg2); box-shadow: var(--shadow); }
-        .calendar-summary-card span { display: block; color: var(--muted); font-size: 11px; font-weight: 800; }
-        .calendar-summary-card strong { display: block; margin-top: 5px; font-size: 24px; line-height: 1.05; }
-        .calendar-summary-card.urgent { border-color: rgba(224, 82, 82, 0.35); background: rgba(224, 82, 82, 0.08); }
-        .calendar-source-filter { padding: 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg2); box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 10px; }
-        .calendar-source-filter-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
-        .calendar-source-filter button { height: 32px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg3); color: var(--muted); padding: 0 12px; font-size: 12px; cursor: pointer; }
-        .calendar-source-filter button.active { color: var(--text); font-weight: 800; }
-        .calendar-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 14px; align-items: start; }
-        .calendar-month-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--bg2); box-shadow: var(--shadow); }
-        .calendar-weekday { padding: 9px 6px; border-bottom: 1px solid var(--border); background: var(--bg3); color: var(--muted); font-size: 12px; font-weight: 800; text-align: center; }
-        .calendar-day-cell { min-height: 128px; min-width: 0; border: 0; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); background: var(--bg2); color: var(--text); padding: 8px; text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 6px; }
-        .calendar-day-cell:nth-child(7n + 7) { border-right: 0; }
-        .calendar-day-cell.muted { color: var(--muted); background: var(--bg); opacity: 0.62; }
-        .calendar-day-cell.selected { outline: 2px solid var(--accent); outline-offset: -2px; }
-        .calendar-day-cell.today .calendar-day-number { background: var(--accent); color: #fff; }
-        .calendar-day-number { width: 26px; height: 26px; border-radius: 999px; display: grid; place-items: center; font-size: 13px; font-weight: 800; }
-        .calendar-day-events { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-        .calendar-event-dot { min-width: 0; border-left: 3px solid var(--accent); border-radius: 4px; background: var(--bg3); padding: 3px 5px; color: var(--text); font-size: 11px; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .calendar-event-dot.scheduled, .agenda-item.scheduled { border-color: #3b82f6; }
-        .calendar-event-dot.career, .agenda-item.career { border-color: #a855f7; }
-        .calendar-event-dot.personal, .agenda-item.personal { border-color: #14b8a6; }
-        .calendar-event-dot.jobs, .agenda-item.jobs { border-color: #f97316; }
-        .calendar-event-dot.todos, .agenda-item.todos { border-color: #f59e0b; }
-        .calendar-event-dot.tasks, .agenda-item.tasks { border-color: #64748b; }
-        .calendar-event-dot.goals, .agenda-item.goals { border-color: #10b981; }
-        .calendar-event-dot.projects, .agenda-item.projects { border-color: #0ea5e9; }
-        .calendar-day-events small { color: var(--muted); font-size: 10px; }
-        .calendar-agenda { border: 1px solid var(--border); border-radius: 10px; background: var(--bg2); padding: 14px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 12px; position: sticky; top: 0; }
-        .agenda-heading { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
-        .agenda-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
-        .agenda-heading h3 { margin: 0 0 3px; font-size: 16px; letter-spacing: 0; }
-        .agenda-heading span { color: var(--muted); font-size: 12px; }
-        .agenda-meta { display: flex; flex-wrap: wrap; gap: 6px; }
-        .quick-add-panel { display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg3); }
-        .quick-add-row { display: grid; grid-template-columns: 86px minmax(0, 1fr) auto; gap: 6px; }
-        .quick-add-row.career { grid-template-columns: minmax(0, 1fr) auto; }
-        .agenda-list { display: flex; flex-direction: column; gap: 7px; }
-        .agenda-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 9px; border-left: 3px solid var(--accent); border-radius: 8px; background: var(--bg3); }
-        .agenda-item > span { padding: 3px 7px; border-radius: 999px; background: var(--bg4); color: var(--muted); font-size: 10px; font-weight: 800; white-space: nowrap; }
-        .agenda-item strong { display: block; min-width: 0; color: var(--text); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .agenda-item small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .agenda-item input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent); }
-        .agenda-item select { max-width: 112px; min-width: 92px; height: 30px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg2); color: var(--text); font-size: 11px; }
-        .agenda-item button { min-height: 30px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg2); color: var(--text); padding: 0 10px; font-size: 11px; font-weight: 800; cursor: pointer; }
-        .done-text { color: var(--muted) !important; text-decoration: line-through; }
-        .empty-text { margin: 0; padding: 18px; color: var(--muted); text-align: center; font-size: 12px; }
-        @media (max-width: 980px) {
-          .calendar-page-header { align-items: stretch; flex-direction: column; }
-          .calendar-page-controls { justify-content: flex-start; }
-          .calendar-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-          .calendar-workspace { grid-template-columns: 1fr; }
-          .calendar-agenda { order: -1; position: static; }
-        }
-        @media (max-width: 640px) {
-          .calendar-summary { grid-template-columns: 1fr; }
-          .calendar-month-grid { overflow-x: auto; display: block; white-space: nowrap; }
-          .calendar-weekday, .calendar-day-cell { display: inline-flex; width: 132px; white-space: normal; vertical-align: top; box-sizing: border-box; }
-          .calendar-weekday { justify-content: center; }
-          .calendar-day-cell { min-height: 116px; }
-          .calendar-source-filter { padding: 12px; }
-          .agenda-heading, .planner-section-heading { flex-direction: column; }
-          .quick-add-row, .quick-add-row.career, .agenda-item { grid-template-columns: 1fr; }
-          .agenda-item select { max-width: none; width: 100%; }
-        }
-      `}</style>
+
     </div>
   )
 }

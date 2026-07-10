@@ -1,5 +1,9 @@
 import { useMemo, useState } from 'react'
 import { useApp } from '../store/AppContext'
+import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { Drawer } from '../components/ui/Drawer'
+import { Button } from '../components/ui/Button'
+import { PageHeader } from '../components/ui/PageHeader'
 import type { PersonalApplication, PersonalApplicationStatus, PersonalApplicationType } from '../types'
 import { toLocalDateKey } from '../utils/date'
 
@@ -91,6 +95,8 @@ export default function PersonalApplications() {
   const [form, setForm] = useState(emptyForm)
   const [filter, setFilter] = useState<Filter>('all')
   const [query, setQuery] = useState('')
+  const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const addItem = () => {
     const title = form.title.trim()
@@ -126,8 +132,13 @@ export default function PersonalApplications() {
   }
 
   const removeItem = (id: string) => {
-    if (!window.confirm('이 신청 기록을 삭제할까요?')) return
-    setPersonalApplications(previous => previous.filter(item => item.id !== id))
+    setDeleteId(id)
+  }
+
+  const confirmRemove = () => {
+    if (!deleteId) return
+    setPersonalApplications(previous => previous.filter(item => item.id !== deleteId))
+    setSelectedId(previous => previous === deleteId ? null : previous)
   }
 
   const sorted = useMemo(() => sortApplications(personalApplications), [personalApplications])
@@ -144,15 +155,16 @@ export default function PersonalApplications() {
   const selectedItems = personalApplications.filter(item => item.status === 'selected' || item.status === 'active')
   const upcoming = sorted.filter(item => isOpen(item.status) && item.deadline).slice(0, 3)
   const nextAction = sorted.find(item => isOpen(item.status) && item.nextAction)
+  const selectedItem = selectedId
+    ? personalApplications.find(item => item.id === selectedId) ?? null
+    : null
 
   return (
     <div className="personal-page">
-      <header className="personal-header">
-        <div>
-          <h2>내 신청</h2>
-          <p>저축계좌, 내일두배통장, 기관 멘토링처럼 신청 후 상태를 계속 추적해야 하는 제도를 따로 관리합니다.</p>
-        </div>
-      </header>
+      <PageHeader
+        title="내 신청"
+        description="신청부터 심사, 선정 이후 일정과 다음 행동까지 이어서 관리합니다."
+      />
 
       <section className="personal-summary">
         <Summary label="관리 중" value={`${activeItems.length}개`} sub="취소/종료 제외" />
@@ -251,97 +263,74 @@ export default function PersonalApplications() {
           <p className="empty-text">관리할 신청 기록을 추가하세요.</p>
         ) : visible.map(item => (
           <article key={item.id} className={`personal-card ${item.status}`}>
-            <div className="personal-card-top">
-              <input value={item.title} onChange={event => updateItem(item.id, { title: event.target.value })} />
-              <span>{STATUS_LABELS[item.status]}</span>
-            </div>
-            <div className="personal-card-grid">
-              <label>기관<input value={item.organization ?? ''} onChange={event => updateItem(item.id, { organization: event.target.value })} /></label>
-              <label>유형<select value={item.type} onChange={event => updateItem(item.id, { type: event.target.value as PersonalApplicationType })}>{APPLICATION_TYPES.map(type => <option key={type} value={type}>{TYPE_LABELS[type]}</option>)}</select></label>
-              <label>상태<select value={item.status} onChange={event => updateItem(item.id, { status: event.target.value as PersonalApplicationStatus })}>{APPLICATION_STATUSES.map(status => <option key={status} value={status}>{STATUS_LABELS[status]}</option>)}</select></label>
-              <label>마감<input type="date" value={item.deadline ?? ''} onChange={event => updateItem(item.id, { deadline: event.target.value })} /></label>
-              <label>신청일<input type="date" value={item.appliedDate ?? ''} onChange={event => updateItem(item.id, { appliedDate: event.target.value })} /></label>
-              <label>결과일<input type="date" value={item.resultDate ?? ''} onChange={event => updateItem(item.id, { resultDate: event.target.value })} /></label>
-              <label>시작일<input type="date" value={item.startDate ?? ''} onChange={event => updateItem(item.id, { startDate: event.target.value })} /></label>
-              <label>종료일<input type="date" value={item.endDate ?? ''} onChange={event => updateItem(item.id, { endDate: event.target.value })} /></label>
-            </div>
-            <label className="wide-label">다음 행동<input value={item.nextAction ?? ''} onChange={event => updateItem(item.id, { nextAction: event.target.value })} placeholder="예: 주민등록등본 제출, 결과 발표 확인" /></label>
-            <div className="personal-card-grid two">
-              <label>제출 서류<input value={joinTokens(item.documents)} onChange={event => updateItem(item.id, { documents: splitTokens(event.target.value) })} placeholder="쉼표로 구분" /></label>
-              <label>키워드<input value={joinTokens(item.keywords)} onChange={event => updateItem(item.id, { keywords: splitTokens(event.target.value) })} placeholder="저축, 멘토링, 청년" /></label>
-            </div>
-            <label className="wide-label">참고 링크<input value={item.sourceUrl ?? ''} onChange={event => updateItem(item.id, { sourceUrl: event.target.value })} placeholder="https://" /></label>
-            <textarea value={item.note ?? ''} onChange={event => updateItem(item.id, { note: event.target.value })} placeholder="메모" rows={3} />
+            <button type="button" className="personal-card-open" onClick={() => setSelectedId(item.id)}>
+              <div className="personal-card-top">
+                <div>
+                  <h3>{item.title}</h3>
+                  <p>{item.organization || '기관 미정'} · {TYPE_LABELS[item.type]}</p>
+                </div>
+                <span>{STATUS_LABELS[item.status]}</span>
+              </div>
+              <div className="personal-card-tags">
+                <small>{item.deadline ? `마감 ${dateBadge(item.deadline)}` : '마감 없음'}</small>
+                {item.resultDate && <small>결과 {item.resultDate}</small>}
+                {(item.keywords ?? []).slice(0, 3).map(keyword => <small key={keyword}>{keyword}</small>)}
+              </div>
+              {item.nextAction && <p><b>다음 행동</b>{item.nextAction}</p>}
+            </button>
             <div className="personal-card-actions">
               {item.sourceUrl && <a href={item.sourceUrl} target="_blank" rel="noreferrer">원본 열기</a>}
-              <small>{item.deadline ? `마감 ${dateBadge(item.deadline)}` : '마감 없음'}</small>
+              <button type="button" onClick={() => setSelectedId(item.id)}>자세히</button>
               <button type="button" onClick={() => removeItem(item.id)}>삭제</button>
             </div>
           </article>
         ))}
       </section>
 
-      <style>{`
-        .personal-page { max-width: 1160px; margin: 0 auto; color: var(--text); display: flex; flex-direction: column; gap: 16px; }
-        .personal-header h2 { margin: 0 0 6px; font-size: 24px; letter-spacing: 0; }
-        .personal-header p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
-        .personal-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-        .personal-summary-card, .next-application, .upcoming-applications, .personal-add, .personal-tools, .personal-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; }
-        .personal-summary-card { padding: 13px; min-width: 0; }
-        .personal-summary-card span, .next-application span, .upcoming-applications > span { color: var(--accent); font-size: 11px; font-weight: 900; }
-        .personal-summary-card b { display: block; margin: 5px 0 3px; font-size: 21px; }
-        .personal-summary-card small { display: block; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .personal-board { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 0.8fr); gap: 12px; }
-        .next-application, .upcoming-applications { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
-        .next-application strong { font-size: 18px; overflow-wrap: anywhere; }
-        .next-application p, .upcoming-applications p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
-        .upcoming-applications button { border: 1px solid var(--border); border-radius: 8px; background: var(--bg3); color: var(--text); padding: 9px 10px; text-align: left; cursor: pointer; display: grid; gap: 3px; }
-        .upcoming-applications b { color: var(--accent); font-size: 12px; }
-        .upcoming-applications small { color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .personal-section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-        .personal-section-heading.compact { align-items: center; }
-        .personal-section-heading h3 { margin: 0 0 4px; font-size: 15px; letter-spacing: 0; }
-        .personal-section-heading p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
-        .personal-section-heading small { flex-shrink: 0; color: var(--muted); font-size: 11px; font-weight: 900; white-space: nowrap; }
-        .personal-add { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
-        .personal-add-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) 148px 128px 146px auto; gap: 8px; align-items: end; }
-        .personal-add-grid label { min-width: 0; display: flex; flex-direction: column; gap: 5px; color: var(--muted); font-size: 11px; font-weight: 800; }
-        .personal-add-action { display: flex; align-items: flex-end; }
-        .personal-tools { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
-        .personal-tools > div { display: flex; flex-wrap: wrap; gap: 6px; }
-        .personal-tools button { min-height: 31px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg3); color: var(--muted); padding: 0 11px; font-size: 12px; cursor: pointer; }
-        .personal-tools button.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); font-weight: 800; }
-        .personal-add input, .personal-add select, .personal-tools input, .personal-card input, .personal-card select, .personal-card textarea { min-width: 0; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); font-family: inherit; font-size: 13px; outline: none; }
-        .personal-add input, .personal-add select, .personal-tools input, .personal-card input, .personal-card select { height: 34px; padding: 0 9px; }
-        .personal-add button { height: 34px; border: 0; border-radius: 7px; background: var(--accent); color: #fff; padding: 0 13px; font-size: 12px; font-weight: 800; cursor: pointer; }
-        .personal-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-        .personal-card { padding: 13px; display: flex; flex-direction: column; gap: 10px; border-left: 4px solid var(--accent); }
-        .personal-card.rejected, .personal-card.cancelled, .personal-card.finished { border-left-color: var(--muted); opacity: 0.82; }
-        .personal-card-top { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
-        .personal-card-top input { border-color: transparent; background: transparent; padding-left: 0; font-weight: 900; font-size: 15px; }
-        .personal-card-top span { border-radius: 999px; background: var(--accent-soft); color: var(--accent); padding: 4px 8px; font-size: 10px; font-weight: 900; white-space: nowrap; }
-        .personal-card-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-        .personal-card-grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        .personal-card label { min-width: 0; display: flex; flex-direction: column; gap: 5px; color: var(--muted); font-size: 11px; font-weight: 800; }
-        .wide-label { width: 100%; }
-        .personal-card textarea { padding: 9px; resize: vertical; line-height: 1.5; }
-        .personal-card-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-        .personal-card-actions a { color: var(--accent); font-size: 12px; font-weight: 800; text-decoration: none; }
-        .personal-card-actions small { color: var(--muted); font-size: 11px; }
-        .personal-card-actions button { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; padding: 6px; }
-        .empty-text { grid-column: 1 / -1; margin: 0; padding: 36px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); color: var(--muted); text-align: center; }
-        @media (max-width: 980px) {
-          .personal-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-          .personal-board, .personal-list { grid-template-columns: 1fr; }
-          .personal-add-grid, .personal-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-          .personal-add-action { grid-column: 1 / -1; }
-        }
-        @media (max-width: 560px) {
-          .personal-summary, .personal-add-grid, .personal-card-grid, .personal-card-grid.two { grid-template-columns: 1fr; }
-          .personal-section-heading { flex-direction: column; }
-          .personal-card-actions { align-items: flex-start; flex-direction: column; }
-        }
-      `}</style>
+      <Drawer
+        open={Boolean(selectedItem)}
+        onClose={() => setSelectedId(null)}
+        title={selectedItem?.title ?? '신청 상세'}
+        description={selectedItem ? `${selectedItem.organization || '기관 미정'} · ${STATUS_LABELS[selectedItem.status]}` : undefined}
+        width="lg"
+        footer={selectedItem && (
+          <>
+            {selectedItem.sourceUrl && <a className="personal-detail-open-link" href={selectedItem.sourceUrl} target="_blank" rel="noreferrer">원본 열기</a>}
+            <Button variant="danger" onClick={() => removeItem(selectedItem.id)}>삭제</Button>
+          </>
+        )}
+      >
+        {selectedItem && (
+          <div className="personal-detail-form">
+            <label>이름<input value={selectedItem.title} onChange={event => updateItem(selectedItem.id, { title: event.target.value })} /></label>
+            <label>기관<input value={selectedItem.organization ?? ''} onChange={event => updateItem(selectedItem.id, { organization: event.target.value })} /></label>
+            <label>유형<select value={selectedItem.type} onChange={event => updateItem(selectedItem.id, { type: event.target.value as PersonalApplicationType })}>{APPLICATION_TYPES.map(type => <option key={type} value={type}>{TYPE_LABELS[type]}</option>)}</select></label>
+            <label>상태<select value={selectedItem.status} onChange={event => updateItem(selectedItem.id, { status: event.target.value as PersonalApplicationStatus })}>{APPLICATION_STATUSES.map(status => <option key={status} value={status}>{STATUS_LABELS[status]}</option>)}</select></label>
+            <label>마감<input type="date" value={selectedItem.deadline ?? ''} onChange={event => updateItem(selectedItem.id, { deadline: event.target.value })} /></label>
+            <label>신청일<input type="date" value={selectedItem.appliedDate ?? ''} onChange={event => updateItem(selectedItem.id, { appliedDate: event.target.value })} /></label>
+            <label>결과일<input type="date" value={selectedItem.resultDate ?? ''} onChange={event => updateItem(selectedItem.id, { resultDate: event.target.value })} /></label>
+            <label>시작일<input type="date" value={selectedItem.startDate ?? ''} onChange={event => updateItem(selectedItem.id, { startDate: event.target.value })} /></label>
+            <label>종료일<input type="date" value={selectedItem.endDate ?? ''} onChange={event => updateItem(selectedItem.id, { endDate: event.target.value })} /></label>
+            <label className="wide-label">다음 행동<input value={selectedItem.nextAction ?? ''} onChange={event => updateItem(selectedItem.id, { nextAction: event.target.value })} placeholder="예: 주민등록등본 제출, 결과 발표 확인" /></label>
+            <label className="wide-label">제출 서류<input value={joinTokens(selectedItem.documents)} onChange={event => updateItem(selectedItem.id, { documents: splitTokens(event.target.value) })} placeholder="쉼표로 구분" /></label>
+            <label className="wide-label">키워드<input value={joinTokens(selectedItem.keywords)} onChange={event => updateItem(selectedItem.id, { keywords: splitTokens(event.target.value) })} placeholder="저축, 멘토링, 청년" /></label>
+            <label className="wide-label">참고 링크<input value={selectedItem.sourceUrl ?? ''} onChange={event => updateItem(selectedItem.id, { sourceUrl: event.target.value })} placeholder="https://" /></label>
+            <label className="wide-label">메모<textarea value={selectedItem.note ?? ''} onChange={event => updateItem(selectedItem.id, { note: event.target.value })} rows={5} /></label>
+          </div>
+        )}
+      </Drawer>
+
+      <ConfirmDialog
+        open={Boolean(deleteId)}
+        onClose={() => setDeleteId(null)}
+        onConfirm={confirmRemove}
+        title="신청 기록 삭제"
+        description={`'${personalApplications.find(item => item.id === deleteId)?.title ?? '선택한 신청'}' 기록을 삭제합니다.`}
+        confirmLabel="삭제"
+        danger
+      />
+
+
     </div>
   )
 }

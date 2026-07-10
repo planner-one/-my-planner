@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { LayoutDashboard, LoaderCircle } from 'lucide-react'
 import { getLocalhostAuthUrl, signInWithGoogle } from '../services/authService'
 
 const getLoginErrorMessage = (error: unknown) => {
@@ -43,37 +44,28 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', alignItems: 'center',
-      justifyContent: 'center', height: 'var(--app-viewport-height)', gap: 24,
-      background: 'var(--bg)', color: 'var(--text)',
-    }}>
-      <h1 style={{ fontSize: 28, fontWeight: 700 }}>나만의 플래너</h1>
-      <p style={{ color: 'var(--muted)' }}>
-        구글 계정으로 로그인하면 어디서든 동일한 데이터를 사용할 수 있습니다.
-      </p>
-      <button onClick={handleLogin} style={{
-        display: 'flex', alignItems: 'center', gap: 10,
-        padding: '12px 24px', borderRadius: 8, border: '1px solid var(--border)',
-        background: 'var(--bg2)', color: 'var(--text)', fontSize: 15,
-        cursor: isSigningIn ? 'wait' : 'pointer', fontWeight: 500,
-        opacity: isSigningIn ? 0.72 : 1,
-      }}>
-        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width={20} alt="Google" />
-        {isSigningIn ? '로그인 확인 중...' : 'Google로 계속하기'}
-      </button>
-      {errorMessage && (
-        <p style={{
-          maxWidth: 420,
-          margin: 0,
-          color: '#d84848',
-          fontSize: 13,
-          lineHeight: 1.5,
-          textAlign: 'center',
-        }}>
-          {errorMessage}
-        </p>
-      )}
-    </div>
+    <main className="login-page">
+      <section className="login-panel" aria-labelledby="login-title">
+        <div className="login-brand">
+          <span className="login-brand-mark" aria-hidden="true">
+            <LayoutDashboard size={22} />
+          </span>
+          <div>
+            <h1 id="login-title">나만의 플래너</h1>
+          </div>
+        </div>
+        <p>계획, 기회, 기록을 한 계정에서 이어서 관리하세요.</p>
+        <button className="login-button" type="button" onClick={handleLogin} disabled={isSigningIn}>
+          {isSigningIn ? (
+            <LoaderCircle className="ui-spin" size={20} aria-hidden="true" />
+          ) : (
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width={20} height={20} alt="" />
+          )}
+          {isSigningIn ? '로그인 확인 중' : 'Google로 계속하기'}
+        </button>
+        {errorMessage && <p className="login-error" role="alert">{errorMessage}</p>}
+        <div className="login-meta">Firebase로 안전하게 동기화됩니다.</div>
+      </section>
+    </main>
   )
 }

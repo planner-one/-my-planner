@@ -1,5 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useApp } from '../store/AppContext'
+import { PageHeader } from '../components/ui/PageHeader'
+import { useConfirm } from '../components/ui/ConfirmProvider'
+import { ArrowDown, ArrowUp, Pencil, Trash2 } from 'lucide-react'
 import { addLocalDays, toLocalDateKey } from '../utils/date'
 import {
   EVERY_DAY, createDefaultHabits, createHabitId, getHabitIcon,
@@ -18,6 +21,7 @@ const activityColor = (level: number) => {
 }
 
 export default function HabitTracker() {
+  const confirm = useConfirm()
   const { habits, setHabits, habitHistory, setHabitHistory } = useApp()
   const [input, setInput] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -70,9 +74,16 @@ export default function HabitTracker() {
     setEditingId(null)
   }
 
-  const removeHabit = (habitId: string) => {
+  const removeHabit = async (habitId: string) => {
     const habit = habits.find(item => item.id === habitId)
-    if (!habit || !window.confirm(`"${habit.name}" 루틴을 현재 목록에서 삭제할까요?\n과거 활동 기록은 유지됩니다.`)) return
+    if (!habit) return
+    const accepted = await confirm({
+      title: '루틴 삭제',
+      description: `"${habit.name}" 루틴을 현재 목록에서 삭제합니다. 과거 활동 기록은 유지됩니다.`,
+      confirmLabel: '삭제',
+      danger: true,
+    })
+    if (!accepted) return
     setHabits(previous => previous.filter(item => item.id !== habitId))
     setHabitHistory(previous => {
       const current = { ...(previous[today] ?? {}) }
@@ -159,16 +170,14 @@ export default function HabitTracker() {
 
   return (
     <div className="habit-page">
-      <header className="habit-header">
-        <div>
-          <h1>습관</h1>
-          <p>오늘의 작은 루틴을 체크하고, 쌓여가는 흐름을 확인하세요.</p>
-        </div>
-        <div className="habit-today-summary">
+      <PageHeader
+        title="습관"
+        description="오늘의 루틴을 체크하고 누적 흐름을 확인합니다."
+        actions={<div className="habit-today-summary">
           <strong>{todayDone}</strong>
           <span>/ {activeHabits.length} 완료</span>
-        </div>
-      </header>
+        </div>}
+      />
 
       <section className="habit-section">
         <div className="habit-section-title">
@@ -249,15 +258,15 @@ export default function HabitTracker() {
                   ))}
                 </div>
                 <div className="habit-actions">
-                  <button type="button" title="위로 이동" aria-label="위로 이동" onClick={() => moveHabit(index, -1)}>↑</button>
-                  <button type="button" title="아래로 이동" aria-label="아래로 이동" onClick={() => moveHabit(index, 1)}>↓</button>
+                  <button type="button" title="위로 이동" aria-label="위로 이동" onClick={() => moveHabit(index, -1)}><ArrowUp size={14} /></button>
+                  <button type="button" title="아래로 이동" aria-label="아래로 이동" onClick={() => moveHabit(index, 1)}><ArrowDown size={14} /></button>
                   <button
                     type="button"
                     title="이름 수정"
                     aria-label="이름 수정"
                     onClick={() => { setEditingId(habit.id); setEditingName(habit.name) }}
-                  >✎</button>
-                  <button type="button" title="삭제" aria-label="삭제" onClick={() => removeHabit(habit.id)}>×</button>
+                  ><Pencil size={14} /></button>
+                  <button type="button" title="삭제" aria-label="삭제" onClick={() => removeHabit(habit.id)}><Trash2 size={14} /></button>
                 </div>
               </div>
             )
@@ -330,68 +339,7 @@ export default function HabitTracker() {
         </div>
       </section>
 
-      <style>{`
-        .habit-page { color: var(--text); display: flex; flex-direction: column; gap: 18px; max-width: 1120px; margin: 0 auto; }
-        .habit-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; }
-        .habit-header h1 { margin: 0 0 6px; font-size: 26px; }
-        .habit-header p, .habit-section-title p { margin: 0; color: var(--muted); font-size: 13px; }
-        .habit-today-summary { display: flex; align-items: baseline; gap: 5px; color: var(--muted); white-space: nowrap; }
-        .habit-today-summary strong { color: var(--accent); font-size: 28px; }
-        .habit-section { padding: 20px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); }
-        .habit-section-title { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
-        .habit-section-title h2 { margin: 0 0 4px; font-size: 17px; }
-        .habit-add-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-bottom: 12px; }
-        .habit-add-row input, .habit-edit-input, .habit-section select { border: 1px solid var(--border); background: var(--bg); color: var(--text); border-radius: 7px; outline: none; }
-        .habit-add-row input { height: 42px; padding: 0 13px; font-size: 14px; }
-        .habit-add-row input:focus, .habit-edit-input:focus, .habit-section select:focus { border-color: var(--accent); }
-        .habit-primary-button, .habit-subtle-button { border: 0; border-radius: 7px; cursor: pointer; font-weight: 700; }
-        .habit-primary-button { min-width: 72px; background: var(--accent); color: #fff; }
-        .habit-subtle-button { padding: 8px 11px; background: var(--bg3); color: var(--text); }
-        .habit-list { display: flex; flex-direction: column; gap: 7px; }
-        .habit-row { min-height: 48px; display: grid; grid-template-columns: 26px minmax(150px, 1fr) auto auto; align-items: center; gap: 10px; padding: 6px 9px; background: var(--bg3); border: 1px solid transparent; border-radius: 7px; }
-        .habit-row.is-done { border-color: color-mix(in srgb, var(--accent) 38%, transparent); }
-        .habit-row.is-off-day { opacity: 0.72; }
-        .habit-check { width: 24px; height: 24px; padding: 0; border: 1.5px solid var(--border); border-radius: 6px; background: var(--bg); color: #fff; cursor: pointer; font-weight: 800; }
-        .habit-check:disabled { cursor: default; background: var(--bg4); }
-        .habit-row.is-done .habit-check { border-color: var(--accent); background: var(--accent); }
-        .habit-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: left; border: 0; background: transparent; color: var(--text); cursor: pointer; font-size: 14px; }
-        .habit-name small { margin-left: 8px; color: var(--muted); font-size: 10px; font-weight: 500; white-space: nowrap; }
-        .habit-row.is-done .habit-name { color: var(--muted); text-decoration: line-through; }
-        .habit-edit-input { width: 100%; min-width: 0; height: 32px; padding: 0 9px; font-size: 14px; }
-        .habit-repeat-days { display: flex; align-items: center; gap: 3px; }
-        .habit-repeat-days button { width: 27px; height: 27px; padding: 0; border: 1px solid var(--border); border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; font-size: 10px; }
-        .habit-repeat-days button.is-active { border-color: var(--accent); background: var(--accent); color: #fff; font-weight: 700; }
-        .habit-actions { display: flex; gap: 3px; }
-        .habit-actions button { width: 30px; height: 30px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; font-size: 14px; }
-        .habit-actions button:hover { background: var(--bg4); color: var(--text); }
-        .habit-empty { padding: 30px 12px; text-align: center; color: var(--muted); font-size: 13px; }
-        .habit-activity-heading select { width: min(180px, 42vw); height: 36px; padding: 0 10px; }
-        .habit-heatmap-scroll { overflow-x: auto; padding: 4px 0 8px; }
-        .habit-heatmap-layout { min-width: 780px; display: grid; grid-template-columns: 26px auto; gap: 8px; width: max-content; }
-        .habit-weekday-labels { display: grid; grid-template-rows: repeat(7, 14px); gap: 3px; padding-top: 25px; }
-        .habit-weekday-labels span { font-size: 10px; line-height: 14px; color: var(--muted); text-align: right; }
-        .habit-month-labels { display: grid; gap: 3px; height: 20px; margin-bottom: 5px; }
-        .habit-month-labels span { overflow: visible; white-space: nowrap; font-size: 10px; color: var(--muted); }
-        .habit-heatmap { display: grid; grid-template-rows: repeat(7, 14px); grid-auto-flow: column; gap: 3px; }
-        .habit-cell { width: 14px; height: 14px; padding: 0; border: 0; border-radius: 3px; cursor: pointer; }
-        .habit-cell.is-selected { outline: 2px solid var(--text); outline-offset: 1px; }
-        .habit-cell:disabled { cursor: default; }
-        .habit-activity-footer { display: flex; justify-content: space-between; align-items: center; gap: 18px; margin-top: 12px; color: var(--muted); font-size: 12px; }
-        .habit-activity-footer > div:first-child { display: flex; gap: 9px; }
-        .habit-activity-footer strong { color: var(--text); }
-        .habit-legend { display: flex; align-items: center; gap: 4px; }
-        .habit-legend i { width: 12px; height: 12px; border-radius: 3px; }
-        @media (max-width: 640px) {
-          .habit-header { align-items: flex-start; }
-          .habit-header p { max-width: 230px; }
-          .habit-section { padding: 15px; }
-          .habit-section-title { align-items: flex-start; }
-          .habit-row { grid-template-columns: 26px minmax(0, 1fr) auto; }
-          .habit-repeat-days { grid-column: 2 / -1; grid-row: 2; }
-          .habit-actions button { width: 27px; }
-          .habit-activity-footer { align-items: flex-start; flex-direction: column; }
-        }
-      `}</style>
+
     </div>
   )
 }

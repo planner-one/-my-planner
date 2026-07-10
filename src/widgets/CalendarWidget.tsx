@@ -1,5 +1,5 @@
 import { useState, useEffect, type ReactNode, type CSSProperties } from 'react'
-import { createPortal } from 'react-dom'
+import { CheckCircle2, ChevronLeft, ChevronRight, Circle, ExternalLink, Plus } from 'lucide-react'
 import { useWidgetSize } from '../hooks/useWidgetSize'
 import { useApp } from '../store/AppContext'
 import { useRouter } from '../store/RouterContext'
@@ -11,26 +11,22 @@ import {
   syncCareerEventDateFields,
 } from '../utils/careerEvents'
 import { getCalendarLinkedItems, makeCalendarDays } from '../utils/calendar'
+import { useConfirm } from '../components/ui/ConfirmProvider'
+import { Modal } from '../components/ui/Modal'
+import { Button } from '../components/ui/Button'
+import { IconButton } from '../components/ui/IconButton'
 import type { Todo, ScheduledTask, CareerEvent, CareerEventCategory, CareerEventStatus, CareerMilestone, Goal, Project, Task } from '../types'
 
 export function CalendarActions() {
   const { setPage } = useRouter()
   return (
-    <button
-      type="button"
+    <IconButton
       onClick={() => setPage('calendar')}
-      title="캘린더 관리"
-      aria-label="캘린더 관리"
-      style={{
-        width: 26, height: 26, padding: 0,
-        border: '1px solid var(--border)', borderRadius: 6,
-        background: 'transparent', color: 'var(--accent)',
-        fontSize: 14, fontWeight: 800, cursor: 'pointer',
-        display: 'grid', placeItems: 'center', flexShrink: 0,
-      }}
-    >
-      ↗
-    </button>
+      label="캘린더 관리"
+      icon={<ExternalLink size={14} />}
+      size="sm"
+      variant="secondary"
+    />
   )
 }
 
@@ -119,50 +115,33 @@ function YearMonthPicker({
 }) {
   const [pickerYear, setPickerYear] = useState(year)
 
-  return createPortal(
-    <div onClick={onClose} style={{
-      position: 'fixed', inset: 0, zIndex: 9998,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'rgba(0,0,0,0.3)',
-    }}>
-      <div onClick={e => e.stopPropagation()} style={{
-        background: 'var(--bg2)', border: '1px solid var(--border)',
-        borderRadius: 14, padding: 20, width: 260,
-        boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-      }}>
-        {/* 연도 선택 */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <button onClick={() => setPickerYear(y => y - 1)} style={navBtnStyle}>‹</button>
-          <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{pickerYear}년</span>
-          <button onClick={() => setPickerYear(y => y + 1)} style={navBtnStyle}>›</button>
+  return (
+    <Modal open onClose={onClose} title="월 선택" description={`${pickerYear}년`} size="sm">
+      <div className="calendar-widget-year-picker">
+        <div className="calendar-widget-year-controls">
+          <IconButton label="이전 연도" icon={<ChevronLeft size={17} />} size="sm" onClick={() => setPickerYear(value => value - 1)} />
+          <strong>{pickerYear}년</strong>
+          <IconButton label="다음 연도" icon={<ChevronRight size={17} />} size="sm" onClick={() => setPickerYear(value => value + 1)} />
         </div>
-        {/* 월 선택 */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+        <div className="calendar-widget-month-grid">
           {MONTH_NAMES.map((name, i) => {
             const isActive = pickerYear === year && i === month
             return (
-              <button key={i} onClick={() => { onSelect(pickerYear, i); onClose() }} style={{
-                padding: '8px 0', borderRadius: 8, border: 'none', cursor: 'pointer',
-                background: isActive ? 'var(--accent)' : 'var(--bg3)',
-                color: isActive ? '#fff' : 'var(--text)',
-                fontSize: 13, fontWeight: isActive ? 700 : 400,
-                transition: 'background 0.12s',
-              }}>
+              <button
+                key={name}
+                type="button"
+                className={isActive ? 'active' : undefined}
+                aria-pressed={isActive}
+                onClick={() => { onSelect(pickerYear, i); onClose() }}
+              >
                 {name}
               </button>
             )
           })}
         </div>
       </div>
-    </div>,
-    document.body
+    </Modal>
   )
-}
-
-const navBtnStyle: CSSProperties = {
-  border: 'none', background: 'transparent', cursor: 'pointer',
-  color: 'var(--muted)', fontSize: 18, padding: '0 8px',
-  display: 'flex', alignItems: 'center',
 }
 
 const calendarSelectStyle: CSSProperties = {
@@ -213,13 +192,13 @@ function ItemForm({
 
   return (
     <div style={{
-      background: 'var(--bg3)', borderRadius: 10, padding: 12,
+      background: 'var(--bg3)', borderRadius: 8, padding: 12,
       display: 'flex', flexDirection: 'column', gap: 8,
     }}>
       {initial.mode === 'add' && (
         <div style={{ display: 'flex', gap: 6 }}>
           {(['scheduled', 'todo', 'career'] as FormType[]).map(t => (
-            <button key={t} onClick={() => set('type', t)} style={{
+            <button type="button" key={t} onClick={() => set('type', t)} style={{
               flex: 1, padding: '5px 0', borderRadius: 6, border: 'none', cursor: 'pointer',
               background: form.type === t ? 'var(--accent)' : 'var(--bg4)',
               color: form.type === t ? '#fff' : 'var(--muted)',
@@ -438,7 +417,7 @@ function ItemForm({
       {form.type === 'todo' && (
         <div style={{ display: 'flex', gap: 6 }}>
           {([['high','⭐ 중요'],['medium','보통'],['low','낮음']] as [Todo['priority'],string][]).map(([p, label]) => (
-            <button key={p} onClick={() => set('priority', p)} style={{
+            <button type="button" key={p} onClick={() => set('priority', p)} style={{
               flex: 1, padding: '5px 0', borderRadius: 6, border: 'none', cursor: 'pointer',
               background: form.priority === p ? (p === 'high' ? 'var(--accent)' : 'var(--bg4)') : 'var(--bg4)',
               color: form.priority === p ? (p === 'high' ? '#fff' : 'var(--text)') : 'var(--muted)',
@@ -451,7 +430,7 @@ function ItemForm({
       )}
 
       <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
-        <button
+        <button type="button"
           onClick={() => form.title.trim() && onSave(form)}
           style={{
             flex: 1, padding: '7px 0', borderRadius: 7, border: 'none', cursor: 'pointer',
@@ -460,14 +439,14 @@ function ItemForm({
           저장
         </button>
         {onDelete && (
-          <button onClick={onDelete} style={{
+          <button type="button" onClick={onDelete} style={{
             padding: '7px 12px', borderRadius: 7, border: '1px solid var(--border)',
             background: 'transparent', color: '#e05252', fontSize: 13, cursor: 'pointer',
           }}>
             삭제
           </button>
         )}
-        <button onClick={onCancel} style={{
+        <button type="button" onClick={onCancel} style={{
           padding: '7px 12px', borderRadius: 7, border: '1px solid var(--border)',
           background: 'transparent', color: 'var(--muted)', fontSize: 13, cursor: 'pointer',
         }}>
@@ -501,6 +480,7 @@ interface ModalProps {
 }
 
 function DayModal(props: ModalProps) {
+  const confirm = useConfirm()
   const { date, holiday, todos, scheduled, career, tasks, goals, projects, onClose } = props
   const dateStr = toDateStr(date)
   const dateLabel = date.toLocaleDateString('ko-KR', { year:'numeric', month:'long', day:'numeric', weekday:'long' })
@@ -620,14 +600,22 @@ function DayModal(props: ModalProps) {
       display:'flex', alignItems:'center', gap:8,
       padding:'8px 10px', borderRadius:8, background:'var(--bg3)',
       cursor: onEdit ? 'pointer' : 'default',
-    }} onClick={onEdit}>
+    }} onClick={onEdit} role={onEdit ? 'button' : undefined} tabIndex={onEdit ? 0 : undefined}
+      onKeyDown={event => {
+        if (onEdit && (event.key === 'Enter' || event.key === ' ')) {
+          event.preventDefault()
+          onEdit()
+        }
+      }}>
       {onToggle && (
         <button
+          type="button"
+          aria-label={done ? `${text} 완료 취소` : `${text} 완료`}
           onClick={e => { e.stopPropagation(); onToggle() }}
           style={{ border:'none', background:'transparent', cursor:'pointer',
             fontSize:14, color: done ? 'var(--accent)' : 'var(--border)', padding:0, flexShrink:0 }}
         >
-          {done ? '✓' : '○'}
+          {done ? <CheckCircle2 size={15} /> : <Circle size={15} />}
         </button>
       )}
       <div style={{ flex:1, minWidth:0 }}>
@@ -660,41 +648,18 @@ function DayModal(props: ModalProps) {
 
   const hasAnything = important.length + scheduled.length + career.length + tasks.length + normal.length + goals.length + projects.length > 0
 
-  return createPortal(
-    <div onClick={onClose} style={{
-      position:'fixed', inset:0, zIndex:9999,
-      background:'rgba(0,0,0,0.4)',
-      display:'flex', alignItems:'center', justifyContent:'center',
-    }}>
-      <div onClick={e => e.stopPropagation()} style={{
-        background:'var(--bg2)', borderRadius:16,
-        border:'1px solid var(--border)',
-        width:380, maxWidth:'92vw', maxHeight:'82vh',
-        display:'flex', flexDirection:'column',
-        boxShadow:'0 8px 32px rgba(0,0,0,0.25)',
-      }}>
-        {/* 헤더 */}
-        <div style={{
-          padding:'14px 16px 12px',
-          borderBottom:'1px solid var(--border)',
-          display:'flex', flexDirection:'column', gap:2, flexShrink:0,
-        }}>
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-            <span style={{ fontSize:15, fontWeight:700, color:'var(--text)', letterSpacing:0 }}>
-              {dateLabel}
-            </span>
-            <button onClick={onClose} style={{
-              border:'none', background:'transparent', cursor:'pointer',
-              color:'var(--muted)', fontSize:18, lineHeight:1, padding:'0 2px',
-            }}>✕</button>
-          </div>
-          {holiday && (
-            <span style={{ fontSize:12, color:'#e05252', fontWeight:600 }}>🇰🇷 {holiday}</span>
-          )}
-        </div>
-
-        {/* 본문 */}
-        <div style={{ padding:'14px 16px', overflowY:'auto', flex:1 }}>
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={dateLabel}
+      description={holiday ? `공휴일 · ${holiday}` : undefined}
+      size="sm"
+      footer={!form ? (
+        <Button icon={<Plus size={16} />} onClick={startAdd}>항목 추가</Button>
+      ) : undefined}
+    >
+      <div className="calendar-widget-day-content">
           {!hasAnything && !form && (
             <div style={{ textAlign:'center', color:'var(--muted)', fontSize:13, padding:'20px 0' }}>
               이 날의 일정이 없어요
@@ -800,9 +765,15 @@ function DayModal(props: ModalProps) {
             <ItemForm
               initial={form}
               onSave={handleSave}
-              onDelete={form.mode === 'edit' ? () => {
+              onDelete={form.mode === 'edit' ? async () => {
                 const label = form.type === 'todo' ? '할 일' : form.type === 'career' ? '기회 일정' : '예정 작업'
-                if (!window.confirm(`이 ${label}을 삭제할까요?`)) return
+                const accepted = await confirm({
+                  title: `${label} 삭제`,
+                  description: `선택한 ${label}을 삭제합니다.`,
+                  confirmLabel: '삭제',
+                  danger: true,
+                })
+                if (!accepted) return
                 if (form.type === 'todo') props.onDeleteTodo(form.id!)
                 else if (form.type === 'career') props.onDeleteCareer(form.id!)
                 else props.onDeleteScheduled(form.id!)
@@ -811,24 +782,8 @@ function DayModal(props: ModalProps) {
               onCancel={() => setForm(null)}
             />
           )}
-        </div>
-
-        {/* 하단 추가 버튼 */}
-        {!form && (
-          <div style={{ padding:'10px 16px 14px', borderTop:'1px solid var(--border)', flexShrink:0 }}>
-            <button onClick={startAdd} style={{
-              width:'100%', padding:'9px 0', borderRadius:9,
-              border:'1px dashed var(--border)', background:'transparent',
-              color:'var(--muted)', fontSize:13, cursor:'pointer',
-              display:'flex', alignItems:'center', justifyContent:'center', gap:6,
-            }}>
-              <span style={{ fontSize:16, lineHeight:1 }}>+</span> 항목 추가
-            </button>
-          </div>
-        )}
       </div>
-    </div>,
-    document.body
+    </Modal>
   )
 }
 
@@ -937,10 +892,10 @@ export default function CalendarWidget() {
             height: HEADER_H, display:'flex', alignItems:'center',
             justifyContent:'space-between', padding: compact ? '0 4px' : '0 8px', flexShrink:0,
           }}>
-            <button onClick={prevMonth} style={navBtnStyle}>‹</button>
+            <IconButton label="이전 달" icon={<ChevronLeft size={17} />} size="sm" onClick={prevMonth} />
 
             <div style={{ display:'flex', alignItems:'center', gap: compact ? 3 : 8 }}>
-              <button
+              <button type="button"
                 onClick={() => setShowPicker(true)}
                 style={{
                   border:'none', background:'transparent', cursor:'pointer',
@@ -951,7 +906,7 @@ export default function CalendarWidget() {
                 {year}년 {month + 1}월
               </button>
               {(year !== today.getFullYear() || month !== today.getMonth()) && (
-                <button onClick={goToday} style={{
+                <button type="button" onClick={goToday} style={{
                   border:'1px solid var(--border)', background:'transparent', cursor:'pointer',
                   fontSize:11, color:'var(--muted)', borderRadius:5, padding:'2px 8px',
                 }}>
@@ -960,7 +915,7 @@ export default function CalendarWidget() {
               )}
             </div>
 
-            <button onClick={nextMonth} style={navBtnStyle}>›</button>
+            <IconButton label="다음 달" icon={<ChevronRight size={17} />} size="sm" onClick={nextMonth} />
           </div>
 
           {/* 요일 */}

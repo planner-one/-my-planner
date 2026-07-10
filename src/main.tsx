@@ -1,5 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+import { AppErrorBoundary } from './components/AppErrorBoundary'
 import './index.css'
 
 const rootElement = document.getElementById('root')
@@ -25,7 +26,9 @@ async function bootstrap() {
     const { default: App } = await import('./App')
     root.render(
       <React.StrictMode>
-        <App />
+        <AppErrorBoundary>
+          <App />
+        </AppErrorBoundary>
       </React.StrictMode>,
     )
   } catch (error) {

@@ -2,6 +2,10 @@ import { useState } from 'react'
 import { useApp } from '../store/AppContext'
 import type { CareerEvent, CareerEventCategory, CareerEventStatus, CareerMilestone, CareerMilestoneType } from '../types'
 import LinkOrganizerModal from '../components/LinkOrganizerModal'
+import { Drawer } from '../components/ui/Drawer'
+import { Button } from '../components/ui/Button'
+import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { PageHeader } from '../components/ui/PageHeader'
 import type { LinkAnalysisDraft } from '../services/linkAnalysisService'
 import { toLocalDateKey } from '../utils/date'
 import {
@@ -430,6 +434,7 @@ export default function CareerEvents() {
   const [showPast, setShowPast] = useState(false)
   const [careerCodexText, setCareerCodexText] = useState('')
   const [careerCodexStatus, setCareerCodexStatus] = useState('')
+  const [deleteId, setDeleteId] = useState<string | null>(null)
 
   const resetCareerCodex = () => {
     setCareerCodexText('')
@@ -606,9 +611,13 @@ export default function CareerEvents() {
   }
 
   const remove = (id: string) => {
-    if (!window.confirm('이 기회 일정을 삭제할까요?')) return
-    setCareerEvents(previous => previous.filter(item => item.id !== id))
-    if (editingId === id) {
+    setDeleteId(id)
+  }
+
+  const confirmRemove = () => {
+    if (!deleteId) return
+    setCareerEvents(previous => previous.filter(item => item.id !== deleteId))
+    if (editingId === deleteId) {
       setEditingId(null)
       setForm(emptyForm())
       setEditorOpen(false)
@@ -765,16 +774,16 @@ export default function CareerEvents() {
 
   return (
     <div className="career-page">
-      <header className="career-header">
-        <div>
-          <h2>기회 일정</h2>
-          <p>채용 설명회, 교육, 행사, 공모전, 프로그램처럼 외부 기회와 관련된 일정을 관리합니다.</p>
-        </div>
-        <div className="career-header-actions">
-          <button type="button" className="career-link-button" onClick={openLinkImportForNew}>링크에서 추가</button>
-          <button type="button" className="career-add-button" onClick={openNewEditor}>일정 추가</button>
-        </div>
-      </header>
+      <PageHeader
+        title="기회 일정"
+        description="공모전, 교육, 설명회와 프로그램의 다음 단계를 놓치지 않게 관리합니다."
+        actions={(
+          <>
+            <Button variant="secondary" onClick={openLinkImportForNew}>링크에서 추가</Button>
+            <Button onClick={openNewEditor}>일정 추가</Button>
+          </>
+        )}
+      />
 
       <section className="career-summary-grid" aria-label="기회 일정 요약">
         <SummaryCard label="진행 중" value={openCount} sub="관심~선정" />
@@ -783,20 +792,21 @@ export default function CareerEvents() {
         <SummaryCard label="선정/확정" value={confirmedCount} sub="운영 준비" />
       </section>
 
-      {editorOpen && (
-        <div className="career-modal-backdrop" role="presentation" onMouseDown={event => {
-          if (event.target === event.currentTarget) closeEditor()
-        }}>
-          <section className="career-editor" role="dialog" aria-modal="true" aria-labelledby="career-editor-title">
-            <div className="career-editor-heading">
-              <div>
-                <h3 id="career-editor-title">{editingId ? '일정 수정' : '새 일정 추가'}</h3>
-                <p>필요한 항목만 입력해도 저장할 수 있습니다.</p>
-              </div>
-              <div className="career-editor-actions">
-                <button type="button" className="career-link-button" onClick={() => setLinkImportOpen(true)}>링크에서 불러오기</button>
-                <button type="button" className="career-close-button" aria-label="닫기" onClick={closeEditor}>×</button>
-              </div>
+      <Drawer
+        open={editorOpen}
+        onClose={closeEditor}
+        title={editingId ? '일정 수정' : '새 일정 추가'}
+        description="단계별 날짜와 필요한 정보를 확인한 뒤 저장합니다."
+        width="lg"
+        footer={(
+          <>
+            <Button variant="secondary" onClick={closeEditor}>취소</Button>
+            <Button onClick={save}>{editingId ? '수정 저장' : '일정 추가'}</Button>
+          </>
+        )}
+      >
+            <div className="career-editor-tools">
+              <Button variant="secondary" size="sm" onClick={() => setLinkImportOpen(true)}>링크에서 불러오기</Button>
             </div>
             <details className="career-codex-assist">
               <summary>
@@ -929,13 +939,17 @@ export default function CareerEvents() {
             <textarea value={form.note ?? ''} onChange={event => updateForm('note', event.target.value)} placeholder="준비물, 신청 마감, 확인할 내용" rows={3} />
           </label>
             </div>
-            <div className="career-form-actions">
-              <button type="button" className="secondary" onClick={closeEditor}>취소</button>
-              <button type="button" className="primary" onClick={save}>{editingId ? '수정 저장' : '일정 추가'}</button>
-            </div>
-          </section>
-        </div>
-      )}
+      </Drawer>
+
+      <ConfirmDialog
+        open={Boolean(deleteId)}
+        onClose={() => setDeleteId(null)}
+        onConfirm={confirmRemove}
+        title="기회 일정 삭제"
+        description={`'${careerEvents.find(item => item.id === deleteId)?.title ?? '선택한 일정'}'을 삭제합니다. 이 작업은 되돌릴 수 없습니다.`}
+        confirmLabel="삭제"
+        danger
+      />
 
       <LinkOrganizerModal
         open={linkImportOpen}
@@ -1012,120 +1026,7 @@ export default function CareerEvents() {
         </section>
       )}
 
-      <style>{`
-        .career-page { max-width: 1050px; margin: 0 auto; color: var(--text); display: flex; flex-direction: column; gap: 16px; }
-        .career-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
-        .career-header h2 { margin: 0 0 5px; font-size: 24px; letter-spacing: 0; }
-        .career-header p { margin: 0; color: var(--muted); font-size: 13px; }
-        .career-header-actions, .career-editor-actions { display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
-        .career-add-button { flex: 0 0 auto; border: 1px solid var(--accent); border-radius: 7px; background: var(--accent); color: #fff; padding: 9px 14px; font-size: 12px; font-weight: 700; cursor: pointer; }
-        .career-link-button { flex: 0 0 auto; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); padding: 9px 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
-        .career-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-        .career-summary-card { min-width: 0; padding: 12px 13px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); }
-        .career-summary-card span { display: block; color: var(--muted); font-size: 11px; font-weight: 800; }
-        .career-summary-card strong { display: block; margin-top: 5px; color: var(--text); font-size: 24px; line-height: 1.05; }
-        .career-summary-card small { color: var(--muted); font-size: 11px; }
-        .career-summary-card.urgent { border-color: rgba(224, 82, 82, 0.35); background: rgba(224, 82, 82, 0.08); }
-        .career-toolbar { display: grid; grid-template-columns: minmax(220px, 1fr) 170px auto auto; gap: 8px; align-items: center; }
-        .career-toolbar input, .career-toolbar select { min-width: 0; height: 36px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); padding: 0 10px; font-size: 13px; outline: none; }
-        .career-toolbar button { height: 36px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--muted); padding: 0 11px; cursor: pointer; font-size: 12px; }
-        .career-toolbar span { color: var(--muted); font-size: 12px; text-align: right; white-space: nowrap; }
-        .career-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 18px; background: rgba(0, 0, 0, 0.52); }
-        .career-editor { width: min(720px, 100%); max-height: min(820px, calc(100vh - 36px)); overflow-y: auto; padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.28); box-sizing: border-box; }
-        .career-editor-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
-        .career-editor-heading h3 { margin: 0 0 4px; font-size: 18px; letter-spacing: 0; }
-        .career-editor-heading p { margin: 0; color: var(--muted); font-size: 11px; }
-        .career-close-button { width: 32px; height: 32px; flex: 0 0 32px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--muted); font-size: 20px; line-height: 1; cursor: pointer; }
-        .career-codex-assist { margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); overflow: hidden; }
-        .career-codex-assist summary { min-height: 40px; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer; color: var(--text); font-size: 13px; font-weight: 800; }
-        .career-codex-assist summary::marker { color: var(--muted); }
-        .career-codex-assist summary small { border-radius: 999px; background: var(--bg3); color: var(--muted); padding: 4px 8px; font-size: 10px; font-weight: 900; white-space: nowrap; }
-        .career-codex-assist-body { border-top: 1px solid var(--border); padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
-        .career-codex-assist-body > div { display: flex; flex-wrap: wrap; gap: 8px; }
-        .career-codex-assist-body button { min-height: 34px; border: 0; border-radius: 7px; background: var(--accent); color: #fff; padding: 0 12px; font-size: 12px; font-weight: 800; cursor: pointer; }
-        .career-codex-assist-body button.secondary { border: 1px solid var(--border); background: var(--bg3); color: var(--text); }
-        .career-codex-assist-body textarea { width: 100%; min-width: 0; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); padding: 9px 10px; font: inherit; font-size: 13px; line-height: 1.5; resize: vertical; outline: none; box-sizing: border-box; }
-        .career-codex-assist-body small { color: var(--accent); font-size: 11px; font-weight: 800; }
-        .career-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-        .career-form-grid label { display: flex; flex-direction: column; gap: 5px; color: var(--muted); font-size: 11px; font-weight: 700; }
-        .career-weekdays { color: var(--accent); font-weight: 700; }
-        .career-form-grid .span-2 { grid-column: 1 / -1; }
-        .career-form-grid input, .career-form-grid select, .career-form-grid textarea { width: 100%; min-width: 0; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); padding: 9px 10px; font: inherit; font-size: 13px; outline: none; box-sizing: border-box; }
-        .career-form-grid textarea { resize: vertical; }
-        .career-milestone-editor { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); }
-        .career-milestone-editor-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-        .career-milestone-editor-head strong { color: var(--text); font-size: 13px; }
-        .career-milestone-editor-head div { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
-        .career-milestone-editor-head button, .career-empty-milestone, .career-milestone-remove { min-height: 32px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); padding: 0 10px; font-size: 12px; font-weight: 700; cursor: pointer; }
-        .career-milestone-editor-head button:not(.secondary) { border-color: var(--accent); background: var(--accent); color: #fff; }
-        .career-milestone-list { display: flex; flex-direction: column; gap: 7px; }
-        .career-milestone-row { display: grid; grid-template-columns: minmax(120px, 0.85fr) minmax(140px, 1fr) minmax(128px, 0.85fr) minmax(128px, 0.85fr) auto; gap: 7px; align-items: end; }
-        .career-milestone-remove { color: var(--red); }
-        .career-empty-milestone { width: 100%; border-style: dashed; color: var(--muted); }
-        .career-form-actions { display: flex; justify-content: flex-end; gap: 7px; margin-top: 12px; }
-        .career-form-actions button, .career-filters button, .career-actions button { border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); padding: 8px 11px; cursor: pointer; font-size: 12px; }
-        .career-form-actions .primary { border-color: var(--accent); background: var(--accent); color: #fff; font-weight: 700; }
-        .career-filters { display: flex; flex-wrap: wrap; gap: 5px; }
-        .career-filters button.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 700; }
-        .career-urgent-strip { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid rgba(224, 82, 82, 0.3); border-radius: 8px; background: rgba(224, 82, 82, 0.08); }
-        .career-urgent-strip strong { color: #e05252; font-size: 12px; }
-        .career-urgent-strip div { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 1px; }
-        .career-urgent-strip button { min-width: 150px; max-width: 220px; display: flex; align-items: center; gap: 6px; border: 1px solid rgba(224, 82, 82, 0.25); border-radius: 7px; background: var(--bg2); color: var(--text); padding: 7px 9px; cursor: pointer; }
-        .career-urgent-strip b { color: #e05252; font-size: 11px; flex: 0 0 auto; }
-        .career-urgent-strip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
-        .career-list { display: flex; flex-direction: column; gap: 8px; }
-        .career-item { display: grid; grid-template-columns: 92px minmax(0, 1fr) 190px; gap: 15px; align-items: start; padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); }
-        .career-date { display: flex; flex-direction: column; gap: 3px; color: var(--accent); }
-        .career-date strong { font-size: 18px; }
-        .career-date span { color: var(--muted); font-size: 12px; white-space: nowrap; }
-        .career-date em { color: var(--muted); font-size: 11px; font-style: normal; }
-        .career-date b { width: fit-content; margin-top: 3px; padding: 3px 6px; border-radius: 5px; background: var(--accent-soft); color: var(--accent); font-size: 11px; }
-        .career-main { min-width: 0; }
-        .career-item-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
-        .career-item-heading h3 { margin: 0; font-size: 17px; letter-spacing: 0; }
-        .career-item-heading span { padding: 4px 7px; border-radius: 5px; background: var(--bg3); color: var(--muted); font-size: 12px; }
-        .career-item-heading .status.confirmed, .career-item-heading .status.completed { color: var(--accent); background: var(--accent-soft); }
-        .career-item-heading .status.rejected, .career-item-heading .status.cancelled { color: var(--red); }
-        .career-main p { margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
-        .career-main .career-next { color: var(--accent); font-size: 12px; font-weight: 700; }
-        .career-details { display: flex; flex-wrap: wrap; gap: 5px 10px; margin-top: 8px; color: var(--muted); font-size: 12px; }
-        .career-milestones { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
-        .career-milestones span { padding: 4px 7px; border-radius: 5px; background: var(--accent-soft); color: var(--accent); font-size: 11px; font-weight: 700; }
-        .career-note { white-space: pre-wrap; }
-        .career-main a { display: inline-block; margin-top: 7px; color: var(--accent); font-size: 11px; font-weight: 700; }
-        .career-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
-        .career-actions select { grid-column: 1 / -1; min-width: 0; height: 34px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); padding: 0 8px; font-size: 12px; outline: none; }
-        .career-actions .danger { color: var(--red); }
-        .career-empty { padding: 45px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); color: var(--muted); text-align: center; }
-        @media (max-width: 700px) {
-          .career-header { align-items: center; }
-          .career-header-actions { flex-direction: column; align-items: stretch; }
-          .career-header p { max-width: 250px; }
-          .career-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-          .career-toolbar { grid-template-columns: 1fr; }
-          .career-toolbar span { text-align: left; }
-          .career-urgent-strip { grid-template-columns: 1fr; }
-          .career-modal-backdrop { align-items: end; padding: 10px; }
-          .career-editor { max-height: calc(100vh - 20px); padding: 14px; }
-          .career-codex-assist-body > div { flex-direction: column; align-items: stretch; }
-          .career-codex-assist-body button { width: 100%; }
-          .career-form-grid { grid-template-columns: 1fr; }
-          .career-form-grid .span-2 { grid-column: auto; }
-          .career-milestone-editor-head { align-items: stretch; flex-direction: column; }
-          .career-milestone-editor-head div { justify-content: stretch; }
-          .career-milestone-editor-head button { flex: 1 1 140px; }
-          .career-milestone-row { grid-template-columns: 1fr; }
-          .career-milestone-remove { width: 100%; }
-          .career-item { grid-template-columns: 1fr; gap: 8px; }
-          .career-date { flex-direction: row; align-items: baseline; gap: 8px; }
-          .career-actions { grid-template-columns: 1fr 1fr; }
-        }
-        .career-past { margin-top: 4px; }
-        .career-past-toggle { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg3); color: var(--muted); font-size: 12px; font-weight: 700; cursor: pointer; }
-        .career-past-caret { transition: transform 0.15s ease; }
-        .career-past-caret.open { transform: rotate(180deg); }
-        .career-list-past { margin-top: 8px; opacity: 0.75; }
-      `}</style>
+
     </div>
   )
 }

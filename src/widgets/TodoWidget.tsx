@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useApp } from '../store/AppContext'
 import type { Todo } from '../types'
 import { addLocalDays, toLocalDateKey } from '../utils/date'
+import { Plus, Trash2, X } from 'lucide-react'
 
 export const meta = {
   id: 'todo',
@@ -141,10 +142,10 @@ export default function TodoWidget() {
             padding: '4px 8px', outline: 'none',
           }}
         />
-        <button onClick={add} style={{
+        <button type="button" onClick={add} aria-label="Todo 추가" title="Todo 추가" style={{
           border: 'none', borderRadius: 6, background: 'var(--accent)',
           color: '#fff', fontSize: 13, padding: '4px 10px', cursor: 'pointer', flexShrink: 0,
-        }}>+</button>
+        }}><Plus size={15} aria-hidden="true" /></button>
       </div>
 
       {/* 날짜 선택 */}
@@ -152,7 +153,7 @@ export default function TodoWidget() {
         {DATE_OPTIONS.map(opt => {
           const active = dateScope === opt.id
           return (
-            <button key={opt.id} onClick={() => setDateScope(opt.id)} style={{
+            <button type="button" key={opt.id} onClick={() => setDateScope(opt.id)} style={{
               padding: '3px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer',
               border: active ? '1.5px solid var(--accent)' : '1.5px solid var(--border)',
               background: active ? 'var(--accent-soft)' : 'transparent',
@@ -172,7 +173,7 @@ export default function TodoWidget() {
           const active = filter === opt.id
           const color = opt.id !== 'all' ? CATEGORY_CONFIG[opt.id as Category].color : 'var(--accent)'
           return (
-            <button key={opt.id} onClick={() => setFilter(opt.id)} style={{
+            <button type="button" key={opt.id} onClick={() => setFilter(opt.id)} style={{
               padding: '3px 9px', borderRadius: 20, fontSize: 11, cursor: 'pointer',
               border: active ? `1.5px solid ${color}` : '1.5px solid var(--border)',
               background: active ? `${color}18` : 'transparent',
@@ -240,14 +241,14 @@ export default function TodoWidget() {
                       fontSize: 13, padding: '2px 6px', outline: 'none',
                     }}
                   />
-                  <button onClick={saveEdit} style={{
+                  <button type="button" onClick={saveEdit} style={{
                     border: 'none', background: 'var(--accent)', color: '#fff',
                     borderRadius: 5, fontSize: 11, padding: '2px 7px', cursor: 'pointer', flexShrink: 0,
                   }}>저장</button>
-                  <button onClick={cancelEdit} style={{
+                  <button type="button" onClick={cancelEdit} aria-label="편집 취소" title="편집 취소" style={{
                     border: 'none', background: 'transparent', color: 'var(--muted)',
                     fontSize: 13, padding: 0, cursor: 'pointer', lineHeight: 1, flexShrink: 0,
-                  }}>✕</button>
+                  }}><X size={14} aria-hidden="true" /></button>
                 </>
               ) : (
                 <>
@@ -269,10 +270,10 @@ export default function TodoWidget() {
                     }}
                   >{t.text}</span>
 
-                  <button onClick={() => remove(t.id)} style={{
+                  <button type="button" onClick={() => remove(t.id)} aria-label={`${t.text} 삭제`} title="삭제" style={{
                     border: 'none', background: 'transparent', color: 'var(--muted)',
                     cursor: 'pointer', fontSize: 15, padding: 0, lineHeight: 1, flexShrink: 0,
-                  }}>×</button>
+                  }}><Trash2 size={14} aria-hidden="true" /></button>
                 </>
               )}
             </div>

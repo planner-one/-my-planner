@@ -5,6 +5,7 @@ import 'react-resizable/css/styles.css'
 import { useApp } from '../store/AppContext'
 import { WIDGETS, WIDGET_MAP } from '../widgets'
 import type { LayoutItem } from '../types'
+import { GripVertical, Plus, Trash2 } from 'lucide-react'
 
 const COLS = 48
 const ROW_H = 40
@@ -188,7 +189,7 @@ export default function DashboardEditor({ onDone }: Props) {
                 return (
                   <div key={item.i} style={{
                     background: 'var(--bg2)', border: '1px solid var(--border)',
-                    borderRadius: 20, overflow: 'hidden',
+                    borderRadius: 8, overflow: 'hidden',
                     display: 'flex', flexDirection: 'column',
                     height: '100%',
                   }}>
@@ -200,7 +201,7 @@ export default function DashboardEditor({ onDone }: Props) {
                       background: 'var(--bg2)', userSelect: 'none',
                     }}>
                       <span style={{ fontSize: 13, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ letterSpacing: 0 }}>⠿⠿</span>
+                        <GripVertical size={15} aria-hidden="true" />
                         <span>{meta.icon} {meta.name}</span>
                       </span>
                       <button
@@ -221,7 +222,7 @@ export default function DashboardEditor({ onDone }: Props) {
                           touchAction: 'manipulation',
                         }}
                       >
-                        ✕
+                        <Trash2 size={15} aria-hidden="true" />
                       </button>
                     </div>
 
@@ -241,9 +242,9 @@ export default function DashboardEditor({ onDone }: Props) {
             <div style={{
               display: 'flex', flexDirection: 'column', alignItems: 'center',
               justifyContent: 'center', height: 200, color: 'var(--muted)', gap: 8,
-              border: '2px dashed var(--border)', borderRadius: 12,
+              border: '2px dashed var(--border)', borderRadius: 8,
             }}>
-              <span style={{ fontSize: 32 }}>➕</span>
+              <Plus size={32} aria-hidden="true" />
               <p>위젯 추가 패널에서 위젯을 추가해보세요.</p>
               <button type="button" onClick={() => setSidebarVisible(true)} style={{
                 padding: '7px 12px', borderRadius: 8, border: 'none',
@@ -257,7 +258,7 @@ export default function DashboardEditor({ onDone }: Props) {
         </div>
 
         {/* 위젯 추가 사이드바 */}
-        <div className="widget-add-panel" style={{
+        <div className={`widget-add-panel${sidebarVisible ? ' sidebar-open' : ''}`} style={{
           width: sidebarVisible ? 160 : 0,
           overflow: 'hidden',
           transition: 'width 0.2s ease',
@@ -265,7 +266,7 @@ export default function DashboardEditor({ onDone }: Props) {
         }}>
           <div style={{
             width: 160, background: 'var(--bg2)',
-            border: '1px solid var(--border)', borderRadius: 12,
+            border: '1px solid var(--border)', borderRadius: 8,
             padding: 12, maxHeight: 'calc(var(--app-viewport-height) - 150px)',
             overflowY: 'auto', boxSizing: 'border-box',
           }}>
@@ -287,69 +288,7 @@ export default function DashboardEditor({ onDone }: Props) {
           </div>
         </div>
       </div>
-      <style>{`
-        @media (max-width: 900px) {
-          .dashboard-editor {
-            padding: 0 12px 16px !important;
-          }
-          .editor-header {
-            align-items: flex-start !important;
-            gap: 10px;
-            flex-wrap: wrap;
-          }
-          .editor-header h2 {
-            font-size: 18px !important;
-          }
-          .editor-actions {
-            flex-wrap: wrap;
-            justify-content: flex-end;
-          }
-          .editor-layout {
-            flex-direction: column;
-          }
-          .widget-add-panel {
-            order: -1;
-            width: 100% !important;
-            max-height: ${sidebarVisible ? '260px' : '0'};
-            transition: max-height 0.2s ease;
-          }
-          .widget-add-panel > div {
-            width: 100% !important;
-            max-height: 240px !important;
-          }
-          .widget-add-panel > div > p {
-            margin-bottom: 10px !important;
-          }
-          .widget-add-panel button {
-            min-height: 38px;
-          }
-        }
-        @media (min-width: 560px) and (max-width: 900px) {
-          .widget-add-panel > div {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 6px;
-          }
-          .widget-add-panel > div > p {
-            grid-column: 1 / -1;
-          }
-          .widget-add-panel button {
-            margin-bottom: 0 !important;
-          }
-        }
-        @media (max-width: 560px) {
-          .editor-header {
-            display: block !important;
-          }
-          .editor-actions {
-            margin-top: 10px;
-            justify-content: flex-start;
-          }
-          .editor-actions button {
-            flex: 1 1 auto;
-          }
-        }
-      `}</style>
+
     </div>
   )
 }

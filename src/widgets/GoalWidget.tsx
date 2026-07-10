@@ -6,6 +6,9 @@ import { getTodayTopGoals, sortPriorityGoals } from '../utils/goals'
 import { toLocalDateKey } from '../utils/date'
 import QuickAddModal from '../components/QuickAddModal'
 import type { Goal, TopGoal } from '../types'
+import { Plus } from 'lucide-react'
+import { Button } from '../components/ui/Button'
+import { IconButton } from '../components/ui/IconButton'
 
 const TOP_GOAL_MAX = 6
 
@@ -22,21 +25,13 @@ function subscribeOpenGoalModal(listener: () => void) {
 
 export function GoalActions() {
   return (
-    <button
-      type="button"
+    <IconButton
       onClick={requestOpenGoalModal}
-      title="추가"
-      aria-label="추가"
-      style={{
-        width: 26, height: 26, padding: 0,
-        border: '1px solid var(--border)', borderRadius: 6,
-        background: 'transparent', color: 'var(--accent)',
-        fontSize: 14, fontWeight: 800, cursor: 'pointer',
-        display: 'grid', placeItems: 'center', flexShrink: 0,
-      }}
-    >
-      +
-    </button>
+      label="추가"
+      icon={<Plus size={14} />}
+      size="sm"
+      variant="secondary"
+    />
   )
 }
 
@@ -121,7 +116,7 @@ export default function GoalWidget() {
       {!hasAnyGoal ? (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center', justifyContent: 'center' }}>
           <span style={{ color: 'var(--muted)', fontSize: 12 }}>오늘 방향과 장기 목표를 추가하세요</span>
-          <button type="button" onClick={openModal} style={addButtonStyle}>+ 추가</button>
+          <Button size="sm" icon={<Plus size={14} />} onClick={openModal}>추가</Button>
         </div>
       ) : (
         <>
@@ -184,7 +179,7 @@ export default function GoalWidget() {
                     onClick={() => setPage('goals')}
                     style={{
                       minHeight: 0, flex: 1,
-                      border: 'none', borderRadius: 10,
+                      border: 'none', borderRadius: 8,
                       background: 'var(--bg3)', padding: compact ? '8px 9px' : '9px 10px',
                       cursor: 'pointer', textAlign: 'left',
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
@@ -252,18 +247,13 @@ export default function GoalWidget() {
             }}
           />
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 7 }}>
-            <button type="button" onClick={closeModal} style={modalSecondaryButtonStyle}>취소</button>
-            <button type="button" onClick={submitModal} style={modalPrimaryButtonStyle}>추가</button>
+            <Button variant="secondary" onClick={closeModal}>취소</Button>
+            <Button onClick={submitModal}>추가</Button>
           </div>
         </QuickAddModal>
       )}
     </div>
   )
-}
-
-const addButtonStyle: CSSProperties = {
-  border: 'none', borderRadius: 7, background: 'var(--accent)',
-  color: '#fff', fontSize: 12, fontWeight: 700, padding: '7px 12px', cursor: 'pointer',
 }
 
 const toggleButtonStyle = (active: boolean, disabled: boolean): CSSProperties => ({
@@ -273,13 +263,3 @@ const toggleButtonStyle = (active: boolean, disabled: boolean): CSSProperties =>
   fontSize: 13, fontWeight: 700, padding: '8px 10px',
   cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.5 : 1,
 })
-
-const modalPrimaryButtonStyle: CSSProperties = {
-  border: 'none', borderRadius: 7, background: 'var(--accent)',
-  color: '#fff', fontSize: 13, fontWeight: 700, padding: '8px 14px', cursor: 'pointer',
-}
-
-const modalSecondaryButtonStyle: CSSProperties = {
-  border: '1px solid var(--border)', borderRadius: 7, background: 'transparent',
-  color: 'var(--muted)', fontSize: 13, padding: '8px 14px', cursor: 'pointer',
-}
