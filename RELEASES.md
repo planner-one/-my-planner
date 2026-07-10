@@ -1,6 +1,6 @@
 # 릴리즈 노트
 
-_마지막 업데이트: 2026-07-10_
+_마지막 업데이트: 2026-07-11_
 
 플래너는 기능 범위와 안정화 단계를 기준으로 버전을 나눕니다.
 
@@ -254,6 +254,19 @@ _릴리즈일: 2026-07-10_
 - Vitest와 Testing Library 기반 공통 UI, 키보드 모달, 라우팅, 환경 검증 테스트 추가
 - 기존 Firestore 문서 구조와 기회 일정 `milestones` 하위 호환 규칙 유지
 
+## v0.3.19 - Application Data Guard
+
+_릴리즈일: 2026-07-11_
+
+핵심 변경:
+
+- 내 신청 저장 충돌에서 원격 `personalApplications` 기록이 빈 배열로 덮어써지지 않도록 병합 규칙 보강
+- 같은 신청 기록은 `updatedAt`/`createdAt` 기준으로 더 최신 수정본을 유지하고, 원격에만 있던 기록은 보존
+- `_lastSaved`가 없는 구버전 Firestore 문서도 직접 덮어쓰기 대신 트랜잭션 병합 경로 사용
+- 내 신청 로드 시 구버전/비정상 유형·상태 값을 안전한 기본값으로 보정하고, 객체형 저장값도 목록으로 복구
+- 내 신청 페이지에서 전체 기록 수와 표시 수를 분리해 검색/필터로 숨겨진 기록을 빈 목록으로 오해하지 않게 개선
+- `npm run check:user-data-merge`, `npm test`, `npm run build` 기준 검증
+
 ## v0.3.15 - Productivity Log Charts
 
 _릴리즈일: 2026-07-05_
@@ -274,7 +287,7 @@ _릴리즈일: 2026-07-05_
 
 상세 일정은 `UPDATE_SCHEDULE.md`를 기준으로 관리합니다.
 
-v0.3.19 Data Quality & AI Readiness 후보:
+v0.3.20 Data Quality & AI Readiness 후보:
 
 - `sourceUrl`, `keywords`, `createdAt`, `updatedAt`, 상태 변경 이력 기준 점검
 - 노트/지원 공고/내 신청/기회 일정 통합 검색 후보 설계

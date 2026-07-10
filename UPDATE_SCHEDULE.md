@@ -1,7 +1,7 @@
 # 플래너 업데이트 스케줄
 
 _작성일: 2026-07-04_
-_현재 기준: v0.3.18 Planner Experience Refresh_
+_현재 기준: v0.3.19 Application Data Guard_
 
 이 문서는 다음 업데이트 버전에서 무엇을 먼저 개선할지 기록하는 일정표입니다. 실제 구현은 사용자 확인 후 기능 하나씩 진행합니다.
 
@@ -17,7 +17,8 @@ _현재 기준: v0.3.18 Planner Experience Refresh_
 | v0.3.16 | Documentation & QA Baseline | 설계 감사 문서화, 오래된 문서 문구 정리, 자동 점검 후보 확정 | 완료 |
 | v0.3.17 | UI System Pass | 전체 UI 밀도, 카드/폼/패널 패턴, 모바일/태블릿 시각 QA 정리 | 완료 |
 | v0.3.18 | Planner Experience Refresh | 운영 안정성, 공통 UI, 탐색, 저장 피드백, 핵심 화면 UX 고도화 | 완료 |
-| v0.3.19 | Data Quality & AI Readiness | 키워드, 원본 링크, 상태 변경 이력, 검색/필터, 데이터 내보내기 준비 | 후보 |
+| v0.3.19 | Application Data Guard | 내 신청 저장 충돌, 구버전 문서 병합, 필터 숨김 상태 표시 보호 | 완료 |
+| v0.3.20 | Data Quality & AI Readiness | 키워드, 원본 링크, 상태 변경 이력, 검색/필터, 데이터 내보내기 준비 | 후보 |
 | v0.4.0 | Integration Ready | Firebase Functions 또는 백엔드 API 경계 도입, 운영 Reader/OCR 준비 | 후보 |
 | v0.5.0 | Paid Intelligence Candidate | 링크 자동 분석, AI 맞춤 추천, 사용량 제한, 유료 권한 설계 | 후보 |
 
@@ -106,7 +107,17 @@ _현재 기준: v0.3.18 Planner Experience Refresh_
 - 완료: Vitest/Testing Library 기반 공통 UI, 모달, 탐색, 환경 검증 테스트 추가
 - 남은 확인: 로그인된 실제 사용자 데이터로 18개 페이지, 15개 위젯, 4개 테마의 1440/1024/768/390px 육안 QA
 
-## v0.3.19 Data Quality & AI Readiness
+## v0.3.19 Application Data Guard
+
+목표: 내 신청 기록이 저장 충돌이나 구버전 문서 상태 때문에 사라진 것처럼 보이지 않게 보호합니다.
+
+- 완료: `_lastSaved`가 없는 기존 문서도 직접 덮어쓰기 대신 트랜잭션 병합 경로 사용
+- 완료: `personalApplications` 병합 시 원격 기록 보존, 최신 수정본 우선, 신규 항목 추가 유지
+- 완료: 내 신청 로드 시 구버전/비정상 유형·상태와 객체형 저장값을 안전하게 보정
+- 완료: 검색/필터로 기록이 숨겨진 경우 전체 기록 수와 전체 보기 액션 표시
+- 완료: `npm run check:user-data-merge`, `npm test`, `npm run build` 기준 검증
+
+## v0.3.20 Data Quality & AI Readiness
 
 목표: 추후 AI 맞춤 기능에 쓸 수 있는 데이터를 깨끗하게 쌓습니다.
 
@@ -180,5 +191,5 @@ _현재 기준: v0.3.18 Planner Experience Refresh_
 ## 다음 작업 제안
 
 1. 로그인된 실제 계정에서 v0.3.18 반응형·테마·위젯 육안 QA 완료
-2. v0.3.19 Data Quality & AI Readiness로 상태 이력, 통합 검색, 데이터 내보내기 범위 정리
+2. v0.3.20 Data Quality & AI Readiness로 상태 이력, 통합 검색, 데이터 내보내기 범위 정리
 3. v0.4.0 운영 Reader API 설계 여부 결정

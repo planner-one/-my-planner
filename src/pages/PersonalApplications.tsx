@@ -6,38 +6,17 @@ import { Button } from '../components/ui/Button'
 import { PageHeader } from '../components/ui/PageHeader'
 import type { PersonalApplication, PersonalApplicationStatus, PersonalApplicationType } from '../types'
 import { toLocalDateKey } from '../utils/date'
-
-const APPLICATION_TYPES: PersonalApplicationType[] = [
-  'savings', 'mentoring', 'welfare', 'youth_support',
-  'education', 'certificate', 'housing', 'other',
-]
-const APPLICATION_STATUSES: PersonalApplicationStatus[] = [
-  'interested', 'preparing', 'submitted', 'reviewing',
-  'selected', 'rejected', 'active', 'finished', 'cancelled',
-]
-
-const TYPE_LABELS: Record<PersonalApplicationType, string> = {
-  savings: '저축/통장',
-  mentoring: '멘토링',
-  welfare: '복지',
-  youth_support: '청년지원',
-  education: '교육/훈련',
-  certificate: '자격/증명',
-  housing: '주거',
-  other: '기타',
-}
-
-const STATUS_LABELS: Record<PersonalApplicationStatus, string> = {
-  interested: '관심',
-  preparing: '준비 중',
-  submitted: '신청 완료',
-  reviewing: '심사 중',
-  selected: '선정',
-  rejected: '탈락',
-  active: '진행 중',
-  finished: '종료',
-  cancelled: '취소',
-}
+import {
+  getPersonalApplicationStatusLabel,
+  getPersonalApplicationTypeLabel,
+  isPersonalApplicationOpen,
+  normalizePersonalApplicationStatus,
+  normalizePersonalApplicationType,
+  PERSONAL_APPLICATION_STATUSES as APPLICATION_STATUSES,
+  PERSONAL_APPLICATION_STATUS_LABELS as STATUS_LABELS,
+  PERSONAL_APPLICATION_TYPES as APPLICATION_TYPES,
+  PERSONAL_APPLICATION_TYPE_LABELS as TYPE_LABELS,
+} from '../utils/personalApplications'
 
 type Filter = 'all' | PersonalApplicationStatus
 
@@ -79,13 +58,10 @@ const dateBadge = (date?: string) => {
   return `${diff}일 남음`
 }
 
-const isOpen = (status: PersonalApplicationStatus) =>
-  !['rejected', 'finished', 'cancelled'].includes(status)
-
 const sortApplications = (items: PersonalApplication[]) =>
   [...items].sort((a, b) => {
-    const aOpen = isOpen(a.status)
-    const bOpen = isOpen(b.status)
+    const aOpen = isPersonalApplicationOpen(a.status)
+    const bOpen = isPersonalApplicationOpen(b.status)
     if (aOpen !== bOpen) return aOpen ? -1 : 1
     return dateDistance(a.deadline ?? a.resultDate ?? a.startDate) - dateDistance(b.deadline ?? b.resultDate ?? b.startDate)
   })
@@ -141,20 +117,30 @@ export default function PersonalApplications() {
     setSelectedId(previous => previous === deleteId ? null : previous)
   }
 
+  const resetFilters = () => {
+    setFilter('all')
+    setQuery('')
+  }
+
   const sorted = useMemo(() => sortApplications(personalApplications), [personalApplications])
   const visible = sorted.filter(item => {
-    const matchesFilter = filter === 'all' || item.status === filter
+    const normalizedStatus = normalizePersonalApplicationStatus(item.status)
+    const matchesFilter = filter === 'all' || normalizedStatus === filter
     const haystack = [
-      item.title, item.organization, TYPE_LABELS[item.type], STATUS_LABELS[item.status],
+      item.title, item.organization, getPersonalApplicationTypeLabel(item.type), getPersonalApplicationStatusLabel(item.status),
       item.nextAction, item.note, item.keywords?.join(' '),
     ].filter(Boolean).join(' ').toLowerCase()
     return matchesFilter && haystack.includes(query.trim().toLowerCase())
   })
-  const activeItems = personalApplications.filter(item => isOpen(item.status))
-  const submittedItems = personalApplications.filter(item => ['submitted', 'reviewing', 'selected', 'active'].includes(item.status))
-  const selectedItems = personalApplications.filter(item => item.status === 'selected' || item.status === 'active')
-  const upcoming = sorted.filter(item => isOpen(item.status) && item.deadline).slice(0, 3)
-  const nextAction = sorted.find(item => isOpen(item.status) && item.nextAction)
+  const activeItems = personalApplications.filter(item => isPersonalApplicationOpen(item.status))
+  const submittedItems = personalApplications.filter(item => ['submitted', 'reviewing', 'selected', 'active'].includes(normalizePersonalApplicationStatus(item.status)))
+  const selectedItems = personalApplications.filter(item => {
+    const status = normalizePersonalApplicationStatus(item.status)
+    return status === 'selected' || status === 'active'
+  })
+  const upcoming = sorted.filter(item => isPersonalApplicationOpen(item.status) && item.deadline).slice(0, 3)
+  const nextAction = sorted.find(item => isPersonalApplicationOpen(item.status) && item.nextAction)
+  const hasHiddenItems = personalApplications.length > 0 && visible.length === 0
   const selectedItem = selectedId
     ? personalApplications.find(item => item.id === selectedId) ?? null
     : null
@@ -177,14 +163,14 @@ export default function PersonalApplications() {
         <article className="next-application">
           <span>다음 행동</span>
           <strong>{nextAction?.nextAction ?? '등록된 다음 행동 없음'}</strong>
-          <p>{nextAction ? `${nextAction.title} · ${STATUS_LABELS[nextAction.status]}` : '서류 제출, 결과 확인, 납입 시작 같은 다음 행동을 적어두면 놓치기 쉽지 않습니다.'}</p>
+          <p>{nextAction ? `${nextAction.title} · ${getPersonalApplicationStatusLabel(nextAction.status)}` : '서류 제출, 결과 확인, 납입 시작 같은 다음 행동을 적어두면 놓치기 쉽지 않습니다.'}</p>
         </article>
         <article className="upcoming-applications">
           <span>다가오는 일정</span>
           {upcoming.length === 0 ? (
             <p>마감이 있는 신청이 없습니다.</p>
           ) : upcoming.map(item => (
-            <button key={item.id} type="button" onClick={() => setFilter(item.status)}>
+            <button key={item.id} type="button" onClick={() => setFilter(normalizePersonalApplicationStatus(item.status))}>
               <b>{dateBadge(item.deadline)}</b>
               <small>{item.title}</small>
             </button>
@@ -246,7 +232,7 @@ export default function PersonalApplications() {
             <h3>검색과 필터</h3>
             <p>기관, 상태, 키워드, 메모 기준으로 빠르게 좁혀봅니다.</p>
           </div>
-          <small>{visible.length}개 표시</small>
+          <small>전체 {personalApplications.length}개 · 표시 {visible.length}개</small>
         </div>
         <input value={query} onChange={event => setQuery(event.target.value)} placeholder="검색: 통장, 멘토링, 서류, 기관" />
         <div>
@@ -260,16 +246,26 @@ export default function PersonalApplications() {
 
       <section className="personal-list">
         {visible.length === 0 ? (
-          <p className="empty-text">관리할 신청 기록을 추가하세요.</p>
+          <div className="empty-text personal-empty-state">
+            {hasHiddenItems ? (
+              <>
+                <strong>검색/필터에 가려진 신청이 있습니다.</strong>
+                <span>전체 {personalApplications.length}개 중 현재 조건에 맞는 기록이 없습니다.</span>
+                <button type="button" onClick={resetFilters}>전체 보기</button>
+              </>
+            ) : (
+              <span>관리할 신청 기록을 추가하세요.</span>
+            )}
+          </div>
         ) : visible.map(item => (
-          <article key={item.id} className={`personal-card ${item.status}`}>
+          <article key={item.id} className={`personal-card ${normalizePersonalApplicationStatus(item.status)}`}>
             <button type="button" className="personal-card-open" onClick={() => setSelectedId(item.id)}>
               <div className="personal-card-top">
                 <div>
                   <h3>{item.title}</h3>
-                  <p>{item.organization || '기관 미정'} · {TYPE_LABELS[item.type]}</p>
+                  <p>{item.organization || '기관 미정'} · {getPersonalApplicationTypeLabel(item.type)}</p>
                 </div>
-                <span>{STATUS_LABELS[item.status]}</span>
+                <span>{getPersonalApplicationStatusLabel(item.status)}</span>
               </div>
               <div className="personal-card-tags">
                 <small>{item.deadline ? `마감 ${dateBadge(item.deadline)}` : '마감 없음'}</small>
@@ -291,7 +287,7 @@ export default function PersonalApplications() {
         open={Boolean(selectedItem)}
         onClose={() => setSelectedId(null)}
         title={selectedItem?.title ?? '신청 상세'}
-        description={selectedItem ? `${selectedItem.organization || '기관 미정'} · ${STATUS_LABELS[selectedItem.status]}` : undefined}
+        description={selectedItem ? `${selectedItem.organization || '기관 미정'} · ${getPersonalApplicationStatusLabel(selectedItem.status)}` : undefined}
         width="lg"
         footer={selectedItem && (
           <>
@@ -304,8 +300,8 @@ export default function PersonalApplications() {
           <div className="personal-detail-form">
             <label>이름<input value={selectedItem.title} onChange={event => updateItem(selectedItem.id, { title: event.target.value })} /></label>
             <label>기관<input value={selectedItem.organization ?? ''} onChange={event => updateItem(selectedItem.id, { organization: event.target.value })} /></label>
-            <label>유형<select value={selectedItem.type} onChange={event => updateItem(selectedItem.id, { type: event.target.value as PersonalApplicationType })}>{APPLICATION_TYPES.map(type => <option key={type} value={type}>{TYPE_LABELS[type]}</option>)}</select></label>
-            <label>상태<select value={selectedItem.status} onChange={event => updateItem(selectedItem.id, { status: event.target.value as PersonalApplicationStatus })}>{APPLICATION_STATUSES.map(status => <option key={status} value={status}>{STATUS_LABELS[status]}</option>)}</select></label>
+            <label>유형<select value={normalizePersonalApplicationType(selectedItem.type)} onChange={event => updateItem(selectedItem.id, { type: event.target.value as PersonalApplicationType })}>{APPLICATION_TYPES.map(type => <option key={type} value={type}>{TYPE_LABELS[type]}</option>)}</select></label>
+            <label>상태<select value={normalizePersonalApplicationStatus(selectedItem.status)} onChange={event => updateItem(selectedItem.id, { status: event.target.value as PersonalApplicationStatus })}>{APPLICATION_STATUSES.map(status => <option key={status} value={status}>{STATUS_LABELS[status]}</option>)}</select></label>
             <label>마감<input type="date" value={selectedItem.deadline ?? ''} onChange={event => updateItem(selectedItem.id, { deadline: event.target.value })} /></label>
             <label>신청일<input type="date" value={selectedItem.appliedDate ?? ''} onChange={event => updateItem(selectedItem.id, { appliedDate: event.target.value })} /></label>
             <label>결과일<input type="date" value={selectedItem.resultDate ?? ''} onChange={event => updateItem(selectedItem.id, { resultDate: event.target.value })} /></label>

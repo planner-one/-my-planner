@@ -87,6 +87,23 @@ try {
         date: '2026-07-05',
       }],
     }],
+    personalApplications: [
+      {
+        id: 'double-tomorrow',
+        title: '내일두배통장',
+        type: 'savings',
+        status: 'submitted',
+        deadline: '2026-07-20',
+        updatedAt: '2026-07-06T09:00:00.000Z',
+      },
+      {
+        id: 'mentor',
+        title: '기관 멘토링',
+        type: 'mentoring',
+        status: 'reviewing',
+        updatedAt: '2026-07-06T09:10:00.000Z',
+      },
+    ],
   }
 
   const staleIncoming = {
@@ -110,6 +127,23 @@ try {
       },
     ],
     todoHistory: [],
+    personalApplications: [
+      {
+        id: 'double-tomorrow',
+        title: '내일두배통장 서류 보완',
+        type: 'savings',
+        status: 'reviewing',
+        nextAction: '추가 서류 제출',
+        updatedAt: '2026-07-06T10:04:00.000Z',
+      },
+      {
+        id: 'housing-support',
+        title: '청년 주거 지원',
+        type: 'housing',
+        status: 'preparing',
+        updatedAt: '2026-07-06T10:03:00.000Z',
+      },
+    ],
   }
 
   const merged = mergeUserDataForStaleSave(remote, staleIncoming)
@@ -120,6 +154,25 @@ try {
   assert(!merged.todos.some(todo => todo.id === 'old-live'), 'old live todo already resolved in history should not be resurrected')
   assert(merged.todoHistory?.length === 1, 'remote todo history should be preserved')
   assert(merged.todoHistory?.[0].done === 1, 'completed remote history should remain completed')
+  assert(merged.personalApplications?.length === 3, 'remote and incoming personal applications should be merged')
+  assert(
+    merged.personalApplications?.find(item => item.id === 'double-tomorrow')?.title === '내일두배통장 서류 보완',
+    'newer personal application edit should win during stale-save merge',
+  )
+  assert(
+    merged.personalApplications?.some(item => item.id === 'mentor'),
+    'remote-only personal application should not disappear during stale-save merge',
+  )
+
+  const blankIncoming = {
+    _lastSaved: '2026-07-06T10:06:00.000Z',
+    personalApplications: [],
+  }
+  const mergedBlank = mergeUserDataForStaleSave(remote, blankIncoming)
+  assert(
+    mergedBlank.personalApplications?.length === remote.personalApplications.length,
+    'blank incoming personal applications should not wipe remote records',
+  )
 
   console.log('User data stale-save merge checks passed.')
 } finally {

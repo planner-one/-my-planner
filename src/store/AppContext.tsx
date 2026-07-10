@@ -12,6 +12,7 @@ import {
   DEFAULT_CAREER_CATEGORY, DEFAULT_CAREER_STATUS,
   isCareerEventCategory, isCareerEventStatus, syncCareerEventDateFields,
 } from '../utils/careerEvents'
+import { migratePersonalApplications } from '../utils/personalApplications'
 import type {
   Todo, TodoDailyResult, DeletedTodoDailyResult, Habit, Task, Goal, Project, TopGoal, Counters,
   Note, QuickMemoEntry, WeekTask, ScheduledTask, CareerEvent, JournalEntry, LayoutItem, UserData,
@@ -126,17 +127,6 @@ const migrateCareerEvents = (careerEvents: UserData['careerEvents'] = []): Caree
     })
     return migrated as CareerEvent
   })
-
-const migratePersonalApplications = (items: UserData['personalApplications'] = []): PersonalApplication[] =>
-  (items as Array<Partial<PersonalApplication>>).map((item, index) => ({
-    ...item,
-    id: item.id ?? `personal-application-${Date.now()}-${index}`,
-    title: normalizeText(item.title, '이름 없는 신청'),
-    type: item.type ?? 'other',
-    status: item.status ?? 'interested',
-    documents: Array.isArray(item.documents) ? item.documents : [],
-    keywords: Array.isArray(item.keywords) ? item.keywords : [],
-  }))
 
 const migrateJobPostings = (items: UserData['jobPostings'] = []): JobPosting[] =>
   (items as Array<Partial<JobPosting>>).map((item, index) => ({

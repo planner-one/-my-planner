@@ -776,6 +776,10 @@
         .personal-detail-form textarea { padding: 10px; resize: vertical; line-height: 1.55; }
         .personal-detail-open-link { margin-right: auto; color: var(--accent); font-size: 12px; font-weight: 800; text-decoration: none; }
         .empty-text { grid-column: 1 / -1; margin: 0; padding: 36px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); color: var(--muted); text-align: center; }
+        .personal-empty-state { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        .personal-empty-state strong { color: var(--text); font-size: 14px; }
+        .personal-empty-state span { color: var(--muted); font-size: 12px; line-height: 1.5; }
+        .personal-empty-state button { min-height: 32px; border: 1px solid var(--accent); border-radius: 7px; background: var(--accent); color: #fff; padding: 0 12px; font-size: 12px; font-weight: 800; cursor: pointer; }
         @media (max-width: 980px) {
           .personal-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .personal-board, .personal-list { grid-template-columns: 1fr; }

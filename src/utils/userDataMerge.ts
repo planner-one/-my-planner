@@ -47,6 +47,28 @@ const mergeByIdRemoteFirst = <T extends Identified>(
   ]
 }
 
+const getPersonalApplicationTimestamp = (item: PersonalApplication) =>
+  item.updatedAt ?? item.createdAt
+
+const mergePersonalApplications = (
+  remoteItems: PersonalApplication[] = [],
+  incomingItems: PersonalApplication[] = [],
+): PersonalApplication[] => {
+  const incomingById = new Map(incomingItems.map(item => [item.id, item]))
+  const remoteIds = new Set(remoteItems.map(item => item.id))
+  const mergedRemote = remoteItems.map(remoteItem => {
+    const incomingItem = incomingById.get(remoteItem.id)
+    return incomingItem
+      ? byLatestIso(remoteItem, incomingItem, getPersonalApplicationTimestamp)
+      : remoteItem
+  })
+
+  return [
+    ...mergedRemote,
+    ...incomingItems.filter(item => !remoteIds.has(item.id)),
+  ]
+}
+
 const mergeStringUnion = (remoteItems: string[] = [], incomingItems: string[] = []) =>
   [...new Set([...remoteItems, ...incomingItems])]
 
@@ -257,7 +279,7 @@ export function mergeUserDataForStaleSave(
   merged.timeBlockData = mergeRecordRemoteFirst(remoteData.timeBlockData, incomingData.timeBlockData)
   merged.scheduledTasks = mergeByIdRemoteFirst(remoteData.scheduledTasks, incomingData.scheduledTasks)
   merged.careerEvents = mergeByIdRemoteFirst(remoteData.careerEvents, incomingData.careerEvents)
-  merged.personalApplications = mergeByIdRemoteFirst(remoteData.personalApplications, incomingData.personalApplications)
+  merged.personalApplications = mergePersonalApplications(remoteData.personalApplications, incomingData.personalApplications)
   merged.jobPostings = mergeByIdRemoteFirst(remoteData.jobPostings, incomingData.jobPostings)
   merged.journal = mergeJournal(remoteData.journal, incomingData.journal)
 
