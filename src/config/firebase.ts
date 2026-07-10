@@ -11,6 +11,14 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID as string,
 }
 
+const missingConfig = Object.entries(firebaseConfig)
+  .filter(([, value]) => !String(value ?? '').trim())
+  .map(([key]) => key)
+
+if (missingConfig.length > 0) {
+  throw new Error(`FIREBASE_CONFIG_MISSING:${missingConfig.join(',')}`)
+}
+
 const app = initializeApp(firebaseConfig)
 
 export const auth = getAuth(app)

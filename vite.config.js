@@ -1,6 +1,7 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { Buffer } from 'node:buffer'
+import { assertFirebaseEnv } from './scripts/env-validation.mjs'
 
 const READER_FIRST_HOSTS = ['sites.google.com', 'saramin.co.kr', 'incruit.com']
 
@@ -256,21 +257,26 @@ const jobPostingPageApi = () => ({
   },
 })
 
-export default defineConfig({
-  plugins: [react(), jobPostingPageApi()],
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (!id.includes('node_modules')) return undefined
-          if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/scheduler/')) return 'vendor-react'
-          if (id.includes('/firebase/') || id.includes('/@firebase/')) return 'vendor-firebase'
-          if (id.includes('/react-grid-layout/') || id.includes('/react-resizable/')) return 'vendor-grid'
-          if (id.includes('/chart.js/') || id.includes('/react-chartjs-2/')) return 'vendor-charts'
-          if (id.includes('/tesseract.js/') || id.includes('/tesseract.js-core/') || id.includes('/regenerator-runtime/')) return 'vendor-ocr'
-          return 'vendor'
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '')
+  assertFirebaseEnv(env)
+
+  return {
+    plugins: [react(), jobPostingPageApi()],
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes('node_modules')) return undefined
+            if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/scheduler/')) return 'vendor-react'
+            if (id.includes('/firebase/') || id.includes('/@firebase/')) return 'vendor-firebase'
+            if (id.includes('/react-grid-layout/') || id.includes('/react-resizable/')) return 'vendor-grid'
+            if (id.includes('/chart.js/') || id.includes('/react-chartjs-2/')) return 'vendor-charts'
+            if (id.includes('/tesseract.js/') || id.includes('/tesseract.js-core/') || id.includes('/regenerator-runtime/')) return 'vendor-ocr'
+            return 'vendor'
+          },
         },
       },
     },
-  },
+  }
 })

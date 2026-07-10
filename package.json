@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "check:env": "node scripts/check-env.mjs",
     "check:doc-sync": "node scripts/check-doc-sync.mjs",
     "check:job-draft": "node scripts/check-job-posting-draft.mjs",
     "check:todo-history": "node scripts/check-todo-history.mjs",
