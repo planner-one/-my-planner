@@ -215,6 +215,29 @@ _릴리즈일: 2026-07-05_
 - 하루 방향, 마감 작업, 시간 블록, 저널, 회고 기록을 같은 날짜 기준으로 함께 표시
 - `npm run check:productivity-log` 회귀 체크 추가
 
+## v0.3.16 - Documentation & QA Baseline
+
+_릴리즈일: 2026-07-09_
+
+핵심 변경:
+
+- `check:doc-sync`를 추가해 `package.json`, `src/version.ts`, `RELEASES.md`, `UPDATE_SCHEDULE.md`의 버전 기준과 `App`/`Router`/`PageShell`/`MenuWidget`/문서의 page id 일치를 자동 점검
+- 위젯 메타와 `REQUIREMENTS.md`, `SCENARIOS.md`의 위젯 목록도 함께 대조하도록 보강
+- 프로필 통합 인박스 반영 상태를 포함해 진행/요구사항/시나리오 문서를 현재 코드 기준으로 다시 정리
+- `내 신청`, `지원 공고`, `오늘 할 일`의 빠른 추가/검색 영역 밀도를 다듬어 입력과 필터 흐름을 더 또렷하게 정리
+- `npx tsc --noEmit`, `npm run build`, `npm run check:doc-sync` 기준 검증
+
+## v0.3.17 - UI System Pass
+
+_릴리즈일: 2026-07-09_
+
+핵심 변경:
+
+- `src/index.css`에 공통 패널, 섹션 헤더, 칩, 버튼, 입력 스타일 기준을 추가해 페이지별 밀도 차이를 줄였습니다.
+- `캘린더` 화면에 표시 항목 패널, 날짜 상세 메타 칩, 빠른 추가 패널, sticky agenda 구조를 적용해 월력과 오른쪽 상세 흐름을 더 분명하게 정리했습니다.
+- `오늘 할 일`, `내 신청`, `지원 공고`에서 먼저 적용한 빠른 추가/필터 밀도 보정과 `캘린더`의 패널 구조를 같은 UI System Pass 기준으로 묶었습니다.
+- `npm run check:doc-sync`, `npx tsc --noEmit`, `npm run build` 기준으로 검증했습니다.
+
 ## v0.3.15 - Productivity Log Charts
 
 _릴리즈일: 2026-07-05_
@@ -234,18 +257,6 @@ _릴리즈일: 2026-07-05_
 ## 다음 후보
 
 상세 일정은 `UPDATE_SCHEDULE.md`를 기준으로 관리합니다.
-
-v0.3.16 Documentation & QA Baseline 후보:
-
-- `PLANNER_SYSTEM_AUDIT_2026-07-04.md` 기준으로 설계/구현/데이터 감사 기록 유지
-- `NEXT_CHAT_HANDOFF.md`, `PROGRESS.md`, `REQUIREMENTS.md`, `SCENARIOS.md`의 오래된 상태 문구 제거
-- page id, 위젯 id, 버전, 데이터 필드 문서-코드 일치 자동 점검 후보 설계
-
-v0.3.17 UI System Pass 후보:
-
-- 지원 공고, 내 신청, 오늘 할 일처럼 정보량 많은 화면의 폼/카드/패널 밀도 개선
-- 공통 카드 반경, 패딩, 제목 크기, 입력/버튼 스타일 기준 정리
-- 모바일 390px, 태블릿 세로 768px, 태블릿 가로 1024px 실기기 QA 체크리스트 진행
 
 v0.3.18 Planner Flow Clarity 후보:
 

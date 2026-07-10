@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -31,6 +31,7 @@ try {
     process.platform === 'win32' ? 'node_modules/.bin/tsc.cmd' : './node_modules/.bin/tsc',
     [
       'src/utils/plannerBriefing.ts',
+      'src/utils/careerEvents.ts',
       '--target', 'ES2020',
       '--module', 'ES2020',
       '--moduleResolution', 'bundler',
@@ -44,6 +45,10 @@ try {
 
   const compiledPath = findFile(tmp, 'plannerBriefing.js')
   assert(compiledPath, 'compiled briefing utility was not found')
+  writeFileSync(
+    compiledPath,
+    readFileSync(compiledPath, 'utf8').replace("from './careerEvents'", "from './careerEvents.js'"),
+  )
 
   const {
     getPlannerDayBriefing,

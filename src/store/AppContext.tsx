@@ -10,7 +10,7 @@ import { createDefaultCounters, migrateCounters } from '../utils/counters'
 import { carryIncompleteTodosToDate, syncPastTodoHistory } from '../utils/todos'
 import {
   DEFAULT_CAREER_CATEGORY, DEFAULT_CAREER_STATUS,
-  isCareerEventCategory, isCareerEventStatus,
+  isCareerEventCategory, isCareerEventStatus, syncCareerEventDateFields,
 } from '../utils/careerEvents'
 import type {
   Todo, TodoDailyResult, DeletedTodoDailyResult, Habit, Task, Goal, Project, TopGoal, Counters,
@@ -102,19 +102,23 @@ const migrateProjects = (projects: UserData['projects'] = []): Project[] =>
   }))
 
 const migrateCareerEvents = (careerEvents: UserData['careerEvents'] = []): CareerEvent[] =>
-  (careerEvents as Array<Partial<CareerEvent>>).map((event, index) => ({
-    ...event,
-    id: event.id ?? `career-${Date.now()}-${index}`,
-    title: normalizeText(event.title, '제목 없음'),
-    category: isCareerEventCategory(event.category) ? event.category : DEFAULT_CAREER_CATEGORY,
-    status: isCareerEventStatus(event.status) ? event.status : DEFAULT_CAREER_STATUS,
-    date: event.date
+  (careerEvents as Array<Partial<CareerEvent>>).map((event, index) => {
+    const date = event.date
       ?? event.applicationDeadline
       ?? event.resultDate
       ?? event.operationStartDate
       ?? event.operationEndDate
-      ?? toLocalDateKey(),
-  }))
+      ?? toLocalDateKey()
+    const migrated = syncCareerEventDateFields({
+      ...event,
+      id: event.id ?? `career-${Date.now()}-${index}`,
+      title: normalizeText(event.title, '제목 없음'),
+      category: isCareerEventCategory(event.category) ? event.category : DEFAULT_CAREER_CATEGORY,
+      status: isCareerEventStatus(event.status) ? event.status : DEFAULT_CAREER_STATUS,
+      date,
+    })
+    return migrated as CareerEvent
+  })
 
 const migratePersonalApplications = (items: UserData['personalApplications'] = []): PersonalApplication[] =>
   (items as Array<Partial<PersonalApplication>>).map((item, index) => ({

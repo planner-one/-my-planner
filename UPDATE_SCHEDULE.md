@@ -1,7 +1,7 @@
 # 플래너 업데이트 스케줄
 
 _작성일: 2026-07-04_
-_현재 기준: v0.3.15 Productivity Log Charts_
+_현재 기준: v0.3.17 UI System Pass_
 
 이 문서는 다음 업데이트 버전에서 무엇을 먼저 개선할지 기록하는 일정표입니다. 실제 구현은 사용자 확인 후 기능 하나씩 진행합니다.
 
@@ -14,8 +14,8 @@ _현재 기준: v0.3.15 Productivity Log Charts_
 | v0.3.13 | Account Scoped Briefing | 내 계정 기준 브리핑 알림 설정과 Codex 자동화 범위 고정 | 완료 |
 | v0.3.14 | Productivity Day Log | 생산성 추이 점수의 날짜별 완료 기록 상세 | 완료 |
 | v0.3.15 | Productivity Log Charts | 생산성 기록 페이지 요약 UX와 추이/구성 그래프 보강 | 완료 |
-| v0.3.16 | Documentation & QA Baseline | 설계 감사 문서화, 오래된 문서 문구 정리, 자동 점검 후보 확정 | 후보 |
-| v0.3.17 | UI System Pass | 전체 UI 밀도, 카드/폼/패널 패턴, 모바일/태블릿 시각 QA 정리 | 후보 |
+| v0.3.16 | Documentation & QA Baseline | 설계 감사 문서화, 오래된 문서 문구 정리, 자동 점검 후보 확정 | 완료 |
+| v0.3.17 | UI System Pass | 전체 UI 밀도, 카드/폼/패널 패턴, 모바일/태블릿 시각 QA 정리 | 완료 |
 | v0.3.18 | Planner Flow Clarity | Todo/작업/프로젝트/목표/오늘 방향 역할을 더 선명하게 연결 | 후보 |
 | v0.3.19 | Data Quality & AI Readiness | 키워드, 원본 링크, 상태 변경 이력, 검색/필터, 데이터 내보내기 준비 | 후보 |
 | v0.4.0 | Integration Ready | Firebase Functions 또는 백엔드 API 경계 도입, 운영 Reader/OCR 준비 | 후보 |
@@ -77,20 +77,20 @@ _현재 기준: v0.3.15 Productivity Log Charts_
 - 완료된 기반: `NEXT_CHAT_HANDOFF.md`의 현재 HEAD, 로컬 상태, 최근 검증 기록 갱신
 - 완료된 기반: `PROGRESS.md`의 "다음 작업" 문구를 v0.3.11 이후 개선 순서 기준으로 정리
 - 완료된 기반: `RELEASES.md`의 오래된 v0.2.1 후보 정리
-- page id, 위젯 id, 문서 표를 자동 비교하는 스크립트 후보 설계
+- 완료: `npm run check:doc-sync`로 page id, 위젯 이름, 버전 기준의 문서-코드 자동 점검 추가
 - 완료된 기반: `vite.config.js`의 Reader URL 조합부를 KDB 인크루트 샘플 링크로 재검증하고 인크루트 `http` 대상 재시도 추가
 - `PLANNER_SYSTEM_AUDIT_2026-07-04.md`를 기준 감사 문서로 유지
+- 완료: 프로필 통합 인박스 반영 상태까지 포함해 주요 진행/요구사항/시나리오/릴리즈 문구를 현재 코드 기준으로 정리
 
 ## v0.3.17 UI System Pass
 
 목표: 기능은 많은데 화면이 복잡해지는 문제를 줄입니다.
 
-- 공통 카드/패널/입력/버튼 스타일 기준 정리
-- 대시보드 위젯 카드 반경과 페이지 카드 반경 통일 검토
-- 오늘 할 일, 지원 공고, 내 신청, 캘린더처럼 정보량 많은 화면의 밀도 조정
-- 모바일 390px, 태블릿 세로 768px, 태블릿 가로 1024px 실제 화면 체크
-- 긴 텍스트, 버튼, 날짜 입력, 셀렉트가 잘리지 않는지 확인
-- 사이드바/모바일 전체 메뉴의 진입 우선순위 재검토
+- 완료: `src/index.css`에 공통 패널/섹션 헤더/입력/버튼 밀도 기준 추가
+- 완료: `오늘 할 일`, `내 신청`, `지원 공고`의 빠른 추가/필터 밀도 보정 기준 유지
+- 완료: `캘린더`에 표시 항목 패널, 날짜 상세 메타, 빠른 추가 패널, sticky agenda 기준 적용
+- 완료: 월력/상세 패널의 카드 반경, 패딩, 버튼 높이, 입력 높이 기준을 1차 통일
+- 완료: `npm run build`, `npx tsc --noEmit`, `npm run check:doc-sync` 기준 검증
 
 ## v0.3.18 Planner Flow Clarity
 
@@ -163,6 +163,8 @@ _현재 기준: v0.3.15 Productivity Log Charts_
 | P0 | 운영 배포용 지원 공고 Reader API | `jobPostings`, `sourceUrl`, `imageText`, `note` |
 | 완료 | 로컬 Reader URL 조합부 재검증 | `vite.config.js`, `/api/job-posting-page` |
 | 완료 | Codex 지원공고 정밀 정리 보조 | `jobPostings`, `sourceUrl`, `imageText`, `note`, `keywords` |
+| 완료 | Codex 기회 일정 정밀 정리 보조 | `careerEvents`, `sourceUrl`, `url`, `note` |
+| 완료 | 기회 일정 단계형 일자 모델 | `careerEvents.milestones`, legacy date fields |
 | P0 | 실제 기기 반응형 QA 체크리스트 | 전체 페이지/위젯 |
 | P1 | 통합 검색 | Todo, 작업, 프로젝트, 목표, 노트, 신청, 공고 |
 | P1 | 내 신청/지원 공고 상태 변경 이력 | `personalApplications`, `jobPostings` |
@@ -183,7 +185,7 @@ _현재 기준: v0.3.15 Productivity Log Charts_
 
 ## 다음 작업 제안
 
-1. v0.3.16 문서/QA 기준 정리
-2. v0.3.17 UI System Pass 중 `지원 공고`, `내 신청`, `오늘 할 일`부터 화면 밀도 개선
-3. v0.3.18 Planner Flow Clarity로 목표/프로젝트/작업/오늘 방향 역할 정리
+1. v0.3.17 UI System Pass 중 `지원 공고`, `내 신청`, `오늘 할 일`부터 화면 밀도 개선
+2. v0.3.18 Planner Flow Clarity로 목표/프로젝트/작업/오늘 방향 역할 정리
+3. v0.3.19 Data Quality & AI Readiness로 상태 이력, 통합 검색, 데이터 내보내기 범위 정리
 4. v0.4.0 운영 Reader API 설계 여부 결정

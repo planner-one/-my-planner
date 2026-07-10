@@ -181,28 +181,61 @@ export default function PersonalApplications() {
       </section>
 
       <section className="personal-add">
-        <input
-          value={form.title}
-          onChange={event => setForm(prev => ({ ...prev, title: event.target.value }))}
-          onKeyDown={event => { if (event.key === 'Enter' && !event.nativeEvent.isComposing) addItem() }}
-          placeholder="예: 내일두배통장, 기관 멘토링"
-        />
-        <input
-          value={form.organization}
-          onChange={event => setForm(prev => ({ ...prev, organization: event.target.value }))}
-          placeholder="기관/주관처"
-        />
-        <select value={form.type} onChange={event => setForm(prev => ({ ...prev, type: event.target.value as PersonalApplicationType }))}>
-          {APPLICATION_TYPES.map(type => <option key={type} value={type}>{TYPE_LABELS[type]}</option>)}
-        </select>
-        <select value={form.status} onChange={event => setForm(prev => ({ ...prev, status: event.target.value as PersonalApplicationStatus }))}>
-          {APPLICATION_STATUSES.map(status => <option key={status} value={status}>{STATUS_LABELS[status]}</option>)}
-        </select>
-        <input type="date" value={form.deadline} onChange={event => setForm(prev => ({ ...prev, deadline: event.target.value }))} />
-        <button type="button" onClick={addItem}>추가</button>
+        <div className="personal-section-heading">
+          <div>
+            <h3>빠른 추가</h3>
+            <p>핵심 정보만 먼저 넣고, 상세는 아래 카드에서 이어서 정리합니다.</p>
+          </div>
+          <small>상태 추적 시작</small>
+        </div>
+        <div className="personal-add-grid">
+          <label>
+            <span>이름</span>
+            <input
+              value={form.title}
+              onChange={event => setForm(prev => ({ ...prev, title: event.target.value }))}
+              onKeyDown={event => { if (event.key === 'Enter' && !event.nativeEvent.isComposing) addItem() }}
+              placeholder="예: 내일두배통장, 기관 멘토링"
+            />
+          </label>
+          <label>
+            <span>기관</span>
+            <input
+              value={form.organization}
+              onChange={event => setForm(prev => ({ ...prev, organization: event.target.value }))}
+              placeholder="기관/주관처"
+            />
+          </label>
+          <label>
+            <span>유형</span>
+            <select value={form.type} onChange={event => setForm(prev => ({ ...prev, type: event.target.value as PersonalApplicationType }))}>
+              {APPLICATION_TYPES.map(type => <option key={type} value={type}>{TYPE_LABELS[type]}</option>)}
+            </select>
+          </label>
+          <label>
+            <span>상태</span>
+            <select value={form.status} onChange={event => setForm(prev => ({ ...prev, status: event.target.value as PersonalApplicationStatus }))}>
+              {APPLICATION_STATUSES.map(status => <option key={status} value={status}>{STATUS_LABELS[status]}</option>)}
+            </select>
+          </label>
+          <label>
+            <span>마감일</span>
+            <input type="date" value={form.deadline} onChange={event => setForm(prev => ({ ...prev, deadline: event.target.value }))} />
+          </label>
+          <div className="personal-add-action">
+            <button type="button" onClick={addItem}>추가</button>
+          </div>
+        </div>
       </section>
 
       <section className="personal-tools">
+        <div className="personal-section-heading compact">
+          <div>
+            <h3>검색과 필터</h3>
+            <p>기관, 상태, 키워드, 메모 기준으로 빠르게 좁혀봅니다.</p>
+          </div>
+          <small>{visible.length}개 표시</small>
+        </div>
         <input value={query} onChange={event => setQuery(event.target.value)} placeholder="검색: 통장, 멘토링, 서류, 기관" />
         <div>
           {(['all', ...APPLICATION_STATUSES] as Filter[]).map(status => (
@@ -265,7 +298,15 @@ export default function PersonalApplications() {
         .upcoming-applications button { border: 1px solid var(--border); border-radius: 8px; background: var(--bg3); color: var(--text); padding: 9px 10px; text-align: left; cursor: pointer; display: grid; gap: 3px; }
         .upcoming-applications b { color: var(--accent); font-size: 12px; }
         .upcoming-applications small { color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .personal-add { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) 130px 120px 138px auto; gap: 8px; padding: 12px; }
+        .personal-section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+        .personal-section-heading.compact { align-items: center; }
+        .personal-section-heading h3 { margin: 0 0 4px; font-size: 15px; letter-spacing: 0; }
+        .personal-section-heading p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+        .personal-section-heading small { flex-shrink: 0; color: var(--muted); font-size: 11px; font-weight: 900; white-space: nowrap; }
+        .personal-add { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+        .personal-add-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) 148px 128px 146px auto; gap: 8px; align-items: end; }
+        .personal-add-grid label { min-width: 0; display: flex; flex-direction: column; gap: 5px; color: var(--muted); font-size: 11px; font-weight: 800; }
+        .personal-add-action { display: flex; align-items: flex-end; }
         .personal-tools { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
         .personal-tools > div { display: flex; flex-wrap: wrap; gap: 6px; }
         .personal-tools button { min-height: 31px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg3); color: var(--muted); padding: 0 11px; font-size: 12px; cursor: pointer; }
@@ -292,10 +333,12 @@ export default function PersonalApplications() {
         @media (max-width: 980px) {
           .personal-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .personal-board, .personal-list { grid-template-columns: 1fr; }
-          .personal-add, .personal-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .personal-add-grid, .personal-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .personal-add-action { grid-column: 1 / -1; }
         }
         @media (max-width: 560px) {
-          .personal-summary, .personal-add, .personal-card-grid, .personal-card-grid.two { grid-template-columns: 1fr; }
+          .personal-summary, .personal-add-grid, .personal-card-grid, .personal-card-grid.two { grid-template-columns: 1fr; }
+          .personal-section-heading { flex-direction: column; }
           .personal-card-actions { align-items: flex-start; flex-direction: column; }
         }
       `}</style>

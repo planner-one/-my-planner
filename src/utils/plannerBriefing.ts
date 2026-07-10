@@ -5,6 +5,7 @@ import type {
   TopGoal,
   UserData,
 } from '../types'
+import { CAREER_CATEGORY_LABELS, getCareerMilestones } from './careerEvents'
 
 export type PlannerBriefingSectionId =
   | 'todos'
@@ -56,18 +57,6 @@ type PlannerBriefingSources = Pick<
   | 'projects'
 >
 
-const CAREER_CATEGORY_LABELS: Record<CareerEvent['category'], string> = {
-  briefing: '채용설명회',
-  interview: '면접',
-  camp: '직무캠프',
-  program: '교육/프로그램',
-  seminar: '행사/세미나',
-  contest: '공모전',
-  support: '지원사업',
-  corp_support: '기업 지원',
-  other: '기타',
-}
-
 const PERSONAL_STATUS_LABELS: Record<PersonalApplication['status'], string> = {
   interested: '관심',
   preparing: '준비 중',
@@ -104,21 +93,6 @@ const joinMeta = (values: Array<string | undefined | false | null>) =>
 
 const todoBelongsToDate = (todoDate: string | undefined, dateStr: string, todayStr: string) =>
   todoDate ? todoDate === dateStr : dateStr === todayStr
-
-const isWeekdayInRange = (dateStr: string, start?: string, end?: string) => {
-  if (!start || dateStr < start || dateStr > (end || start)) return false
-  const day = new Date(`${dateStr}T12:00:00`).getDay()
-  return day !== 0 && day !== 6
-}
-
-const getCareerMilestoneLabels = (event: CareerEvent, dateStr: string) => {
-  const labels: string[] = []
-  if (event.date === dateStr) labels.push('일정')
-  if (event.applicationDeadline === dateStr) labels.push('신청 마감')
-  if (event.resultDate === dateStr) labels.push('결과 발표')
-  if (isWeekdayInRange(dateStr, event.operationStartDate, event.operationEndDate)) labels.push('운영')
-  return labels
-}
 
 const getMatchingLabels = (
   dateStr: string,
@@ -178,10 +152,10 @@ export function getPlannerDayBriefing(
     }))
 
   const careerItems = (sources.careerEvents ?? [])
-    .filter(event => isOpenCareer(event) && getCareerMilestoneLabels(event, dateStr).length > 0)
+    .filter(event => isOpenCareer(event) && getCareerMilestones(event, dateStr).length > 0)
     .sort(byTimeThenTitle)
     .map(event => {
-      const milestones = getCareerMilestoneLabels(event, dateStr)
+      const milestones = getCareerMilestones(event, dateStr)
       return {
         id: event.id,
         title: event.title,

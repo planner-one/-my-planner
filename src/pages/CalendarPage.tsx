@@ -10,6 +10,7 @@ import {
   formatCareerDday,
   getCareerMilestones,
   getCareerNextMilestone,
+  syncCareerEventDateFields,
 } from '../utils/careerEvents'
 
 type SourceKey = keyof CalendarLinkedItems
@@ -33,6 +34,8 @@ const dateLabel = (dateKey: string) =>
 
 const monthLabel = (year: number, month: number) =>
   new Intl.DateTimeFormat('ko-KR', { year: 'numeric', month: 'long' }).format(new Date(year, month, 1))
+
+const isPastDate = (dateKey: string, todayKey: string) => dateKey < todayKey
 
 export default function CalendarPage() {
   const {
@@ -80,6 +83,7 @@ export default function CalendarPage() {
     total + getItems(date).personalApplications.length + getItems(date).jobPostings.length, 0)
   const selectedItems = getItems(selectedDate)
   const selectedTotal = visibleCount(selectedItems)
+  const activeSourceCount = SOURCE_ORDER.filter(source => visibleSources[source]).length
 
   const moveMonth = (amount: number) => {
     setViewDate(previous => new Date(previous.getFullYear(), previous.getMonth() + amount, 1))
@@ -110,13 +114,14 @@ export default function CalendarPage() {
   const addCareer = () => {
     const title = quickCareerTitle.trim()
     if (!title) return
-    setCareerEvents(previous => [...previous, {
+    const careerEvent = syncCareerEventDateFields({
       id: `calendar-career-${Date.now()}`,
       title,
       category: 'other',
       status: 'interested',
       date: selectedDate,
-    }])
+    })
+    setCareerEvents(previous => [...previous, careerEvent])
     setQuickCareerTitle('')
   }
 
@@ -253,6 +258,11 @@ export default function CalendarPage() {
     })),
   ].filter(entry => visibleSources[entry.source])
 
+  const selectedEntries = makeEntries(selectedItems)
+  const selectedDoneCount = selectedEntries.filter(entry => entry.done).length
+  const selectedActionCount = selectedEntries.length - selectedDoneCount
+  const selectedDatePast = isPastDate(selectedDate, todayKey)
+
   return (
     <div className="calendar-page">
       <header className="calendar-page-header">
@@ -276,16 +286,25 @@ export default function CalendarPage() {
       </section>
 
       <section className="calendar-source-filter" aria-label="캘린더 표시 항목">
-        {SOURCE_ORDER.map(source => (
-          <button
-            key={source}
-            type="button"
-            className={visibleSources[source] ? `active ${SOURCE_META[source].className}` : ''}
-            onClick={() => toggleSource(source)}
-          >
-            {SOURCE_META[source].label}
-          </button>
-        ))}
+        <div className="planner-section-heading compact">
+          <div>
+            <h3>표시 항목</h3>
+            <p>월력과 오른쪽 상세 패널에 보여줄 데이터 범위를 빠르게 조절합니다.</p>
+          </div>
+          <small>{activeSourceCount}/{SOURCE_ORDER.length}개 활성화</small>
+        </div>
+        <div className="calendar-source-filter-buttons">
+          {SOURCE_ORDER.map(source => (
+            <button
+              key={source}
+              type="button"
+              className={visibleSources[source] ? `active ${SOURCE_META[source].className}` : ''}
+              onClick={() => toggleSource(source)}
+            >
+              {SOURCE_META[source].label}
+            </button>
+          ))}
+        </div>
       </section>
 
       <section className="calendar-workspace">
@@ -329,41 +348,56 @@ export default function CalendarPage() {
           <div className="agenda-heading">
             <div>
               <h3>{dateLabel(selectedDate)}</h3>
-              <span>{selectedTotal}개 항목</span>
+              <span>{selectedTotal}개 항목 · {selectedDatePast ? '지난 날짜' : selectedDate === todayKey ? '오늘' : '다가오는 날짜'}</span>
             </div>
             <div className="agenda-actions">
-              <button type="button" onClick={() => setPage('career')}>기회 일정</button>
-              <button type="button" onClick={() => setPage('personalApplications')}>내 신청</button>
-              <button type="button" onClick={() => setPage('jobPostings')}>지원 공고</button>
+              <button type="button" className="planner-button secondary" onClick={() => setPage('career')}>기회 일정</button>
+              <button type="button" className="planner-button secondary" onClick={() => setPage('personalApplications')}>내 신청</button>
+              <button type="button" className="planner-button secondary" onClick={() => setPage('jobPostings')}>지원 공고</button>
             </div>
           </div>
 
+          <div className="agenda-meta">
+            <span className="planner-chip">남은 항목 {selectedActionCount}개</span>
+            <span className="planner-chip">완료/종료 {selectedDoneCount}개</span>
+            <span className="planner-chip">선택 소스 {activeSourceCount}개</span>
+          </div>
+
           <div className="quick-add-panel">
+            <div className="planner-section-heading compact">
+              <div>
+                <h3>빠른 추가</h3>
+                <p>선택한 날짜에 예정 작업이나 기회 일정을 바로 올립니다.</p>
+              </div>
+              <small>{selectedDate}</small>
+            </div>
             <div className="quick-add-row">
-              <input type="time" value={quickTime} onChange={event => setQuickTime(event.target.value)} aria-label="예정 작업 시간" />
+              <input className="planner-input" type="time" value={quickTime} onChange={event => setQuickTime(event.target.value)} aria-label="예정 작업 시간" />
               <input
+                className="planner-input"
                 value={quickTitle}
                 onChange={event => setQuickTitle(event.target.value)}
                 onKeyDown={event => { if (event.key === 'Enter' && !event.nativeEvent.isComposing) addScheduled() }}
                 placeholder="예정 작업 빠른 추가"
               />
-              <button type="button" onClick={addScheduled}>추가</button>
+              <button type="button" className="planner-button" onClick={addScheduled}>추가</button>
             </div>
             <div className="quick-add-row career">
               <input
+                className="planner-input"
                 value={quickCareerTitle}
                 onChange={event => setQuickCareerTitle(event.target.value)}
                 onKeyDown={event => { if (event.key === 'Enter' && !event.nativeEvent.isComposing) addCareer() }}
                 placeholder="기회 일정 빠른 추가"
               />
-              <button type="button" onClick={addCareer}>기회 추가</button>
+              <button type="button" className="planner-button" onClick={addCareer}>기회 추가</button>
             </div>
           </div>
 
           <div className="agenda-list">
-            {makeEntries(selectedItems).length === 0 ? (
+            {selectedEntries.length === 0 ? (
               <p className="empty-text">선택한 날짜에 표시할 항목이 없습니다.</p>
-            ) : makeEntries(selectedItems).map(entry => (
+            ) : selectedEntries.map(entry => (
               <article key={entry.key} className={`agenda-item ${SOURCE_META[entry.source].className}`}>
                 <span>{SOURCE_META[entry.source].label}</span>
                 <div>
@@ -383,18 +417,19 @@ export default function CalendarPage() {
         .calendar-page-header h2 { margin: 0 0 6px; font-size: 24px; letter-spacing: 0; }
         .calendar-page-header p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
         .calendar-page-controls { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 7px; }
-        .calendar-page-controls button, .agenda-heading button, .quick-add-panel button { height: 34px; border: 0; border-radius: 7px; background: var(--accent); color: #fff; padding: 0 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
+        .calendar-page-controls button { height: 34px; border: 0; border-radius: 7px; background: var(--accent); color: #fff; padding: 0 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
         .calendar-page-controls strong { min-width: 130px; text-align: center; font-size: 14px; }
         .calendar-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-        .calendar-summary-card { min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); }
+        .calendar-summary-card { min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg2); box-shadow: var(--shadow); }
         .calendar-summary-card span { display: block; color: var(--muted); font-size: 11px; font-weight: 800; }
         .calendar-summary-card strong { display: block; margin-top: 5px; font-size: 24px; line-height: 1.05; }
         .calendar-summary-card.urgent { border-color: rgba(224, 82, 82, 0.35); background: rgba(224, 82, 82, 0.08); }
-        .calendar-source-filter { display: flex; flex-wrap: wrap; gap: 6px; }
+        .calendar-source-filter { padding: 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg2); box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 10px; }
+        .calendar-source-filter-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
         .calendar-source-filter button { height: 32px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg3); color: var(--muted); padding: 0 12px; font-size: 12px; cursor: pointer; }
         .calendar-source-filter button.active { color: var(--text); font-weight: 800; }
-        .calendar-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 14px; align-items: start; }
-        .calendar-month-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--bg2); }
+        .calendar-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 14px; align-items: start; }
+        .calendar-month-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--bg2); box-shadow: var(--shadow); }
         .calendar-weekday { padding: 9px 6px; border-bottom: 1px solid var(--border); background: var(--bg3); color: var(--muted); font-size: 12px; font-weight: 800; text-align: center; }
         .calendar-day-cell { min-height: 128px; min-width: 0; border: 0; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); background: var(--bg2); color: var(--text); padding: 8px; text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 6px; }
         .calendar-day-cell:nth-child(7n + 7) { border-right: 0; }
@@ -413,15 +448,15 @@ export default function CalendarPage() {
         .calendar-event-dot.goals, .agenda-item.goals { border-color: #10b981; }
         .calendar-event-dot.projects, .agenda-item.projects { border-color: #0ea5e9; }
         .calendar-day-events small { color: var(--muted); font-size: 10px; }
-        .calendar-agenda { border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+        .calendar-agenda { border: 1px solid var(--border); border-radius: 10px; background: var(--bg2); padding: 14px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 12px; position: sticky; top: 0; }
         .agenda-heading { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
         .agenda-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
         .agenda-heading h3 { margin: 0 0 3px; font-size: 16px; letter-spacing: 0; }
         .agenda-heading span { color: var(--muted); font-size: 12px; }
-        .quick-add-panel { display: flex; flex-direction: column; gap: 7px; }
+        .agenda-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+        .quick-add-panel { display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg3); }
         .quick-add-row { display: grid; grid-template-columns: 86px minmax(0, 1fr) auto; gap: 6px; }
         .quick-add-row.career { grid-template-columns: minmax(0, 1fr) auto; }
-        .quick-add-row input { min-width: 0; height: 34px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); padding: 0 9px; font-size: 12px; outline: none; }
         .agenda-list { display: flex; flex-direction: column; gap: 7px; }
         .agenda-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 9px; border-left: 3px solid var(--accent); border-radius: 8px; background: var(--bg3); }
         .agenda-item > span { padding: 3px 7px; border-radius: 999px; background: var(--bg4); color: var(--muted); font-size: 10px; font-weight: 800; white-space: nowrap; }
@@ -437,7 +472,7 @@ export default function CalendarPage() {
           .calendar-page-controls { justify-content: flex-start; }
           .calendar-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .calendar-workspace { grid-template-columns: 1fr; }
-          .calendar-agenda { order: -1; }
+          .calendar-agenda { order: -1; position: static; }
         }
         @media (max-width: 640px) {
           .calendar-summary { grid-template-columns: 1fr; }
@@ -445,6 +480,8 @@ export default function CalendarPage() {
           .calendar-weekday, .calendar-day-cell { display: inline-flex; width: 132px; white-space: normal; vertical-align: top; box-sizing: border-box; }
           .calendar-weekday { justify-content: center; }
           .calendar-day-cell { min-height: 116px; }
+          .calendar-source-filter { padding: 12px; }
+          .agenda-heading, .planner-section-heading { flex-direction: column; }
           .quick-add-row, .quick-add-row.career, .agenda-item { grid-template-columns: 1fr; }
           .agenda-item select { max-width: none; width: 100%; }
         }

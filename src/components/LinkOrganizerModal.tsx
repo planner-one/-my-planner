@@ -8,10 +8,11 @@ import {
   type LinkInsertTarget,
   type LinkSourceKind,
 } from '../services/linkAnalysisService'
-import type { CareerEventCategory, CareerEventStatus } from '../types'
+import type { CareerEvent, CareerEventCategory, CareerEventStatus } from '../types'
 import {
   CAREER_CATEGORY_LABELS,
   CAREER_STATUS_LABELS,
+  syncCareerEventDateFields,
 } from '../utils/careerEvents'
 
 type TargetChoice = 'auto' | LinkInsertTarget
@@ -173,7 +174,7 @@ export default function LinkOrganizerModal({
     }
 
     if (draft.target === 'career') {
-      setCareerEvents(previous => [{
+      const careerEvent = syncCareerEventDateFields({
         id: `link-career-${Date.now()}`,
         title: draft.title,
         organization: organization.trim() || draft.hostname,
@@ -189,7 +190,8 @@ export default function LinkOrganizerModal({
         url: draft.url,
         sourceUrl: draft.url,
         note: draft.summary,
-      }, ...previous])
+      }) as CareerEvent
+      setCareerEvents(previous => [careerEvent, ...previous])
       setPage('career')
     }
 

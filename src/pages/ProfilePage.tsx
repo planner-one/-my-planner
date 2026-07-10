@@ -4,6 +4,7 @@ import { useApp } from '../store/AppContext'
 import { useRouter } from '../store/RouterContext'
 import type { CareerEvent, Goal, JobPosting, PersonalApplication, Project, ScheduledTask, Task, Todo, TopGoal } from '../types'
 import { toLocalDateKey } from '../utils/date'
+import { getCareerMilestones, getCareerNextMilestone } from '../utils/careerEvents'
 import { APP_RELEASE_DATE, APP_RELEASE_NAME, APP_RELEASE_NOTES, APP_VERSION } from '../version'
 
 export default function ProfilePage() {
@@ -442,16 +443,19 @@ function buildUnifiedInbox({
   const nowCareer = careerEvents
     .filter(event =>
       openCareerEvent(event)
-      && [event.date, event.applicationDeadline, event.resultDate].includes(today),
+      && getCareerMilestones(event, today).length > 0,
     )
     .sort((a, b) => (a.time ?? '').localeCompare(b.time ?? ''))
-    .map(event => ({
-      id: `career-now-${event.id}`,
-      title: event.title,
-      meta: `기회 일정 · ${event.organization ?? '기관 미정'} · ${event.time ?? formatRelativeDate(firstDefined(event.applicationDeadline, event.date, event.resultDate), today)}`,
-      page: 'career' as const,
-      tone: 'urgent' as const,
-    }))
+    .map(event => {
+      const labels = getCareerMilestones(event, today)
+      return {
+        id: `career-now-${event.id}`,
+        title: event.title,
+        meta: `기회 일정 · ${labels.join(' · ')} · ${event.organization ?? '기관 미정'}`,
+        page: 'career' as const,
+        tone: 'urgent' as const,
+      }
+    })
 
   const upcomingTasks = tasks
     .filter(task => !task.done && task.status !== '완료')
@@ -502,17 +506,17 @@ function buildUnifiedInbox({
     .filter(openCareerEvent)
     .map(event => ({
       item: event,
-      nextDate: firstDefined(event.applicationDeadline, event.date, event.resultDate, event.operationStartDate),
+      next: getCareerNextMilestone(event, today),
     }))
-    .filter(({ nextDate }) => {
-      const diff = dateDiff(nextDate, today)
+    .filter(({ next }) => {
+      const diff = dateDiff(next?.date, today)
       return Number.isFinite(diff) && diff >= 0 && diff <= 7
     })
-    .sort((a, b) => dateDiff(a.nextDate, today) - dateDiff(b.nextDate, today))
-    .map(({ item, nextDate }) => ({
+    .sort((a, b) => dateDiff(a.next?.date, today) - dateDiff(b.next?.date, today))
+    .map(({ item, next }) => ({
       id: `career-${item.id}`,
       title: item.title,
-      meta: `기회 일정 · ${formatRelativeDate(nextDate, today)} · ${item.organization ?? '기관 미정'}`,
+      meta: `기회 일정 · ${formatRelativeDate(next?.date, today)} · ${next?.label ?? '다음 일정'} · ${item.organization ?? '기관 미정'}`,
       page: 'career' as const,
       tone: 'upcoming' as const,
     }))

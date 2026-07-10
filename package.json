@@ -1,14 +1,16 @@
 {
   "name": "my-planner",
   "private": true,
-  "version": "0.3.15",
+  "version": "0.3.17",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "check:doc-sync": "node scripts/check-doc-sync.mjs",
     "check:job-draft": "node scripts/check-job-posting-draft.mjs",
     "check:todo-history": "node scripts/check-todo-history.mjs",
     "check:user-data-merge": "node scripts/check-user-data-merge.mjs",
     "check:planner-briefing": "node scripts/check-planner-briefing.mjs",
+    "check:career-milestones": "node scripts/check-career-milestones.mjs",
     "check:productivity-log": "node scripts/check-productivity-log.mjs",
     "build": "vite build",
     "preview": "vite preview"

@@ -4,9 +4,14 @@ import { useWidgetSize } from '../hooks/useWidgetSize'
 import { useApp } from '../store/AppContext'
 import { useRouter } from '../store/RouterContext'
 import { fetchHolidays } from '../services/holidayService'
-import { CAREER_CATEGORY_LABELS, getCareerMilestones } from '../utils/careerEvents'
+import {
+  CAREER_CATEGORY_LABELS,
+  getCareerMilestones,
+  mergeCareerDateFieldsIntoMilestones,
+  syncCareerEventDateFields,
+} from '../utils/careerEvents'
 import { getCalendarLinkedItems, makeCalendarDays } from '../utils/calendar'
-import type { Todo, ScheduledTask, CareerEvent, CareerEventCategory, CareerEventStatus, Goal, Project, Task } from '../types'
+import type { Todo, ScheduledTask, CareerEvent, CareerEventCategory, CareerEventStatus, CareerMilestone, Goal, Project, Task } from '../types'
 
 export function CalendarActions() {
   const { setPage } = useRouter()
@@ -188,6 +193,7 @@ interface FormState {
   organization: string
   careerCategory: CareerEventCategory
   careerStatus: CareerEventStatus
+  careerMilestones: CareerMilestone[]
   url: string
   priority: Todo['priority']
   done: boolean
@@ -506,26 +512,35 @@ function DayModal(props: ModalProps) {
 
   const handleSave = (f: FormState) => {
     const careerFields = CAREER_DATE_FIELDS[f.careerCategory]
+    const buildCareerPayload = () => syncCareerEventDateFields({
+      title: f.title.trim(),
+      organization: f.organization.trim() || undefined,
+      category: f.careerCategory,
+      status: f.careerStatus,
+      date: f.date,
+      applicationDeadline: careerFields.application ? f.applicationDeadline || undefined : undefined,
+      resultDate: careerFields.result ? f.resultDate || undefined : undefined,
+      operationStartDate: careerFields.operation ? f.operationStartDate || undefined : undefined,
+      operationEndDate: careerFields.operation && f.operationEndDate && (!f.operationStartDate || f.operationEndDate >= f.operationStartDate) ? f.operationEndDate : undefined,
+      milestones: mergeCareerDateFieldsIntoMilestones(f.careerMilestones, {
+        date: f.date,
+        applicationDeadline: careerFields.application ? f.applicationDeadline : undefined,
+        resultDate: careerFields.result ? f.resultDate : undefined,
+        operationStartDate: careerFields.operation ? f.operationStartDate : undefined,
+        operationEndDate: careerFields.operation ? f.operationEndDate : undefined,
+      }),
+      time: f.time || undefined,
+      endTime: f.endTime || undefined,
+      mode: f.scheduleMode || undefined,
+      location: f.scheduleMode === 'online' ? undefined : f.location.trim() || undefined,
+      address: undefined,
+      url: f.url.trim() || undefined,
+      note: f.note.trim() || undefined,
+    })
+
     if (f.mode === 'add') {
       if (f.type === 'todo') props.onAddTodo(f.title, f.priority)
-      else if (f.type === 'career') props.onAddCareer({
-        title: f.title.trim(),
-        organization: f.organization.trim() || undefined,
-        category: f.careerCategory,
-        status: f.careerStatus,
-        date: f.date,
-        applicationDeadline: careerFields.application ? f.applicationDeadline || undefined : undefined,
-        resultDate: careerFields.result ? f.resultDate || undefined : undefined,
-        operationStartDate: careerFields.operation ? f.operationStartDate || undefined : undefined,
-        operationEndDate: careerFields.operation && f.operationEndDate && (!f.operationStartDate || f.operationEndDate >= f.operationStartDate) ? f.operationEndDate : undefined,
-        time: f.time || undefined,
-        endTime: f.endTime || undefined,
-        mode: f.scheduleMode || undefined,
-        location: f.scheduleMode === 'online' ? undefined : f.location.trim() || undefined,
-        address: undefined,
-        url: f.url.trim() || undefined,
-        note: f.note.trim() || undefined,
-      })
+      else if (f.type === 'career') props.onAddCareer(buildCareerPayload())
       else props.onAddScheduled({
         title: f.title.trim(),
         date: f.date,
@@ -538,24 +553,7 @@ function DayModal(props: ModalProps) {
       })
     } else {
       if (f.type === 'todo') props.onUpdateTodo(f.id!, { text: f.title, priority: f.priority, done: f.done })
-      else if (f.type === 'career') props.onUpdateCareer(f.id!, {
-        title: f.title.trim(),
-        organization: f.organization.trim() || undefined,
-        category: f.careerCategory,
-        status: f.careerStatus,
-        date: f.date,
-        applicationDeadline: careerFields.application ? f.applicationDeadline || undefined : undefined,
-        resultDate: careerFields.result ? f.resultDate || undefined : undefined,
-        operationStartDate: careerFields.operation ? f.operationStartDate || undefined : undefined,
-        operationEndDate: careerFields.operation && f.operationEndDate && (!f.operationStartDate || f.operationEndDate >= f.operationStartDate) ? f.operationEndDate : undefined,
-        time: f.time || undefined,
-        endTime: f.endTime || undefined,
-        mode: f.scheduleMode || undefined,
-        location: f.scheduleMode === 'online' ? undefined : f.location.trim() || undefined,
-        address: undefined,
-        url: f.url.trim() || undefined,
-        note: f.note.trim() || undefined,
-      })
+      else if (f.type === 'career') props.onUpdateCareer(f.id!, buildCareerPayload())
       else props.onUpdateScheduled(f.id!, {
         title: f.title,
         date: f.date,
@@ -575,14 +573,14 @@ function DayModal(props: ModalProps) {
     mode:'add', type:'scheduled', title:'', date:dateStr, time:'',
     applicationDeadline:'', resultDate:'', operationStartDate:'', operationEndDate:'',
     endTime:'', scheduleMode:'', location:'', address:'', note:'', priority:'medium', done:false,
-    organization:'', careerCategory:'briefing', careerStatus:'interested', url:'',
+    organization:'', careerCategory:'briefing', careerStatus:'interested', careerMilestones:[], url:'',
   })
   const startEditTodo = (t: Todo) =>
     setForm({
       mode:'edit', type:'todo', id:t.id, title:t.text, date:t.date||dateStr,
       applicationDeadline:'', resultDate:'', operationStartDate:'', operationEndDate:'',
       time:'', endTime:'', scheduleMode:'', location:'', address:'', note:'', priority:t.priority, done:t.done,
-      organization:'', careerCategory:'briefing', careerStatus:'interested', url:'',
+      organization:'', careerCategory:'briefing', careerStatus:'interested', careerMilestones:[], url:'',
     })
   const startEditScheduled = (s: ScheduledTask) =>
     setForm({
@@ -590,7 +588,7 @@ function DayModal(props: ModalProps) {
       applicationDeadline:'', resultDate:'', operationStartDate:'', operationEndDate:'',
       time:s.time||'', endTime:s.endTime||'', scheduleMode:s.mode||'',
       location:s.location||'', address:s.address||'', note:s.note||'',
-      organization:'', careerCategory:'briefing', careerStatus:'interested', url:'',
+      organization:'', careerCategory:'briefing', careerStatus:'interested', careerMilestones:[], url:'',
       priority:'medium', done:s.done,
     })
   const startEditCareer = (event: CareerEvent) =>
@@ -601,7 +599,7 @@ function DayModal(props: ModalProps) {
       time:event.time||'', endTime:event.endTime||'', scheduleMode:event.mode||'',
       location:[event.location, event.address].filter(Boolean).join(' · '), address:'', note:event.note||'',
       organization:event.organization||'', careerCategory:event.category,
-      careerStatus:event.status, url:event.url||'', priority:'medium',
+      careerStatus:event.status, careerMilestones:syncCareerEventDateFields(event).milestones, url:event.url||'', priority:'medium',
       done:event.status === 'completed',
     })
 

@@ -698,26 +698,48 @@ export default function JobPostings() {
       </details>
 
       <section className="job-add">
+        <div className="job-section-heading">
+          <div>
+            <h3>빠른 추가</h3>
+            <p>핵심 정보만 먼저 저장하고, 상세는 아래 목록에서 넓게 보정합니다.</p>
+          </div>
+          <small>공고 모으기 시작</small>
+        </div>
         <div className="job-add-main">
-          <input value={form.company} onChange={event => setForm(prev => ({ ...prev, company: event.target.value }))} placeholder="회사" />
-          <input value={form.position} onChange={event => setForm(prev => ({ ...prev, position: event.target.value }))} placeholder="포지션" />
-          <select value={form.platform} onChange={event => setForm(prev => ({ ...prev, platform: event.target.value as JobPostingPlatform }))}>
-            {PLATFORMS.map(platform => <option key={platform} value={platform}>{PLATFORM_LABELS[platform]}</option>)}
-          </select>
-          <select
-            value={form.status}
-            onChange={event => {
-              const status = event.target.value as JobPostingStatus
-              setForm(prev => ({
-                ...prev,
-                status,
-                appliedDate: prev.appliedDate || (needsAppliedDate(status) ? toLocalDateKey() : ''),
-              }))
-            }}
-          >
-            {STATUSES.map(status => <option key={status} value={status}>{STATUS_LABELS[status]}</option>)}
-          </select>
-          <input type="date" value={form.deadline} onChange={event => setForm(prev => ({ ...prev, deadline: event.target.value }))} />
+          <label>
+            <span>회사</span>
+            <input value={form.company} onChange={event => setForm(prev => ({ ...prev, company: event.target.value }))} placeholder="회사" />
+          </label>
+          <label>
+            <span>포지션</span>
+            <input value={form.position} onChange={event => setForm(prev => ({ ...prev, position: event.target.value }))} placeholder="포지션" />
+          </label>
+          <label>
+            <span>플랫폼</span>
+            <select value={form.platform} onChange={event => setForm(prev => ({ ...prev, platform: event.target.value as JobPostingPlatform }))}>
+              {PLATFORMS.map(platform => <option key={platform} value={platform}>{PLATFORM_LABELS[platform]}</option>)}
+            </select>
+          </label>
+          <label>
+            <span>상태</span>
+            <select
+              value={form.status}
+              onChange={event => {
+                const status = event.target.value as JobPostingStatus
+                setForm(prev => ({
+                  ...prev,
+                  status,
+                  appliedDate: prev.appliedDate || (needsAppliedDate(status) ? toLocalDateKey() : ''),
+                }))
+              }}
+            >
+              {STATUSES.map(status => <option key={status} value={status}>{STATUS_LABELS[status]}</option>)}
+            </select>
+          </label>
+          <label>
+            <span>마감일</span>
+            <input type="date" value={form.deadline} onChange={event => setForm(prev => ({ ...prev, deadline: event.target.value }))} />
+          </label>
         </div>
         {(needsAppliedDate(form.status) || form.appliedDate) && (
           <div className="job-add-dates">
@@ -743,14 +765,29 @@ export default function JobPostings() {
         </label>
         <textarea value={form.imageText} onChange={event => setForm(prev => ({ ...prev, imageText: event.target.value }))} placeholder="공고 원문, 이미지 OCR 텍스트, 직접 붙여넣은 주요 내용을 입력하세요." rows={4} />
         <div className="job-add-extra">
-          <input value={form.keywords} onChange={event => setForm(prev => ({ ...prev, keywords: event.target.value }))} placeholder="키워드: React, UI, 신입" />
-          <input value={form.nextAction} onChange={event => setForm(prev => ({ ...prev, nextAction: event.target.value }))} placeholder="다음 행동: 이력서 수정" />
-          <button type="button" onClick={addPosting}>추가</button>
+          <label>
+            <span>키워드</span>
+            <input value={form.keywords} onChange={event => setForm(prev => ({ ...prev, keywords: event.target.value }))} placeholder="키워드: React, UI, 신입" />
+          </label>
+          <label>
+            <span>다음 행동</span>
+            <input value={form.nextAction} onChange={event => setForm(prev => ({ ...prev, nextAction: event.target.value }))} placeholder="다음 행동: 이력서 수정" />
+          </label>
+          <div className="job-add-action">
+            <button type="button" onClick={addPosting}>추가</button>
+          </div>
         </div>
         {ocrStatus && <small className="ocr-status">{ocrStatus}</small>}
       </section>
 
       <section className="job-tools">
+        <div className="job-section-heading compact">
+          <div>
+            <h3>검색과 상태 필터</h3>
+            <p>회사, 포지션, 플랫폼, 키워드 기준으로 필요한 공고만 좁혀봅니다.</p>
+          </div>
+          <small>{visible.length}개 표시</small>
+        </div>
         <input value={query} onChange={event => setQuery(event.target.value)} placeholder="검색: 회사, 포지션, 플랫폼, 키워드" />
         <div>
           {(['all', ...STATUSES] as Filter[]).map(status => (
@@ -892,6 +929,11 @@ export default function JobPostings() {
         .job-next p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
         .job-platforms > div { display: flex; flex-wrap: wrap; gap: 7px; }
         .job-platforms small { border-radius: 999px; background: var(--bg3); color: var(--muted); padding: 6px 9px; font-size: 11px; font-weight: 800; }
+        .job-section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+        .job-section-heading.compact { align-items: center; }
+        .job-section-heading h3 { margin: 0 0 4px; font-size: 15px; letter-spacing: 0; }
+        .job-section-heading p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+        .job-section-heading small { flex-shrink: 0; color: var(--muted); font-size: 11px; font-weight: 900; white-space: nowrap; }
         .job-link-assist, .job-codex-assist { padding: 0; overflow: hidden; }
         .job-link-assist summary, .job-codex-assist summary { min-height: 42px; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer; color: var(--text); font-size: 13px; font-weight: 900; }
         .job-link-assist summary::marker, .job-codex-assist summary::marker { color: var(--muted); }
@@ -915,7 +957,8 @@ export default function JobPostings() {
         .job-codex-assist-body p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
         .job-codex-assist-body small { color: var(--accent); font-size: 11px; font-weight: 800; }
         .job-add { padding: 12px; display: flex; flex-direction: column; gap: 9px; }
-        .job-add-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) 120px 120px 138px; gap: 8px; }
+        .job-add-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) 132px 132px 146px; gap: 8px; align-items: end; }
+        .job-add-main label, .job-add-extra label { min-width: 0; display: flex; flex-direction: column; gap: 5px; color: var(--muted); font-size: 11px; font-weight: 800; }
         .job-add-dates { display: grid; grid-template-columns: minmax(160px, 220px); gap: 8px; }
         .job-add-dates label { min-width: 0; display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 900; }
         .job-add-media { display: grid; grid-template-columns: minmax(0, 1fr) 150px 150px; gap: 8px; align-items: center; }
@@ -928,6 +971,7 @@ export default function JobPostings() {
         .job-add button.secondary-action { border: 1px solid var(--border); background: var(--bg3); color: var(--text); }
         .job-add-media label { height: 34px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); display: grid; place-items: center; font-size: 12px; font-weight: 800; cursor: pointer; overflow: hidden; }
         .job-add-media input[type="file"] { display: none; }
+        .job-add-action { display: flex; align-items: flex-end; }
         .job-detail-field { display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 800; }
         .job-detail-field textarea { min-height: 132px; }
         .job-detail-field span { color: var(--accent); }
@@ -983,9 +1027,11 @@ export default function JobPostings() {
           .job-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .job-board, .job-list { grid-template-columns: 1fr; }
           .job-add-main, .job-add-media, .job-add-extra { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .job-add-action { grid-column: 1 / -1; }
         }
         @media (max-width: 560px) {
           .job-summary, .job-link-assist-body, .job-add-main, .job-add-media, .job-add-extra, .job-card-link-row, .job-detail-form, .job-detail-empty-fields > div { grid-template-columns: 1fr; }
+          .job-section-heading { flex-direction: column; }
           .job-list-heading { align-items: flex-start; flex-direction: column; }
           .job-card-actions { align-items: flex-start; flex-direction: column; }
           .job-detail-panel { width: 100vw; }

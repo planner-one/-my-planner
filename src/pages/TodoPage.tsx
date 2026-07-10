@@ -645,6 +645,41 @@ export default function TodoPage() {
 
       {/* 입력 + 필터 */}
       <div style={{ background: 'var(--bg2)', borderRadius: 14, padding: '16px 18px', border: '1px solid var(--border)', boxShadow: 'var(--shadow)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: 12,
+          flexWrap: 'wrap',
+        }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>
+              빠른 정리
+            </h2>
+            <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--muted)', lineHeight: 1.45 }}>
+              오늘과 내일 Todo를 바로 추가하고, 카테고리와 기간 기준으로 빠르게 좁혀봅니다.
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            {[
+              `${addTargetLabel} 입력`,
+              `오늘 ${todayItems.length}개`,
+              `내일 ${tomorrowItems.length}개`,
+            ].map(label => (
+              <span key={label} style={{
+                padding: '5px 8px',
+                borderRadius: 999,
+                background: 'var(--bg3)',
+                color: 'var(--muted)',
+                fontSize: 11,
+                fontWeight: 800,
+                whiteSpace: 'nowrap',
+              }}>
+                {label}
+              </span>
+            ))}
+          </div>
+        </div>
         {/* 입력 */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <select
@@ -695,7 +730,14 @@ export default function TodoPage() {
         {/* 필터 행 */}
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
           {/* 카테고리 필터 */}
-          <div style={{ display: 'flex', gap: 4 }}>
+          <div style={{
+            display: 'flex',
+            gap: 4,
+            flexWrap: 'wrap',
+            padding: '6px',
+            borderRadius: 12,
+            background: 'var(--bg3)',
+          }}>
             {([
               { id: 'all', label: '전체', color: 'var(--accent)' },
               ...Object.entries(CATEGORY_CONFIG).map(([id, cfg]) => ({ id, label: cfg.label, color: cfg.color })),
@@ -713,7 +755,14 @@ export default function TodoPage() {
           <div style={{ width: 1, height: 18, background: 'var(--border)', margin: '0 4px' }} />
 
           {/* 기간 필터 */}
-          <div style={{ display: 'flex', gap: 4 }}>
+          <div style={{
+            display: 'flex',
+            gap: 4,
+            flexWrap: 'wrap',
+            padding: '6px',
+            borderRadius: 12,
+            background: 'var(--bg3)',
+          }}>
             {([
               { id: 'today', label: '오늘' },
               { id: 'tomorrow', label: '내일' },

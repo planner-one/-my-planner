@@ -175,6 +175,24 @@ export type CareerEventStatus =
   | 'interested' | 'planned' | 'applied' | 'pending'
   | 'confirmed' | 'completed' | 'rejected' | 'cancelled'
 
+export type CareerMilestoneType =
+  | 'main'
+  | 'application_deadline'
+  | 'result_announcement'
+  | 'selection_announcement'
+  | 'round'
+  | 'final_round'
+  | 'operation'
+  | 'custom'
+
+export interface CareerMilestone {
+  id: string
+  type: CareerMilestoneType
+  label: string
+  date: string
+  endDate?: string
+}
+
 export interface CareerEvent {
   id: string
   title: string
@@ -194,6 +212,7 @@ export interface CareerEvent {
   url?: string
   sourceUrl?: string
   note?: string
+  milestones?: CareerMilestone[]
 }
 
 export type PersonalApplicationType =
