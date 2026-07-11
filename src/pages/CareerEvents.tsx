@@ -10,6 +10,7 @@ import type { LinkAnalysisDraft } from '../services/linkAnalysisService'
 import { toLocalDateKey } from '../utils/date'
 import {
   CAREER_CATEGORY_LABELS as CATEGORY_LABELS,
+  CAREER_CATEGORY_MILESTONE_TEMPLATES,
   CAREER_CREATION_STATUSES as CREATION_STATUSES,
   CAREER_MILESTONE_TYPE_LABELS,
   CAREER_STATUS_LABELS as STATUS_LABELS,
@@ -58,6 +59,49 @@ const countWeekdays = (start?: string, end?: string) => {
 }
 
 const MILESTONE_TYPE_OPTIONS = Object.entries(CAREER_MILESTONE_TYPE_LABELS) as Array<[CareerMilestoneType, string]>
+const CUSTOM_MILESTONE_OPTION_VALUE = JSON.stringify(['custom', ''])
+
+type MilestoneOption = {
+  value: string
+  type: CareerMilestoneType
+  label: string
+}
+
+const milestoneOptionValue = (type: CareerMilestoneType, label: string) =>
+  type === 'custom' ? CUSTOM_MILESTONE_OPTION_VALUE : JSON.stringify([type, label])
+
+const parseMilestoneOption = (value: string): Pick<MilestoneOption, 'type' | 'label'> => {
+  try {
+    const [type, label] = JSON.parse(value) as [CareerMilestoneType, string]
+    return { type, label }
+  } catch {
+    return { type: 'custom', label: '' }
+  }
+}
+
+const getMilestoneOptions = (category: CareerEventCategory, current?: CareerMilestone): MilestoneOption[] => {
+  const options = [
+    ...(CAREER_CATEGORY_MILESTONE_TEMPLATES[category] ?? []),
+    ...MILESTONE_TYPE_OPTIONS
+      .filter(([type]) => type !== 'custom')
+      .map(([type, label]) => ({ type, label })),
+    current && current.type !== 'custom' && current.label
+      ? { type: current.type, label: current.label }
+      : null,
+    { type: 'custom' as CareerMilestoneType, label: CAREER_MILESTONE_TYPE_LABELS.custom },
+  ].filter((option): option is Pick<MilestoneOption, 'type' | 'label'> => Boolean(option))
+  const unique = new Map<string, MilestoneOption>()
+
+  options.forEach(option => {
+    const value = milestoneOptionValue(option.type, option.label)
+    if (!unique.has(value)) unique.set(value, { ...option, value })
+  })
+
+  return [...unique.values()]
+}
+
+const getMilestoneSelectValue = (milestone: CareerMilestone) =>
+  milestoneOptionValue(milestone.type, milestone.label || CAREER_MILESTONE_TYPE_LABELS[milestone.type])
 
 const createMilestoneId = () =>
   `milestone-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -510,7 +554,7 @@ export default function CareerEvents() {
   const addMilestone = () => {
     setForm(previous => ({
       ...previous,
-      milestones: [...(previous.milestones ?? []), createMilestoneRow()],
+      milestones: [...(previous.milestones ?? []), createMilestoneRow('custom', '')],
     }))
   }
 
@@ -520,12 +564,18 @@ export default function CareerEvents() {
       milestones: (previous.milestones ?? []).map(milestone => {
         if (milestone.id !== id) return milestone
         const nextType = patch.type ?? milestone.type
-        const shouldUseTypeLabel = patch.type
-          && (!milestone.label.trim() || milestone.label === CAREER_MILESTONE_TYPE_LABELS[milestone.type])
+        const nextLabel = patch.label !== undefined
+          ? patch.label
+          : patch.type
+            ? nextType === 'custom'
+              ? milestone.type === 'custom' ? milestone.label : ''
+              : CAREER_MILESTONE_TYPE_LABELS[nextType]
+            : milestone.label
         const next = {
           ...milestone,
           ...patch,
-          label: shouldUseTypeLabel ? CAREER_MILESTONE_TYPE_LABELS[nextType] : patch.label ?? milestone.label,
+          type: nextType,
+          label: nextLabel,
         }
         if (next.endDate && next.date && next.endDate < next.date) next.endDate = ''
         return next
@@ -853,33 +903,42 @@ export default function CareerEvents() {
             <div className="career-milestone-editor-head">
               <strong>일정 단계</strong>
               <div>
-                <button type="button" className="secondary" onClick={applyCategoryTemplate}>구분 기본 단계 적용</button>
-                <button type="button" onClick={addMilestone}>단계 추가</button>
+                <button type="button" className="secondary" onClick={applyCategoryTemplate}>기본 단계 채우기</button>
+                <button type="button" onClick={addMilestone}>직접 단계 추가</button>
               </div>
             </div>
             <div className="career-milestone-list">
               {formMilestones.length === 0 && (
-                <button type="button" className="career-empty-milestone" onClick={addMilestone}>첫 단계 추가</button>
+                <button type="button" className="career-empty-milestone" onClick={addMilestone}>직접 단계 추가</button>
               )}
-              {formMilestones.map(milestone => (
-                <div key={milestone.id} className="career-milestone-row">
-                  <label>종류
+              {formMilestones.map(milestone => {
+                const showCustomName = milestone.type === 'custom'
+                const milestoneOptions = getMilestoneOptions(form.category, milestone)
+                return (
+                <div key={milestone.id} className={`career-milestone-row ${showCustomName ? 'custom-name' : ''}`}>
+                  <label>단계
                     <select
-                      value={milestone.type}
-                      onChange={event => updateMilestone(milestone.id, { type: event.target.value as CareerMilestoneType })}
+                      value={getMilestoneSelectValue(milestone)}
+                      onChange={event => {
+                        const option = parseMilestoneOption(event.target.value)
+                        updateMilestone(milestone.id, {
+                          type: option.type,
+                          label: option.type === 'custom' ? '' : option.label,
+                        })
+                      }}
                     >
-                      {MILESTONE_TYPE_OPTIONS.map(([value, label]) => (
-                        <option key={value} value={value}>{label}</option>
+                      {milestoneOptions.map(option => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
                       ))}
                     </select>
                   </label>
-                  <label>단계명
+                  {showCustomName && <label>직접 단계명
                     <input
                       value={milestone.label}
                       onChange={event => updateMilestone(milestone.id, { label: event.target.value })}
-                      placeholder="예: 선발 발표"
+                      placeholder="예: 2차 발표"
                     />
-                  </label>
+                  </label>}
                   <label>날짜
                     <input
                       type="date"
@@ -897,7 +956,8 @@ export default function CareerEvents() {
                   </label>
                   <button type="button" className="career-milestone-remove" onClick={() => removeMilestone(milestone.id)}>삭제</button>
                 </div>
-              ))}
+                )
+              })}
             </div>
           </div>
           <label>빠른 시간
