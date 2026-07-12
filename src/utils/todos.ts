@@ -3,12 +3,16 @@ import type { DeletedTodoDailyResult, Todo, TodoDailyResult } from '../types'
 export type TodoCategory = NonNullable<Todo['category']>
 
 export const TODO_DEFAULT_CATEGORY: TodoCategory = 'work'
+const TODO_CARRY_MARKER = '__carry__'
 
 export const getTodoCategory = (todo: Pick<Todo, 'category'>): TodoCategory =>
   todo.category ?? TODO_DEFAULT_CATEGORY
 
 export const getTodoCarryKey = (todo: Pick<Todo, 'text' | 'category'>): string =>
   `${todo.text.trim().toLowerCase()}::${getTodoCategory(todo)}`
+
+export const getTodoOccurrenceRootId = (todo: Pick<Todo, 'id'>): string =>
+  todo.id.split(TODO_CARRY_MARKER)[0]
 
 export const getIncompleteTodos = (items: Todo[]): Todo[] =>
   items.filter(item => !item.done)
@@ -42,10 +46,58 @@ const todoSnapshot = (todo: Todo) => ({
   category: getTodoCategory(todo),
   date: todo.date,
   sourceUrl: todo.sourceUrl ?? '',
+  carriedFromDate: todo.carriedFromDate ?? '',
+  carrySourceId: todo.carrySourceId ?? '',
+  carriedToDate: todo.carriedToDate ?? '',
 })
 
 const todoItemsMatch = (left: Todo[], right: Todo[]): boolean =>
   JSON.stringify(left.map(todoSnapshot)) === JSON.stringify(right.map(todoSnapshot))
+
+const getCarriedSourceSnapshot = (todo: Todo): Todo | null => {
+  if (!todo.carriedFromDate || !todo.carrySourceId) return null
+
+  const snapshot: Todo = {
+    ...todo,
+    id: todo.carrySourceId,
+    date: todo.carriedFromDate,
+    done: false,
+    carriedToDate: todo.date,
+  }
+  delete snapshot.carriedFromDate
+  delete snapshot.carrySourceId
+  return snapshot
+}
+
+const dedupeTodoOccurrences = (items: Todo[]): Todo[] => {
+  const byId = new Map<string, Todo>()
+  items.forEach(item => byId.set(item.id, item))
+  return [...byId.values()]
+}
+
+const isCarryOccurrenceOf = ({
+  source,
+  sourceDate,
+  later,
+  laterDate,
+}: {
+  source: Todo
+  sourceDate: string
+  later: Todo
+  laterDate: string
+}): boolean => {
+  if (laterDate <= sourceDate || getTodoCarryKey(later) !== getTodoCarryKey(source)) return false
+
+  const sourceRootId = getTodoOccurrenceRootId(source)
+  if (later.carriedFromDate === sourceDate && later.carrySourceId) {
+    return later.carrySourceId === source.id
+      || getTodoOccurrenceRootId({ id: later.carrySourceId }) === sourceRootId
+  }
+
+  if (later.id === source.id) return true
+  return later.id.includes(TODO_CARRY_MARKER)
+    && getTodoOccurrenceRootId(later) === sourceRootId
+}
 
 const summarizeTodoDailyResult = (
   result: TodoDailyResult,
@@ -93,8 +145,11 @@ export function syncPastTodoHistory({
   todoHistoryDeletedDates?: string[]
   savedAt?: string
 }): TodoDailyResult[] {
+  const carriedSourceItems = todos
+    .map(getCarriedSourceSnapshot)
+    .filter((item): item is Todo => Boolean(item?.date && item.date < currentDate))
   const pastDates = [...new Set(
-    todos
+    [...todos, ...carriedSourceItems]
       .map(todo => todo.date)
       .filter((date): date is string => Boolean(date && date < currentDate))
   )]
@@ -110,9 +165,27 @@ export function syncPastTodoHistory({
     const existing = resultsByDate.get(date)
     if (existing?.correctedAt || (existing?.correctionHistory?.length ?? 0) > 0) return
 
-    const items = todos.filter(todo => todo.date === date)
+    const items = dedupeTodoOccurrences([
+      ...todos.filter(todo => todo.date === date),
+      ...carriedSourceItems.filter(todo => todo.date === date),
+    ])
     if (existing) {
-      const existingItems = existing.items.map(item => ({ ...item, date }))
+      const carriedSourcesById = new Map(
+        carriedSourceItems
+          .filter(item => item.date === date)
+          .map(item => [item.id, item])
+      )
+      const existingItems = existing.items.map(item => {
+        const carriedSource = carriedSourcesById.get(item.id)
+        return carriedSource
+          ? {
+              ...item,
+              date,
+              done: false,
+              carriedToDate: carriedSource.carriedToDate,
+            }
+          : { ...item, date }
+      })
       const existingIds = new Set(existingItems.map(item => item.id))
       const existingKeys = new Set(existingItems.map(getTodoCarryKey))
       const missingItems = items
@@ -148,19 +221,32 @@ export function syncPastTodoHistory({
     ) return
 
     const repairedItems = result.items.map(item => {
-      if (!item.done) return item
       const key = getTodoCarryKey(item)
-      const hasSameTodoLater = todos.some(todo => {
+      const liveCarryDates = todos.flatMap(todo => {
         const todoDate = todo.date ?? currentDate
-        return todo.id === item.id && todoDate > result.date && getTodoCarryKey(todo) === key
-      }) || historyResults.some(laterResult =>
-        laterResult.date > result.date
-        && laterResult.items.some(laterItem =>
-          laterItem.id === item.id && getTodoCarryKey(laterItem) === key
-        )
+        return getTodoCarryKey(todo) === key && isCarryOccurrenceOf({
+          source: item,
+          sourceDate: result.date,
+          later: todo,
+          laterDate: todoDate,
+        }) ? [todoDate] : []
+      })
+      const historyCarryDates = historyResults.flatMap(laterResult =>
+        laterResult.date > result.date && laterResult.items.some(laterItem =>
+          getTodoCarryKey(laterItem) === key && isCarryOccurrenceOf({
+            source: item,
+            sourceDate: result.date,
+            later: laterItem,
+            laterDate: laterResult.date,
+          })
+        ) ? [laterResult.date] : []
       )
+      const carriedToDate = [...liveCarryDates, ...historyCarryDates]
+        .sort((left, right) => left.localeCompare(right))[0]
 
-      return hasSameTodoLater ? { ...item, date: result.date, done: false } : item
+      return carriedToDate
+        ? { ...item, date: result.date, done: false, carriedToDate: item.carriedToDate ?? carriedToDate }
+        : item
     })
 
     if (todoItemsMatch(result.items, repairedItems)) return
@@ -276,9 +362,12 @@ export function carryIncompleteTodosToDate({
 
     carried.push({
       ...todo,
-      id: `${todo.id.split('__carry__')[0]}__carry__${currentDate}`,
+      id: `${getTodoOccurrenceRootId(todo)}${TODO_CARRY_MARKER}${currentDate}`,
       done: false,
       date: currentDate,
+      carriedFromDate: todo.date,
+      carrySourceId: todo.id,
+      carriedToDate: undefined,
     })
     changed = true
   })

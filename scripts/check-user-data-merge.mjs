@@ -116,6 +116,8 @@ try {
         priority: 'medium',
         category: 'personal',
         date: '2026-07-06',
+        carriedFromDate: '2026-07-05',
+        carrySourceId: 'portfolio-source',
       },
       {
         id: 'old-live',
@@ -151,6 +153,7 @@ try {
   assert(merged._lastSaved === staleIncoming._lastSaved, 'merged save should keep the new save timestamp')
   assert(merged.todos.some(todo => todo.id === 'latest-only'), 'remote latest todo should not disappear')
   assert(merged.todos.find(todo => todo.id === 'portfolio')?.done === true, 'stale unchecked state should not clear a completed todo')
+  assert(merged.todos.find(todo => todo.id === 'portfolio')?.carriedFromDate === '2026-07-05', 'stale merge should preserve incoming carry source metadata')
   assert(!merged.todos.some(todo => todo.id === 'old-live'), 'old live todo already resolved in history should not be resurrected')
   assert(merged.todoHistory?.length === 1, 'remote todo history should be preserved')
   assert(merged.todoHistory?.[0].done === 1, 'completed remote history should remain completed')

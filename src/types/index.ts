@@ -6,6 +6,9 @@ export interface Todo {
   category?: 'work' | 'personal' | 'study'
   date?: string
   sourceUrl?: string
+  carriedFromDate?: string
+  carrySourceId?: string
+  carriedToDate?: string
 }
 
 export interface TodoDailyResult {

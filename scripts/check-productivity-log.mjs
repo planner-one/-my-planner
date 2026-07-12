@@ -123,6 +123,53 @@ try {
   assert(log.sections.find(section => section.id === 'deadlines')?.total === 2, 'deadline section should include due tasks and goals')
   assert(log.sections.find(section => section.id === 'journal')?.items[0]?.title === '오늘 기록', 'journal section should show journal title')
 
+  const missedDate = '2026-07-04'
+  const missedDayLog = getProductivityDayLog({
+    date: missedDate,
+    todos: [{
+      id: 'missed-source__carry__2026-07-05',
+      text: '전날 못한 일',
+      done: true,
+      priority: 'medium',
+      category: 'work',
+      date: '2026-07-05',
+      carriedFromDate: missedDate,
+      carrySourceId: 'missed-source',
+    }],
+    todoHistory: [{
+      date: missedDate,
+      total: 1,
+      done: 0,
+      completionRate: 0,
+      savedAt: '2026-07-05T00:00:00.000Z',
+      source: 'auto',
+      items: [{
+        id: 'missed-source',
+        text: '전날 못한 일',
+        done: false,
+        priority: 'medium',
+        category: 'work',
+        date: missedDate,
+        carriedToDate: '2026-07-05',
+      }],
+    }],
+    habits: [],
+    habitHistory: {},
+    scheduledTasks: [],
+    counters: [],
+    tasks: [],
+    goals: [],
+    projects: [],
+    topGoals: [],
+    reviewHistory: [],
+    journal: [],
+    timeBlockData: {},
+  })
+
+  assert(missedDayLog.score?.parts.todo === 0, 'a missed source day should keep a zero todo score after completion on the carry day')
+  assert(missedDayLog.sections.find(section => section.id === 'todos')?.items[0]?.status === 'open', 'productivity history should display the source-day todo as incomplete')
+  assert(missedDayLog.sections.find(section => section.id === 'todos')?.items[0]?.meta?.includes('2026-07-05로 이월'), 'productivity history should show the carry destination')
+
   console.log('Productivity day log checks passed.')
 } finally {
   rmSync(tmp, { recursive: true, force: true })

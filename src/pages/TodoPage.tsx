@@ -245,6 +245,9 @@ export default function TodoPage() {
         id: `carry-${Date.now()}-${index}`,
         done: false,
         date: tomorrow,
+        carriedFromDate: today,
+        carrySourceId: todo.id,
+        carriedToDate: undefined,
       }))
 
     const result = buildTodoDailyResult(today, todayItems, 'manual')
@@ -290,6 +293,9 @@ export default function TodoPage() {
         id: `history-carry-${Date.now()}-${index}`,
         done: false,
         date: today,
+        carriedFromDate: sourceDate,
+        carrySourceId: todo.id,
+        carriedToDate: undefined,
       }))
     if (carried.length === 0) {
       setSaveMessage('오늘 할 일에 이미 같은 항목이 있습니다.')
@@ -321,7 +327,7 @@ export default function TodoPage() {
     const carried: Todo[] = []
     let duplicateCount = 0
 
-    pastIncompleteResults.forEach(({ incomplete }) => {
+    pastIncompleteResults.forEach(({ result, incomplete }) => {
       incomplete.forEach(todo => {
         const key = getTodoCarryKey(todo)
         if (todayKeys.has(key)) {
@@ -334,6 +340,9 @@ export default function TodoPage() {
           id: `history-carry-${timestamp}-${carried.length}`,
           done: false,
           date: today,
+          carriedFromDate: result.date,
+          carrySourceId: todo.id,
+          carriedToDate: undefined,
         })
       })
     })
@@ -1168,6 +1177,16 @@ export default function TodoPage() {
                   )}
                   <Badge category={cat(item)} />
                   <span style={{ flex: 1, textDecoration: item.done ? 'line-through' : 'none' }}>{item.text}</span>
+                  {correctionDate !== result.date && item.carriedToDate && (
+                    <span style={{
+                      flexShrink: 0,
+                      color: 'var(--accent)',
+                      fontSize: 10,
+                      fontWeight: 700,
+                    }}>
+                      {item.carriedToDate}로 이월
+                    </span>
+                  )}
                   {correctionDate === result.date && !result.items.some(saved => saved.id === item.id) && (
                     <span style={{
                       flexShrink: 0, padding: '1px 5px', borderRadius: 4,

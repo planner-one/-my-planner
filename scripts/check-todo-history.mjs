@@ -177,7 +177,21 @@ try {
   assert(autoCarried.length === 2, 'one incomplete past todo should be moved to current date')
   assert(autoCarried[0].id === 'old-open__carry__2026-07-05', 'auto-carried todo should get a new occurrence id')
   assert(autoCarried[0].date === '2026-07-05', 'auto-carried todo should be dated as current date')
+  assert(autoCarried[0].carriedFromDate === '2026-07-04', 'auto-carried todo should retain its source date')
+  assert(autoCarried[0].carrySourceId === 'old-open', 'auto-carried todo should retain its source occurrence id')
   assert(!autoCarried.some(todo => todo.id === 'old-open' && todo.date === '2026-07-04'), 'original past occurrence should not remain in live todos')
+
+  const recoveredFromCarryMetadata = syncPastTodoHistory({
+    currentDate: '2026-07-05',
+    todos: [{ ...autoCarried[0], done: true }],
+    todoHistory: [],
+    savedAt: '2026-07-05T08:30:00.000Z',
+  })
+  const recoveredSourceDay = recoveredFromCarryMetadata.find(result => result.date === '2026-07-04')
+  assert(recoveredSourceDay?.total === 1, 'carry metadata should rebuild a missing source-day record')
+  assert(recoveredSourceDay?.done === 0, 'rebuilt source-day record should keep the carried item incomplete')
+  assert(recoveredSourceDay?.items[0].id === 'old-open', 'rebuilt source-day record should use the source occurrence id')
+  assert(recoveredSourceDay?.items[0].carriedToDate === '2026-07-05', 'rebuilt source-day record should show its carry destination')
 
   const notDuplicated = carryIncompleteTodosToDate({
     currentDate: '2026-07-05',
@@ -278,6 +292,39 @@ try {
   const repairedWrongDay = repairedExistingWrongHistory.find(result => result.date === '2026-07-04')
   assert(repairedWrongDay?.done === 0, 'existing history completed by same-id carry should be repaired as missed')
   assert(repairedWrongDay?.items[0].done === false, 'same-id carried history item should be unchecked after repair')
+
+  const repairedGeneratedIdHistory = syncPastTodoHistory({
+    currentDate: '2026-07-05',
+    todos: [{
+      id: 'generated-id-source__carry__2026-07-05',
+      text: '새 ID로 이월된 항목',
+      done: true,
+      priority: 'medium',
+      category: 'study',
+      date: '2026-07-05',
+    }],
+    todoHistory: [{
+      date: '2026-07-04',
+      total: 1,
+      done: 1,
+      completionRate: 100,
+      savedAt: '2026-07-05T00:00:00.000Z',
+      source: 'auto',
+      items: [{
+        id: 'generated-id-source',
+        text: '새 ID로 이월된 항목',
+        done: true,
+        priority: 'medium',
+        category: 'study',
+        date: '2026-07-04',
+      }],
+    }],
+    savedAt: '2026-07-05T09:30:00.000Z',
+  })
+  const repairedGeneratedIdDay = repairedGeneratedIdHistory.find(result => result.date === '2026-07-04')
+  assert(repairedGeneratedIdDay?.done === 0, 'generated carry ids should repair an incorrectly completed source day')
+  assert(repairedGeneratedIdDay?.completionRate === 0, 'generated carry id repair should recalculate the source-day rate')
+  assert(repairedGeneratedIdDay?.items[0].carriedToDate === '2026-07-05', 'generated carry id repair should annotate the carry destination')
 
   const correctedDoneIsNotCarried = carryIncompleteTodosToDate({
     currentDate: '2026-07-05',

@@ -225,6 +225,8 @@ const mergeTodos = (
     return {
       ...remoteTodo,
       done: remoteTodo.done || incomingTodo.done,
+      carriedFromDate: remoteTodo.carriedFromDate ?? incomingTodo.carriedFromDate,
+      carrySourceId: remoteTodo.carrySourceId ?? incomingTodo.carrySourceId,
     }
   })
 

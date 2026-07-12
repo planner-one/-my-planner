@@ -189,7 +189,11 @@ export const getProductivityDayLog = (input: ProductivityDayLogInput): Productiv
       items: dayTodos.map(todo => ({
         id: todo.id,
         title: todo.text,
-        meta: joinMeta([todo.category ?? 'work', todo.priority]),
+        meta: joinMeta([
+          todo.category ?? 'work',
+          todo.priority,
+          todo.carriedToDate ? `${todo.carriedToDate}로 이월` : undefined,
+        ]),
         status: todo.done ? 'done' : 'open',
       })),
     },
