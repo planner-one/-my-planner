@@ -8,6 +8,7 @@ import { normalizeTopGoalsForToday } from '../utils/goals'
 import { HABITS_VERSION, isHabitScheduled, migrateHabits } from '../utils/habits'
 import { createDefaultCounters, migrateCounters } from '../utils/counters'
 import { carryIncompleteTodosToDate, syncPastTodoHistory } from '../utils/todos'
+import { DEFAULT_UI_SCALE, getUiScaleMetrics, normalizeUiScale } from '../utils/uiScale'
 import {
   DEFAULT_CAREER_CATEGORY, DEFAULT_CAREER_STATUS,
   isCareerEventCategory, isCareerEventStatus, syncCareerEventDateFields,
@@ -180,7 +181,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [chartHistory, setChartHistory] = useState<number[]>([])
   const [dashboardLayout, setDashboardLayout] = useState<LayoutItem[]>([])
   const [dashboardActive, setDashboardActive] = useState<string[]>([])
-  const [uiScale, setUiScale] = useState<number>(90)
+  const [uiScale, setUiScale] = useState<number>(DEFAULT_UI_SCALE)
   const [nickname, setNickname] = useState<string>('')
   const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES)
   const [dataLoaded, setDataLoaded] = useState<boolean>(false)
@@ -401,7 +402,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setDashboardLayout(d?.dashboardLayout ?? [])
       setDashboardActive(d?.dashboardActive ?? [])
       setNickname(d?.nickname ?? '')
-      setUiScale(d?.uiScale ?? 90)
+      setUiScale(normalizeUiScale(d?.uiScale))
       setNotificationPreferences(migrateNotificationPreferences(d?.notificationPreferences))
       if (d) {
         localStorage.setItem('dashboard_cols_v', '2')
@@ -421,13 +422,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [loadRevision, user?.uid])
 
   useEffect(() => {
-    const scale = Math.min(110, Math.max(80, uiScale)) / 100
-    document.documentElement.style.setProperty('--ui-scale-factor', String(scale))
-    document.documentElement.dataset.density = uiScale <= 90
-      ? 'compact'
-      : uiScale >= 105
-        ? 'spacious'
-        : 'comfortable'
+    const { factor, viewportPercent } = getUiScaleMetrics(uiScale)
+    document.documentElement.style.setProperty('--ui-scale-factor', String(factor))
+    document.documentElement.style.setProperty('--ui-scale-width', `${viewportPercent}%`)
+    document.documentElement.style.setProperty('--ui-scale-height', `${viewportPercent}dvh`)
+    document.documentElement.style.setProperty('--app-scale', String(factor))
+    document.documentElement.style.setProperty('--app-viewport-height', `${viewportPercent}dvh`)
+    document.documentElement.removeAttribute('data-density')
   }, [uiScale])
 
   useEffect(() => {

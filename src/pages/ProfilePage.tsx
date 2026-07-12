@@ -6,6 +6,12 @@ import type { CareerEvent, Goal, JobPosting, PersonalApplication, Project, Sched
 import { toLocalDateKey } from '../utils/date'
 import { getCareerMilestones, getCareerNextMilestone } from '../utils/careerEvents'
 import { APP_RELEASE_DATE, APP_RELEASE_NAME, APP_RELEASE_NOTES, APP_VERSION } from '../version'
+import {
+  UI_SCALE_MAX,
+  UI_SCALE_MIN,
+  UI_SCALE_STEP,
+  normalizeUiScale,
+} from '../utils/uiScale'
 
 export default function ProfilePage() {
   const { user } = useAuth()
@@ -22,7 +28,6 @@ export default function ProfilePage() {
   } = useApp()
 
   const displayName = nickname.trim() || user?.displayName || '플래너 사용자'
-  const densityLabel = uiScale <= 90 ? '촘촘하게' : uiScale >= 105 ? '여유롭게' : '균형 있게'
   const updateNotificationPreferences = (patch: Partial<typeof notificationPreferences>) => {
     setNotificationPreferences(previous => ({
       ...previous,
@@ -74,18 +79,19 @@ export default function ProfilePage() {
             <span>표시 이름</span>
             <input value={nickname} onChange={event => setNickname(event.target.value)} placeholder={user?.displayName ?? '닉네임'} />
           </label>
-          <label>
-            <span>화면 밀도</span>
+          <label className="profile-scale-setting">
+            <span>화면 비율</span>
             <div className="scale-row">
               <input
                 type="range"
-                min={80}
-                max={110}
-                step={5}
+                min={UI_SCALE_MIN}
+                max={UI_SCALE_MAX}
+                step={UI_SCALE_STEP}
                 value={uiScale}
-                onChange={event => setUiScale(Number(event.target.value))}
+                aria-label="화면 비율"
+                onChange={event => setUiScale(normalizeUiScale(event.target.value))}
               />
-              <b title={`기존 설정값 ${uiScale}%`}>{densityLabel}</b>
+              <b>{uiScale}%</b>
             </div>
           </label>
           <button type="button" className="primary-button" onClick={() => void saveNow()}>
@@ -100,7 +106,7 @@ export default function ProfilePage() {
             <Stat label="레이아웃 항목" value={dashboardLayout.length} />
             <Stat label="테마" value={document.documentElement.getAttribute('data-theme') || 'light'} />
           </div>
-          <p className="profile-note">테마는 현재 브라우저에 저장되고, 화면 밀도와 플래너 데이터는 Firestore 저장 흐름을 사용합니다.</p>
+          <p className="profile-note">테마는 현재 브라우저에 저장되고, 화면 비율과 플래너 데이터는 Firestore 저장 흐름을 사용합니다.</p>
         </article>
 
         <article className="profile-panel">

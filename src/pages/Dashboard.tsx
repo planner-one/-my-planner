@@ -10,6 +10,12 @@ import DashboardEditor from './DashboardEditor'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button } from '../components/ui/Button'
 import { IconButton } from '../components/ui/IconButton'
+import {
+  UI_SCALE_MAX,
+  UI_SCALE_MIN,
+  UI_SCALE_OPTIONS,
+  normalizeUiScale,
+} from '../utils/uiScale'
 
 const COLS = 48
 const ROW_H = 40
@@ -142,7 +148,7 @@ export default function Dashboard() {
   }
 
   const changeScale = (next: number) => {
-    const value = Math.min(110, Math.max(80, next))
+    const value = normalizeUiScale(next)
     setUiScale(value)
     saveWithOverrides({ uiScale: value })
   }
@@ -155,27 +161,27 @@ export default function Dashboard() {
         actions={<>
           <div className="dashboard-scale-control">
             <IconButton
-              label="화면 축소"
+              label="화면 비율 5% 축소"
               icon={<Minus size={15} />}
               size="sm"
               onClick={() => changeScale(uiScale - 5)}
-              disabled={uiScale <= 80}
+              disabled={uiScale <= UI_SCALE_MIN}
             />
             <select
               value={uiScale}
               onChange={event => changeScale(Number(event.target.value))}
               aria-label="화면 비율"
             >
-              {[80, 85, 90, 95, 100, 105, 110].map(value => (
+              {UI_SCALE_OPTIONS.map(value => (
                 <option key={value} value={value}>{value}%</option>
               ))}
             </select>
             <IconButton
-              label="화면 확대"
+              label="화면 비율 5% 확대"
               icon={<Plus size={15} />}
               size="sm"
               onClick={() => changeScale(uiScale + 5)}
-              disabled={uiScale >= 110}
+              disabled={uiScale >= UI_SCALE_MAX}
             />
           </div>
           <Button variant="secondary" icon={<Settings2 size={16} />} onClick={() => setIsEditing(true)}>편집</Button>

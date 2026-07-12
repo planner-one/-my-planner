@@ -982,10 +982,11 @@
         .release-summary .stat-card b { font-size: 16px; }
         .release-list { margin: 0; padding-left: 18px; color: var(--text); font-size: 13px; line-height: 1.7; }
         .release-list li::marker { color: var(--accent); }
-        @media (max-width: 760px) {
+        @media (max-width: 767px) {
           .profile-grid, .profile-stats, .storage-grid, .release-summary, .inbox-grid, .inbox-stats { grid-template-columns: 1fr; }
           .profile-grid .profile-panel:first-child { grid-row: auto; }
           .profile-header { align-items: flex-start; }
+          .profile-scale-setting { display: none !important; }
           .release-panel .panel-heading { flex-direction: column; }
         }
 

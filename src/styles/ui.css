@@ -104,13 +104,6 @@
 .ui-panel-md { padding: 14px; }
 .ui-panel-lg { padding: 18px; }
 
-[data-density='compact'] .ui-panel-sm { padding: 8px; }
-[data-density='compact'] .ui-panel-md { padding: 12px; }
-[data-density='compact'] .ui-panel-lg { padding: 15px; }
-[data-density='spacious'] .ui-panel-sm { padding: 12px; }
-[data-density='spacious'] .ui-panel-md { padding: 17px; }
-[data-density='spacious'] .ui-panel-lg { padding: 22px; }
-
 .ui-page-header {
   min-width: 0;
   display: flex;

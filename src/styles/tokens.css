@@ -1,6 +1,8 @@
 :root {
   color-scheme: light;
   --ui-scale-factor: 0.9;
+  --ui-scale-width: 111.111111%;
+  --ui-scale-height: 111.111111dvh;
   --surface-app: #f3f5f4;
   --surface-base: #ffffff;
   --surface-subtle: #f7f8f7;
@@ -55,20 +57,15 @@
   --yellow: var(--warning);
   --purple: #7456a6;
   --shadow: var(--shadow-sm);
-  --app-scale: 1;
-  --app-viewport-height: var(--app-height);
+  --app-scale: var(--ui-scale-factor);
+  --app-viewport-height: var(--ui-scale-height);
 }
 
-:root[data-density='compact'] {
-  --control-sm: 30px;
-  --control-md: 35px;
-  --control-lg: 40px;
-}
-
-:root[data-density='spacious'] {
-  --control-sm: 36px;
-  --control-md: 42px;
-  --control-lg: 48px;
+@media (max-width: 767px) {
+  :root {
+    --app-scale: 1 !important;
+    --app-viewport-height: var(--app-height) !important;
+  }
 }
 
 [data-theme='dark'] {
