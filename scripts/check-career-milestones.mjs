@@ -23,6 +23,7 @@ await writeFile(tempModulePath, transpiled.outputText, 'utf8')
 
 const {
   createCareerCategoryMilestones,
+  createCareerInitialMilestones,
   getCareerMilestoneEntries,
   getCareerMilestones,
   getCareerNextMilestone,
@@ -135,6 +136,14 @@ assert.deepEqual(
   contestTemplate.map(item => item.label),
   ['신청 마감', '선발 발표', '본선', '최종 결과'],
   'contest template should include application, selection, final round, and final result',
+)
+
+const initialBriefingMilestones = createCareerInitialMilestones('briefing', '2026-07-20')
+assert.equal(initialBriefingMilestones.length, 1, 'a new career event should start with one milestone')
+assert.deepEqual(
+  initialBriefingMilestones.map(item => [item.type, item.label, item.date]),
+  [['main', '설명회 일자', '2026-07-20']],
+  'the initial milestone should keep the default category main schedule',
 )
 
 const entries = getCareerMilestoneEntries(contestEvent)

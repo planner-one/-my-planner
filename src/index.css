@@ -1271,3 +1271,33 @@ body {
     transition: none;
   }
 }
+
+/* 모바일 글쓰기 1차 최적화 */
+@media (max-width: 767px) {
+  .app-main {
+    padding: 12px 12px calc(20px + env(safe-area-inset-bottom)) !important;
+    scroll-padding-block: 12px calc(88px + env(safe-area-inset-bottom));
+    overscroll-behavior-y: contain;
+  }
+
+  .app-main input:not([type='checkbox']):not([type='radio']):not([type='color']):not([type='range']),
+  .app-main select {
+    min-height: 44px !important;
+    font-size: 16px !important;
+  }
+
+  .app-main textarea {
+    min-height: 96px !important;
+    font-size: 16px !important;
+    line-height: 1.5 !important;
+  }
+
+  .bottom-nav {
+    padding-bottom: calc(8px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .bottom-nav button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}

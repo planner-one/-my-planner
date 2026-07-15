@@ -14,11 +14,25 @@ export function useWidgetSize(): WidgetSize {
     const el = ref.current
     if (!el) return
 
-    const ro = new ResizeObserver(entries => {
-      const { width, height } = entries[0].contentRect
-      setSize({ w: Math.round(width), h: Math.round(height) })
-    })
-    ro.observe(el)
+    const updateSize = () => {
+      const next = {
+        w: Math.round(el.offsetWidth),
+        h: Math.round(el.offsetHeight),
+      }
+      setSize(previous => (
+        previous.w === next.w && previous.h === next.h
+          ? previous
+          : next
+      ))
+    }
+
+    updateSize()
+    const ro = new ResizeObserver(updateSize)
+    try {
+      ro.observe(el, { box: 'border-box' })
+    } catch {
+      ro.observe(el)
+    }
     return () => ro.disconnect()
   }, [])
 

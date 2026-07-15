@@ -12,8 +12,10 @@
     "check:user-data-merge": "node scripts/check-user-data-merge.mjs",
     "check:planner-briefing": "node scripts/check-planner-briefing.mjs",
     "check:career-milestones": "node scripts/check-career-milestones.mjs",
+    "check:personal-application-dates": "node scripts/check-personal-application-dates.mjs",
     "check:productivity-log": "node scripts/check-productivity-log.mjs",
     "check:onboarding": "node scripts/check-onboarding.mjs",
+    "check:mobile-ux": "node scripts/check-mobile-ux.mjs",
     "build": "vite build",
     "preview": "vite preview"
   },

@@ -139,6 +139,8 @@ export default function PageShell({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(() => localStorage.getItem(SIDEBAR_OPEN_KEY) !== 'false')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [linkModalOpen, setLinkModalOpen] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
+  const [signOutError, setSignOutError] = useState('')
   const [theme, setThemeState] = useState<Theme>(() => {
     const raw = localStorage.getItem('theme')
     const saved = raw === 'karrot' ? 'coral' : raw === 'toss' ? 'blue' : raw
@@ -171,8 +173,16 @@ export default function PageShell({ children }: { children: ReactNode }) {
   }
 
   const handleSignOut = async () => {
-    await saveNow()
-    await signOut()
+    if (signingOut) return
+    setSigningOut(true)
+    setSignOutError('')
+    try {
+      await saveNow()
+      await signOut()
+    } catch {
+      setSignOutError('로그아웃하지 못했습니다. 잠시 후 다시 시도해주세요.')
+      setSigningOut(false)
+    }
   }
 
   const initial = user?.displayName?.[0]?.toUpperCase() ?? '?'
@@ -232,7 +242,7 @@ export default function PageShell({ children }: { children: ReactNode }) {
           </button>
         </header>
 
-        <main style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
+        <main className="app-main" style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
           {children}
         </main>
 
@@ -292,6 +302,29 @@ export default function PageShell({ children }: { children: ReactNode }) {
                     </button>
                   )
                 })}
+              </div>
+              <div className="mobile-account-actions">
+                <div className="mobile-account-summary">
+                  {user?.photoURL ? (
+                    <img src={user.photoURL} alt="" />
+                  ) : (
+                    <span aria-hidden="true">{initial}</span>
+                  )}
+                  <div>
+                    <strong>{user?.displayName ?? '사용자'}</strong>
+                    <small>현재 계정</small>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="mobile-signout-btn"
+                  onClick={handleSignOut}
+                  disabled={signingOut}
+                >
+                  <Icon paths={SIGN_OUT_PATHS} />
+                  <span>{signingOut ? '저장 후 로그아웃 중…' : '로그아웃'}</span>
+                </button>
+                {signOutError && <p className="mobile-signout-error" role="alert">{signOutError}</p>}
               </div>
             </section>
           </div>
@@ -497,7 +530,7 @@ export default function PageShell({ children }: { children: ReactNode }) {
               </span>
             )}
           </div>
-          <button onClick={handleSignOut} className="signout-btn" style={{
+          <button onClick={handleSignOut} disabled={signingOut} className="signout-btn" style={{
             width: '100%', minHeight: 32, padding: sidebarOpen ? '7px 0' : 0, borderRadius: 7,
             border: '1px solid var(--border)', background: 'transparent',
             color: 'var(--muted)', cursor: 'pointer', fontSize: 12,
@@ -506,7 +539,7 @@ export default function PageShell({ children }: { children: ReactNode }) {
             gap: 6,
           }} title="로그아웃" aria-label="로그아웃">
             <Icon paths={SIGN_OUT_PATHS} />
-            {sidebarOpen && <span>로그아웃</span>}
+            {sidebarOpen && <span>{signingOut ? '로그아웃 중…' : '로그아웃'}</span>}
           </button>
         </div>
       </aside>
@@ -734,6 +767,84 @@ export default function PageShell({ children }: { children: ReactNode }) {
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
+        }
+        .mobile-account-actions {
+          position: sticky;
+          bottom: -14px;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          align-items: center;
+          gap: 10px;
+          margin-top: 14px;
+          padding: 14px 0;
+          border-top: 1px solid var(--border);
+          background: var(--bg2);
+        }
+        .mobile-account-summary {
+          min-width: 0;
+          display: flex;
+          align-items: center;
+          gap: 9px;
+        }
+        .mobile-account-summary > img,
+        .mobile-account-summary > span {
+          width: 34px;
+          height: 34px;
+          flex: 0 0 34px;
+          border-radius: 50%;
+        }
+        .mobile-account-summary > img {
+          object-fit: cover;
+        }
+        .mobile-account-summary > span {
+          display: grid;
+          place-items: center;
+          background: var(--accent);
+          color: #fff;
+          font-size: 12px;
+          font-weight: 800;
+        }
+        .mobile-account-summary div {
+          min-width: 0;
+          display: grid;
+          gap: 1px;
+        }
+        .mobile-account-summary strong {
+          overflow: hidden;
+          color: var(--text);
+          font-size: 12px;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .mobile-account-summary small {
+          color: var(--muted);
+          font-size: 10px;
+        }
+        .mobile-signout-btn {
+          min-width: 112px;
+          min-height: 44px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 7px;
+          padding: 0 12px;
+          border: 1px solid color-mix(in srgb, var(--red) 35%, var(--border));
+          border-radius: 8px;
+          background: color-mix(in srgb, var(--red) 7%, var(--bg2));
+          color: var(--red);
+          font-size: 12px;
+          font-weight: 800;
+          cursor: pointer;
+        }
+        .mobile-signout-btn:disabled {
+          cursor: default;
+          opacity: 0.58;
+        }
+        .mobile-signout-error {
+          grid-column: 1 / -1;
+          margin: 0;
+          color: var(--red);
+          font-size: 11px;
         }
         @media (max-width: 767px) {
           .sidebar { display: none !important; }

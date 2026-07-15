@@ -2,6 +2,13 @@ import { useMemo, useState } from 'react'
 import { useApp } from '../store/AppContext'
 import type { PersonalApplication, PersonalApplicationStatus, PersonalApplicationType } from '../types'
 import { toLocalDateKey } from '../utils/date'
+import {
+  getAvailableOptionalApplicationDateFields,
+  getVisibleOptionalApplicationDateFields,
+  OPTIONAL_APPLICATION_DATE_FIELDS,
+  OPTIONAL_APPLICATION_DATE_LABELS,
+  type OptionalApplicationDateField,
+} from '../utils/personalApplications'
 
 const APPLICATION_TYPES: PersonalApplicationType[] = [
   'savings', 'mentoring', 'welfare', 'youth_support',
@@ -91,6 +98,7 @@ export default function PersonalApplications() {
   const [form, setForm] = useState(emptyForm)
   const [filter, setFilter] = useState<Filter>('all')
   const [query, setQuery] = useState('')
+  const [revealedOptionalDates, setRevealedOptionalDates] = useState<Record<string, OptionalApplicationDateField[]>>({})
 
   const addItem = () => {
     const title = form.title.trim()
@@ -125,9 +133,40 @@ export default function PersonalApplications() {
     ))
   }
 
+  const revealOptionalDate = (id: string, field: OptionalApplicationDateField) => {
+    setRevealedOptionalDates(previous => {
+      const selected = new Set([...(previous[id] ?? []), field])
+      return {
+        ...previous,
+        [id]: OPTIONAL_APPLICATION_DATE_FIELDS.filter(candidate => selected.has(candidate)),
+      }
+    })
+  }
+
+  const updateOptionalDate = (id: string, field: OptionalApplicationDateField, value: string) => {
+    revealOptionalDate(id, field)
+    updateItem(id, { [field]: value || undefined } as Partial<PersonalApplication>)
+  }
+
+  const hideOptionalDate = (item: PersonalApplication, field: OptionalApplicationDateField) => {
+    const label = OPTIONAL_APPLICATION_DATE_LABELS[field]
+    if (item[field] && !window.confirm(`${label} 날짜를 지우고 숨길까요?`)) return
+
+    updateItem(item.id, { [field]: undefined } as Partial<PersonalApplication>)
+    setRevealedOptionalDates(previous => ({
+      ...previous,
+      [item.id]: (previous[item.id] ?? []).filter(candidate => candidate !== field),
+    }))
+  }
+
   const removeItem = (id: string) => {
     if (!window.confirm('이 신청 기록을 삭제할까요?')) return
     setPersonalApplications(previous => previous.filter(item => item.id !== id))
+    setRevealedOptionalDates(previous => {
+      const next = { ...previous }
+      delete next[id]
+      return next
+    })
   }
 
   const sorted = useMemo(() => sortApplications(personalApplications), [personalApplications])
@@ -249,36 +288,88 @@ export default function PersonalApplications() {
       <section className="personal-list">
         {visible.length === 0 ? (
           <p className="empty-text">관리할 신청 기록을 추가하세요.</p>
-        ) : visible.map(item => (
-          <article key={item.id} className={`personal-card ${item.status}`}>
-            <div className="personal-card-top">
-              <input value={item.title} onChange={event => updateItem(item.id, { title: event.target.value })} />
-              <span>{STATUS_LABELS[item.status]}</span>
-            </div>
-            <div className="personal-card-grid">
-              <label>기관<input value={item.organization ?? ''} onChange={event => updateItem(item.id, { organization: event.target.value })} /></label>
-              <label>유형<select value={item.type} onChange={event => updateItem(item.id, { type: event.target.value as PersonalApplicationType })}>{APPLICATION_TYPES.map(type => <option key={type} value={type}>{TYPE_LABELS[type]}</option>)}</select></label>
-              <label>상태<select value={item.status} onChange={event => updateItem(item.id, { status: event.target.value as PersonalApplicationStatus })}>{APPLICATION_STATUSES.map(status => <option key={status} value={status}>{STATUS_LABELS[status]}</option>)}</select></label>
-              <label>마감<input type="date" value={item.deadline ?? ''} onChange={event => updateItem(item.id, { deadline: event.target.value })} /></label>
-              <label>신청일<input type="date" value={item.appliedDate ?? ''} onChange={event => updateItem(item.id, { appliedDate: event.target.value })} /></label>
-              <label>결과일<input type="date" value={item.resultDate ?? ''} onChange={event => updateItem(item.id, { resultDate: event.target.value })} /></label>
-              <label>시작일<input type="date" value={item.startDate ?? ''} onChange={event => updateItem(item.id, { startDate: event.target.value })} /></label>
-              <label>종료일<input type="date" value={item.endDate ?? ''} onChange={event => updateItem(item.id, { endDate: event.target.value })} /></label>
-            </div>
-            <label className="wide-label">다음 행동<input value={item.nextAction ?? ''} onChange={event => updateItem(item.id, { nextAction: event.target.value })} placeholder="예: 주민등록등본 제출, 결과 발표 확인" /></label>
-            <div className="personal-card-grid two">
-              <label>제출 서류<input value={joinTokens(item.documents)} onChange={event => updateItem(item.id, { documents: splitTokens(event.target.value) })} placeholder="쉼표로 구분" /></label>
-              <label>키워드<input value={joinTokens(item.keywords)} onChange={event => updateItem(item.id, { keywords: splitTokens(event.target.value) })} placeholder="저축, 멘토링, 청년" /></label>
-            </div>
-            <label className="wide-label">참고 링크<input value={item.sourceUrl ?? ''} onChange={event => updateItem(item.id, { sourceUrl: event.target.value })} placeholder="https://" /></label>
-            <textarea value={item.note ?? ''} onChange={event => updateItem(item.id, { note: event.target.value })} placeholder="메모" rows={3} />
-            <div className="personal-card-actions">
-              {item.sourceUrl && <a href={item.sourceUrl} target="_blank" rel="noreferrer">원본 열기</a>}
-              <small>{item.deadline ? `마감 ${dateBadge(item.deadline)}` : '마감 없음'}</small>
-              <button type="button" onClick={() => removeItem(item.id)}>삭제</button>
-            </div>
-          </article>
-        ))}
+        ) : visible.map(item => {
+          const revealedFields = revealedOptionalDates[item.id] ?? []
+          const visibleOptionalDateFields = getVisibleOptionalApplicationDateFields(item, revealedFields)
+          const availableOptionalDateFields = getAvailableOptionalApplicationDateFields(item, revealedFields)
+          const timelineSummary = item.deadline
+            ? `마감 ${dateBadge(item.deadline)}`
+            : item.resultDate
+              ? `결과 ${dateBadge(item.resultDate)}`
+              : item.appliedDate
+                ? `신청 ${item.appliedDate}`
+                : '신청일·결과일 미정'
+
+          return (
+            <article key={item.id} className={`personal-card ${item.status}`}>
+              <div className="personal-card-top">
+                <input value={item.title} onChange={event => updateItem(item.id, { title: event.target.value })} />
+                <span>{STATUS_LABELS[item.status]}</span>
+              </div>
+              <div className="personal-card-grid personal-card-basics">
+                <label>기관<input value={item.organization ?? ''} onChange={event => updateItem(item.id, { organization: event.target.value })} /></label>
+                <label>유형<select value={item.type} onChange={event => updateItem(item.id, { type: event.target.value as PersonalApplicationType })}>{APPLICATION_TYPES.map(type => <option key={type} value={type}>{TYPE_LABELS[type]}</option>)}</select></label>
+                <label>상태<select value={item.status} onChange={event => updateItem(item.id, { status: event.target.value as PersonalApplicationStatus })}>{APPLICATION_STATUSES.map(status => <option key={status} value={status}>{STATUS_LABELS[status]}</option>)}</select></label>
+              </div>
+              <div className="personal-date-section">
+                <div className="personal-date-heading">
+                  <strong>날짜</strong>
+                  {availableOptionalDateFields.length > 0 && (
+                    <select
+                      value=""
+                      aria-label={`${item.title} 추가 날짜 선택`}
+                      onChange={event => {
+                        const field = event.target.value as OptionalApplicationDateField
+                        if (field) revealOptionalDate(item.id, field)
+                      }}
+                    >
+                      <option value="">날짜 추가</option>
+                      {availableOptionalDateFields.map(field => (
+                        <option key={field} value={field}>{OPTIONAL_APPLICATION_DATE_LABELS[field]}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+                <div className="personal-card-grid personal-date-grid">
+                  <label>신청일<input type="date" value={item.appliedDate ?? ''} onChange={event => updateItem(item.id, { appliedDate: event.target.value || undefined })} /></label>
+                  <label>결과일<input type="date" value={item.resultDate ?? ''} onChange={event => updateItem(item.id, { resultDate: event.target.value || undefined })} /></label>
+                  {visibleOptionalDateFields.map(field => (
+                    <div key={field} className="personal-optional-date">
+                      <label>
+                        {OPTIONAL_APPLICATION_DATE_LABELS[field]}
+                        <input
+                          type="date"
+                          value={item[field] ?? ''}
+                          onChange={event => updateOptionalDate(item.id, field, event.target.value)}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        title={`${OPTIONAL_APPLICATION_DATE_LABELS[field]} 제거`}
+                        aria-label={`${OPTIONAL_APPLICATION_DATE_LABELS[field]} 제거`}
+                        onClick={() => hideOptionalDate(item, field)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <label className="wide-label">다음 행동<input value={item.nextAction ?? ''} onChange={event => updateItem(item.id, { nextAction: event.target.value })} placeholder="예: 주민등록등본 제출, 결과 발표 확인" /></label>
+              <div className="personal-card-grid two">
+                <label>제출 서류<input value={joinTokens(item.documents)} onChange={event => updateItem(item.id, { documents: splitTokens(event.target.value) })} placeholder="쉼표로 구분" /></label>
+                <label>키워드<input value={joinTokens(item.keywords)} onChange={event => updateItem(item.id, { keywords: splitTokens(event.target.value) })} placeholder="저축, 멘토링, 청년" /></label>
+              </div>
+              <label className="wide-label">참고 링크<input value={item.sourceUrl ?? ''} onChange={event => updateItem(item.id, { sourceUrl: event.target.value })} placeholder="https://" /></label>
+              <textarea value={item.note ?? ''} onChange={event => updateItem(item.id, { note: event.target.value })} placeholder="메모" rows={3} />
+              <div className="personal-card-actions">
+                {item.sourceUrl && <a href={item.sourceUrl} target="_blank" rel="noreferrer">원본 열기</a>}
+                <small>{timelineSummary}</small>
+                <button type="button" onClick={() => removeItem(item.id)}>삭제</button>
+              </div>
+            </article>
+          )
+        })}
       </section>
 
       <style>{`
@@ -321,8 +412,17 @@ export default function PersonalApplications() {
         .personal-card-top input { border-color: transparent; background: transparent; padding-left: 0; font-weight: 900; font-size: 15px; }
         .personal-card-top span { border-radius: 999px; background: var(--accent-soft); color: var(--accent); padding: 4px 8px; font-size: 10px; font-weight: 900; white-space: nowrap; }
         .personal-card-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+        .personal-card-basics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
         .personal-card-grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .personal-card label { min-width: 0; display: flex; flex-direction: column; gap: 5px; color: var(--muted); font-size: 11px; font-weight: 800; }
+        .personal-date-section { display: flex; flex-direction: column; gap: 8px; padding-top: 2px; }
+        .personal-date-heading { min-height: 34px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .personal-date-heading strong { color: var(--text); font-size: 12px; }
+        .personal-date-heading select { width: 112px; flex: 0 0 auto; }
+        .personal-date-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .personal-optional-date { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) 34px; align-items: end; gap: 5px; }
+        .personal-optional-date > button { width: 34px; height: 34px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--muted); font-size: 18px; line-height: 1; cursor: pointer; }
+        .personal-optional-date > button:hover { border-color: var(--accent); color: var(--accent); }
         .wide-label { width: 100%; }
         .personal-card textarea { padding: 9px; resize: vertical; line-height: 1.5; }
         .personal-card-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }

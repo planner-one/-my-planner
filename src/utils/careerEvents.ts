@@ -320,6 +320,23 @@ export function createCareerCategoryMilestones(
   })
 }
 
+export function createCareerInitialMilestones(
+  category: CareerEventCategory,
+  date: string,
+): CareerMilestone[] {
+  const templates = CAREER_CATEGORY_MILESTONE_TEMPLATES[category] ?? CAREER_CATEGORY_MILESTONE_TEMPLATES.other
+  const template = templates.find(item => item.type === 'main') ?? {
+    type: 'main' as CareerMilestoneType,
+    label: CAREER_MILESTONE_TYPE_LABELS.main,
+  }
+  return [{
+    id: makeDraftMilestoneId(template.type, 0),
+    type: template.type,
+    label: template.label,
+    date: isDateKey(date) ? date : '',
+  }]
+}
+
 export function mergeCareerDateFieldsIntoMilestones(
   milestones: CareerMilestone[] | undefined,
   fields: Pick<Partial<CareerEvent>, 'date' | 'applicationDeadline' | 'resultDate' | 'operationStartDate' | 'operationEndDate'>,
