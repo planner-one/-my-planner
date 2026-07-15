@@ -1,14 +1,14 @@
 # 다음 채팅 인수인계
 
 _작성일: 2026-06-28_
-_갱신일: 2026-07-09 (UI System Pass와 캘린더 기준 정리)_
+_갱신일: 2026-07-14 (SC-16 코드 구현·자동 검증 완료 기준)_
 
 이 파일은 새 Codex 또는 Claude Code 세션에서 바로 이어 작업하기 위한 현재 상태 메모입니다.
 새 세션에서는 먼저 이 파일과 `AGENTS.md`, `PROGRESS.md`, `REQUIREMENTS.md`, `SCENARIOS.md`, `RELEASES.md`, `COPYRIGHT_AND_SERVICE_NOTES.md`, `LINK_IMPORT_GUIDE.md`, `JOB_POSTING_LINK_READER.md`, `PLANNER_SYSTEM_AUDIT_2026-07-04.md`, `UPDATE_SCHEDULE.md`를 읽고 시작하면 됩니다.
 
 ## 한 줄 요약
 
-플래너는 Firebase 기반 React/Vite/TypeScript 앱이며, SC-07 위젯 검토와 SC-08 사이드바 기능 페이지, SC-09 테마 정리, SC-10 태블릿/모바일 반응형 코드 QA까지 완료했습니다. v0.3.0~v0.3.2에서는 작업 흐름 위젯, 주요 페이지 UX, 내 신청/지원 공고/캘린더 연결을 보강했고, v0.3.3~v0.3.9에서는 지원 공고 링크 Reader와 사람인/원티드 파싱을 보강했습니다. v0.3.10에서는 목표 위젯/목표 페이지의 오늘 집중을 날짜별 오늘 방향으로 정리했고, v0.3.11에서는 오늘 할 일 위젯/페이지에 오늘·내일 선택과 다음 날 브리핑을 추가했습니다. v0.3.12에서는 지난 날짜 미완료 Todo를 오늘 날짜로 자동 이월하도록 보강했고, v0.3.13에서는 브리핑 알림 설정을 내 계정 기준으로 저장하도록 보강했습니다. v0.3.14에서는 생산성 추이 위젯에서 날짜별 생산성 기록 상세 페이지로 이동할 수 있게 했고, v0.3.15에서는 생산성 기록 페이지 요약 UX와 추이/구성 그래프를 보강했습니다. v0.3.16에서는 `check:doc-sync` 문서-코드 자동 점검과 `내 신청`/`지원 공고`/`오늘 할 일`의 빠른 추가·필터 밀도 보정을 반영했고, v0.3.17에서는 공통 패널/버튼/입력 밀도 기준과 캘린더의 표시 항목 패널, sticky agenda, 빠른 추가 패널을 정리했습니다.
+플래너는 Firebase 기반 React/Vite/TypeScript 앱이며, SC-07 위젯 검토와 SC-08 사이드바 기능 페이지, SC-09 테마 정리, SC-10 태블릿/모바일 반응형 코드 QA까지 완료했습니다. v0.3.0~v0.3.2에서는 작업 흐름 위젯, 주요 페이지 UX, 내 신청/지원 공고/캘린더 연결을 보강했고, v0.3.3~v0.3.9에서는 지원 공고 링크 Reader와 사람인/원티드 파싱을 보강했습니다. v0.3.10에서는 목표 위젯/목표 페이지의 오늘 집중을 날짜별 오늘 방향으로 정리했고, v0.3.11에서는 오늘 할 일 위젯/페이지에 오늘·내일 선택과 다음 날 브리핑을 추가했습니다. v0.3.12에서는 지난 날짜 미완료 Todo를 오늘 날짜로 자동 이월하도록 보강했고, v0.3.13에서는 브리핑 알림 설정을 내 계정 기준으로 저장하도록 보강했습니다. v0.3.14에서는 생산성 추이 위젯에서 날짜별 생산성 기록 상세 페이지로 이동할 수 있게 했고, v0.3.15에서는 생산성 기록 페이지 요약 UX와 추이/구성 그래프를 보강했습니다. v0.3.16에서는 `check:doc-sync` 문서-코드 자동 점검과 `내 신청`/`지원 공고`/`오늘 할 일`의 빠른 추가·필터 밀도 보정을 반영했고, v0.3.17에서는 공통 패널/버튼/입력 밀도 기준과 캘린더의 표시 항목 패널, sticky agenda, 빠른 추가 패널을 정리했습니다. 현재 v0.3.18 Planner Flow Clarity 범위에서 SC-16 신규 사용자 온보딩의 코드 구현과 자동 회귀 검사를 완료했으며, 앱 버전은 v0.3.17로 유지합니다. 로그인 세션 육안 QA 전에는 완료 또는 릴리즈로 보지 않습니다.
 
 ## 작업 위치와 원격
 
@@ -18,17 +18,28 @@ _갱신일: 2026-07-09 (UI System Pass와 캘린더 기준 정리)_
 - 배포: Firebase Hosting
 - 배포 URL: `https://my-planner-487bd.web.app`
 - GitHub Pages는 사용하지 않습니다.
-- 현재 HEAD: `d339be2 fix: reset goal focus by date`
+- 현재 HEAD: `d799554 fix: prevent invalid Firebase deployments`
 - 현재 앱 버전: `v0.3.17 UI System Pass`
-- 현재 로컬 브랜치 상태: 2026-07-05 내일 Todo/다음 날 브리핑, Codex 알림 자동화, 미완료 Todo 자동 이월, 내 계정 알림 설정, 지원 공고/기회 일정 Codex 정밀 정리 보조, 기회 일정 단계형 일자 모델, 생산성 기록 상세와 그래프/UX 보강 작업 중, 커밋/푸시 전 사용자 확인 필요
+- 현재 로컬 브랜치 상태: SC-16 신규 사용자 온보딩 코드와 관련 문서가 반영되고 자동 검증을 통과함. 완료 판정과 커밋/푸시 전 로그인 세션 육안 QA와 사용자 확인 필요
 - 최근 push와 Firebase Hosting 배포는 `planner-one` 계정으로 성공했습니다.
+
+## 2026-07-14 SC-16 신규 사용자 온보딩 진행 기준
+
+- 대상: Google 로그인 후 `users/{uid}` 문서가 없는 신규 계정만 온보딩 v1을 최초 1회 자동 표시합니다. 온보딩 필드가 없는 기존 사용자 문서는 레거시로 보고 자동 표시하지 않습니다.
+- 흐름: `사용 목적 선택 → 핵심 기능 이해 → 첫 항목 작성 → 맞춤 홈 적용` 4단계입니다.
+- 목적: 일상 관리, 업무·학습, 취업 준비, 기회·신청 관리별로 기존 Todo·작업·지원 공고·기회 일정/내 신청 데이터 구조와 starter 위젯 프리셋을 사용합니다.
+- 저장: `users/{uid}.onboarding`에 v1 상태를 계정별로 저장하고, 완료 시 첫 항목·프리셋·상태를 한 즉시 저장 payload로 반영합니다. 저장 실패 시 화면을 유지하고 다중 탭에서는 `completed > skipped > pending` 순위를 보호합니다.
+- 건너뛰기: 작성 중 초안을 버리고 빈 홈에만 `Todo·캘린더·빠른 메모·일일 루틴·메뉴` 범용 프리셋을 적용합니다.
+- 다시 보기: 프로필의 `사용 가이드 다시 보기`는 데이터와 레이아웃을 바꾸지 않는 안내 전용 모드이며 마지막에 대시보드 편집 화면으로 연결합니다.
+- 상태: 요구사항 R-077~086과 SC-16 코드 구현, 온보딩/병합/기존 기능 회귀, 타입체크, 빌드, 문서 동기화 검사는 완료했습니다. 로그인 후 390/768/1024px 및 데스크톱 육안 QA는 아직 기록하지 않습니다.
+- 범위 제외: 약관·개인정보 처리방침 작성과 동의 수집은 이번 온보딩과 분리하고 공개 신규 가입 확대 전 별도 운영 문서 작업으로 진행합니다.
 
 ## 2026-07-04 설계 감사 반영
 
 현재 구조를 "모르는 게 없을 때까지" 확인하기 위한 기준 문서를 추가했습니다.
 
 - `PLANNER_SYSTEM_AUDIT_2026-07-04.md`: 페이지 18개, 위젯 15개, `UserData` 주요 필드, Firebase 저장 흐름, 로컬 Reader API와 배포 차이, 디자인/반응형 상태, 보완점 정리
-- `UPDATE_SCHEDULE.md`: v0.3.11 내일 브리핑 완료, v0.3.12 미완료 Todo 자동 이월 완료, v0.3.13 내 계정 브리핑 알림 설정 완료, v0.3.14 생산성 기록 완료, v0.3.15 생산성 기록 그래프/UX 보강 완료, v0.3.16 문서/QA 기준, v0.3.17 UI System Pass, v0.3.18 플래너 흐름 구분, v0.3.19 데이터 품질/AI 준비, v0.4.0 운영 API 준비, v0.5.0 유료 AI 후보 순서 기록
+- `UPDATE_SCHEDULE.md`: v0.3.11 내일 브리핑 완료, v0.3.12 미완료 Todo 자동 이월 완료, v0.3.13 내 계정 브리핑 알림 설정 완료, v0.3.14 생산성 기록 완료, v0.3.15 생산성 기록 그래프/UX 보강 완료, v0.3.16 문서/QA 기준, v0.3.17 UI System Pass, v0.3.18 신규 사용자 온보딩과 플래너 흐름 구분 진행 중, v0.3.19 데이터 품질/AI 준비, v0.4.0 운영 API 준비, v0.5.0 유료 AI 후보 순서 기록
 - 확인된 보완점: 운영 배포용 지원 공고 Reader API 부재, 실기기 반응형 QA 필요, 디자인 시스템 불균일, 자동 점검 스크립트 부족, 데이터 내보내기/삭제와 약관/개인정보 문서 필요
 - KDB 인크루트 링크 `https://kdb.incruit.com/hire/viewhire.asp?projectid=125`는 직접 접근 시 잘못된 경로 응답을 주지만, Reader가 `http://kdb.incruit.com/...` 대상으로 접근하면 한국산업은행 공고 본문을 읽을 수 있어 인크루트 `http` 대상 재시도를 추가했습니다.
 - 지원 공고 링크 초안은 이제 본문 추출 없이 URL 슬러그만 잡힌 경우를 성공으로 표시하지 않습니다. `/api/job-posting-page`가 없을 때는 브라우저 Reader fallback을 시도하고, 그래도 실패하면 수동 붙여넣기 안내를 표시합니다.
@@ -80,18 +91,18 @@ _갱신일: 2026-07-09 (UI System Pass와 캘린더 기준 정리)_
 ## 최근 커밋 흐름
 
 ```text
+d799554 fix: prevent invalid Firebase deployments
+d247713 feat: add career milestone planning
+8fc71ec fix: scroll recent productivity logs
+c6f6895 feat: add unified inbox to profile
+04c609f fix: repair carried todo history
+2f966c1 fix: preserve todo carry history
+5def235 fix: protect todo saves from stale data
+7b6f54a feat: improve planner carryover and logs
+772b525 fix: improve job posting reader fallback
+f3ce56e fix: stabilize planner QA flows
 d339be2 fix: reset goal focus by date
 f9b7e6d feat: improve job posting link parsing
-1b5f76e docs: update handoff after job draft fix
-60f6a4b fix: verify job posting draft parsing
-2e778f3 fix: improve job posting draft accuracy
-0f81eb1 fix: parse pasted job posting content
-782d030 fix: support company job posting links
-38380df feat: add job posting link drafts
-cf0249f feat: add application tracking and optimize bundles
-1c1a9cd feat: improve workflow visibility
-1d8653b feat: improve formal notes page
-83942dc feat: add link organizer OCR and favicon
 ```
 
 ## 사용자 작업 방식
@@ -169,6 +180,7 @@ firebase deploy --only hosting
 - 레이아웃 저장, 로그아웃 전 저장 등은 즉시 저장 함수가 있습니다.
 - 사용자별 화면 비율 `uiScale`은 Firestore에 저장됩니다.
 - 사용자별 브리핑 알림 설정 `notificationPreferences`는 Firestore `users/{uid}`에 저장되며 알림 범위는 `ownAccount`로 고정합니다.
+- SC-16의 계정별 온보딩 상태는 `users/{uid}.onboarding`에 저장하며, 기존 문서에 필드가 없으면 자동 온보딩 대상이 아닌 레거시 사용자로 유지합니다.
 - 사용자 전환 시 이전 계정 pending save가 새 계정에 들어가지 않도록 저장 UID와 계정 메타데이터를 캡처하고, `weather_location`, `theme`, `clock_widget_mode` localStorage도 계정 전환 시 정리합니다.
 
 위젯 제목줄 액션 + 모달 패턴:
@@ -342,10 +354,10 @@ SC-07 위젯 검토는 완료입니다.
 
 ## 다음 작업 제안 순서
 
-1. 현재 문서 보강 미커밋 변경에 대해 사용자 확인
-2. 사용자 로컬 로그인 세션에서 주요 화면 육안 확인
-3. 사용자 지시가 있으면 커밋/푸시
-4. 필요 시 Firebase Hosting 배포
+1. 사용자 로컬 로그인 세션에서 모바일 390px, 태블릿 768/1024px, 데스크톱 온보딩 육안 확인
+2. 로그인 세션에서 완료·건너뛰기·저장 실패 재시도·로그아웃/재로그인·계정 전환 확인
+3. 구현 결과와 문서의 완료 표현을 맞춘 뒤 사용자 확인
+4. 사용자 지시가 있으면 커밋/푸시하고, 필요 시 Firebase Hosting 배포
 
 ## 작업 시 주의
 
@@ -357,3 +369,6 @@ SC-07 위젯 검토는 완료입니다.
 - React Grid Layout은 `1.4.4` 고정입니다. v2로 올리지 마세요.
 - `onLayoutChange` 저장 방식은 쓰지 말고, 드래그/리사이즈 완료 시점 저장 흐름을 유지하세요.
 - 한국 날짜 계산은 UTC 밀림을 피해야 합니다. `src/utils/date.ts`의 로컬 날짜 유틸을 우선 사용하세요.
+- 신규 사용자 판별은 사용자 문서 `null` 여부로만 하고, 온보딩 필드가 없는 기존 문서를 신규 사용자로 해석하지 마세요.
+- 프로필 안내 재열람은 기존 데이터와 대시보드 레이아웃을 바꾸지 않아야 합니다.
+- 약관·개인정보 처리방침과 동의 수집은 SC-16 구현과 합치지 말고 별도 운영 문서 작업으로 유지하세요.

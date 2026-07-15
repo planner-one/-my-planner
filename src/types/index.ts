@@ -303,6 +303,54 @@ export interface NotificationPreferences {
   timezone: string
 }
 
+export type OnboardingPurpose = 'daily' | 'workStudy' | 'jobSearch' | 'opportunity'
+export type OnboardingStatus = 'pending' | 'completed' | 'skipped'
+
+export interface OnboardingState {
+  version: 1
+  status: OnboardingStatus
+  purpose?: OnboardingPurpose
+  startedAt: string
+  updatedAt: string
+  completedAt?: string
+  skippedAt?: string
+}
+
+export type OnboardingFirstEntry =
+  | {
+    purpose: 'daily'
+    text: string
+    category: 'work' | 'personal' | 'study'
+  }
+  | {
+    purpose: 'workStudy'
+    name: string
+    taskType: '업무' | '공부'
+    due?: string
+  }
+  | {
+    purpose: 'jobSearch'
+    company?: string
+    position?: string
+    sourceUrl?: string
+    deadline?: string
+  }
+  | {
+    purpose: 'opportunity'
+    entryKind: 'careerEvent'
+    title: string
+    organization?: string
+    date: string
+    category: CareerEventCategory
+  }
+  | {
+    purpose: 'opportunity'
+    entryKind: 'personalApplication'
+    title: string
+    organization?: string
+    deadline?: string
+  }
+
 export interface UserData {
   todos?: Todo[]
   todoHistory?: TodoDailyResult[]
@@ -337,6 +385,7 @@ export interface UserData {
   uiScale?: number
   nickname?: string
   notificationPreferences?: NotificationPreferences
+  onboarding?: OnboardingState
   _lastSaved?: string
   _displayName?: string
   _email?: string

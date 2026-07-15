@@ -13,6 +13,7 @@
     "check:planner-briefing": "node scripts/check-planner-briefing.mjs",
     "check:career-milestones": "node scripts/check-career-milestones.mjs",
     "check:productivity-log": "node scripts/check-productivity-log.mjs",
+    "check:onboarding": "node scripts/check-onboarding.mjs",
     "build": "vite build",
     "preview": "vite preview"
   },

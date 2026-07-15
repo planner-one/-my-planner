@@ -24,9 +24,10 @@ const normalizeLayout = (layout: LayoutItem[]): LayoutItem[] =>
 
 interface Props {
   onDone: () => void
+  focusHeading?: boolean
 }
 
-export default function DashboardEditor({ onDone }: Props) {
+export default function DashboardEditor({ onDone, focusHeading = false }: Props) {
   const { dashboardLayout, dashboardActive, setDashboardLayout, setDashboardActive, saveWithOverrides } = useApp()
   const validActive = dashboardActive.filter(id => WIDGET_MAP[id.split('-')[0]])
 
@@ -52,6 +53,7 @@ export default function DashboardEditor({ onDone }: Props) {
   const [sidebarVisible, setSidebarVisible] = useState(true)
 
   const containerRef = useRef<HTMLDivElement>(null)
+  const headingRef = useRef<HTMLHeadingElement>(null)
   const [containerW, setContainerW] = useState(0)
 
   useEffect(() => {
@@ -63,6 +65,11 @@ export default function DashboardEditor({ onDone }: Props) {
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
+
+  useEffect(() => {
+    if (!focusHeading) return
+    headingRef.current?.focus()
+  }, [focusHeading])
 
   const handleDragStop = (newLayout: Layout[]) => {
     setLayout(normalizeLayout(newLayout as LayoutItem[]))
@@ -135,7 +142,13 @@ export default function DashboardEditor({ onDone }: Props) {
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         marginBottom: 16,
       }}>
-        <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', letterSpacing: 0 }}>나만의 플래너 편집</h2>
+        <h2
+          ref={headingRef}
+          tabIndex={-1}
+          style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', letterSpacing: 0 }}
+        >
+          나만의 플래너 편집
+        </h2>
         <div className="editor-actions" style={{ display: 'flex', gap: 8 }}>
           <button type="button" onClick={() => setSidebarVisible(open => !open)} style={{
             padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)',

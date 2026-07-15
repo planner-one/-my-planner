@@ -18,6 +18,7 @@ export default function ProfilePage() {
     scheduledTasks, careerEvents, personalApplications, jobPostings,
     tasks, topGoals,
     dashboardActive, dashboardLayout,
+    openOnboardingGuide,
     saveNow,
   } = useApp()
 
@@ -100,6 +101,12 @@ export default function ProfilePage() {
             <Stat label="테마" value={document.documentElement.getAttribute('data-theme') || 'light'} />
           </div>
           <p className="profile-note">테마는 현재 브라우저에 저장되고, 화면 밀도와 플래너 데이터는 Firestore 저장 흐름을 사용합니다.</p>
+          <button type="button" className="primary-button" onClick={openOnboardingGuide}>
+            사용 가이드 다시 보기
+          </button>
+          <p className="profile-note">
+            가이드를 다시 보아도 기존 데이터와 홈 구성은 바뀌지 않습니다.
+          </p>
         </article>
 
         <article className="profile-panel">

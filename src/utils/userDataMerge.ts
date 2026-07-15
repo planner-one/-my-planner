@@ -3,6 +3,7 @@ import type {
   Habit,
   JournalEntry,
   Note,
+  OnboardingState,
   PersonalApplication,
   Project,
   QuickMemoEntry,
@@ -57,6 +58,112 @@ const mergeRecordRemoteFirst = <T>(
   ...incomingValue,
   ...remoteValue,
 })
+
+const valuesEqual = (left: unknown, right: unknown) =>
+  JSON.stringify(left) === JSON.stringify(right)
+
+const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+
+const getStableArrayKey = (items: unknown[]): 'id' | 'date' | null => {
+  const objectItems = items.filter(isObjectRecord)
+  if (objectItems.length !== items.length || objectItems.length === 0) return null
+  if (objectItems.every(item => typeof item.id === 'string')) return 'id'
+  if (objectItems.every(item => typeof item.date === 'string')) return 'date'
+  return null
+}
+
+const rebaseValueAfterSave = (
+  sentValue: unknown,
+  currentValue: unknown,
+  savedValue: unknown,
+): unknown => {
+  if (valuesEqual(currentValue, sentValue)) return savedValue
+
+  if (Array.isArray(sentValue) && Array.isArray(currentValue) && Array.isArray(savedValue)) {
+    const key = getStableArrayKey([...sentValue, ...currentValue, ...savedValue])
+    if (!key) return currentValue
+
+    const sentByKey = new Map(sentValue.map(item => [String(item[key]), item]))
+    const currentKeys = new Set(currentValue.map(item => String(item[key])))
+    const savedByKey = new Map(savedValue.map(item => [String(item[key]), item]))
+    const rebased = currentValue.map(item => {
+      const itemKey = String(item[key])
+      const sentItem = sentByKey.get(itemKey)
+      if (!sentItem) return item
+      return rebaseValueAfterSave(sentItem, item, savedByKey.get(itemKey) ?? sentItem)
+    })
+
+    savedValue.forEach(item => {
+      const itemKey = String(item[key])
+      if (!currentKeys.has(itemKey) && !sentByKey.has(itemKey)) {
+        rebased.push(item)
+      }
+    })
+    return rebased
+  }
+
+  if (isObjectRecord(sentValue) && isObjectRecord(currentValue) && isObjectRecord(savedValue)) {
+    const rebased: Record<string, unknown> = { ...savedValue }
+    const keys = new Set([...Object.keys(sentValue), ...Object.keys(currentValue)])
+
+    keys.forEach(key => {
+      const sentHasKey = Object.prototype.hasOwnProperty.call(sentValue, key)
+      const currentHasKey = Object.prototype.hasOwnProperty.call(currentValue, key)
+      if (!currentHasKey && sentHasKey) {
+        delete rebased[key]
+        return
+      }
+      if (currentHasKey) {
+        rebased[key] = rebaseValueAfterSave(sentValue[key], currentValue[key], savedValue[key])
+      }
+    })
+    return rebased
+  }
+
+  return currentValue
+}
+
+export const rebaseUserDataAfterSave = (
+  sentData: UserData,
+  currentData: UserData,
+  savedData: UserData,
+): UserData => {
+  const rebased = rebaseValueAfterSave(sentData, currentData, savedData) as UserData
+  rebased.onboarding = valuesEqual(currentData.onboarding, sentData.onboarding)
+    ? savedData.onboarding
+    : mergeOnboardingState(savedData.onboarding, currentData.onboarding)
+  rebased._lastSaved = savedData._lastSaved
+  return rebased
+}
+
+const ONBOARDING_STATUS_WEIGHT: Record<OnboardingState['status'], number> = {
+  pending: 0,
+  skipped: 1,
+  completed: 2,
+}
+
+export const mergeOnboardingState = (
+  remoteState?: OnboardingState,
+  incomingState?: OnboardingState,
+): OnboardingState | undefined => {
+  if (!remoteState) return incomingState
+  if (!incomingState) return remoteState
+
+  const remoteVersion = Number(remoteState.version)
+  const incomingVersion = Number(incomingState.version)
+  if (remoteVersion !== incomingVersion) {
+    return remoteVersion > incomingVersion ? remoteState : incomingState
+  }
+
+  const remoteWeight = ONBOARDING_STATUS_WEIGHT[remoteState.status]
+  const incomingWeight = ONBOARDING_STATUS_WEIGHT[incomingState.status]
+  if (remoteWeight !== incomingWeight) {
+    return remoteWeight > incomingWeight ? remoteState : incomingState
+  }
+
+  return remoteState.updatedAt >= incomingState.updatedAt ? remoteState : incomingState
+}
 
 const mergeHabitHistory = (
   remoteValue: UserData['habitHistory'] = {},
@@ -260,6 +367,21 @@ export function mergeUserDataForStaleSave(
   merged.personalApplications = mergeByIdRemoteFirst(remoteData.personalApplications, incomingData.personalApplications)
   merged.jobPostings = mergeByIdRemoteFirst(remoteData.jobPostings, incomingData.jobPostings)
   merged.journal = mergeJournal(remoteData.journal, incomingData.journal)
+  merged.onboarding = mergeOnboardingState(remoteData.onboarding, incomingData.onboarding)
+
+  const incomingOnboardingVersion = Number(incomingData.onboarding?.version ?? 0)
+  const remoteOnboardingVersion = Number(remoteData.onboarding?.version ?? 0)
+  const incomingOnboardingAdvanced = incomingData.onboarding
+    && (!remoteData.onboarding
+      || incomingOnboardingVersion > remoteOnboardingVersion
+      || (incomingOnboardingVersion === remoteOnboardingVersion
+        && ONBOARDING_STATUS_WEIGHT[incomingData.onboarding.status]
+          > ONBOARDING_STATUS_WEIGHT[remoteData.onboarding.status]))
+  const remoteDashboardIsEmpty = (remoteData.dashboardActive?.length ?? 0) === 0
+  if (incomingOnboardingAdvanced && remoteDashboardIsEmpty) {
+    merged.dashboardActive = incomingData.dashboardActive ?? remoteData.dashboardActive
+    merged.dashboardLayout = incomingData.dashboardLayout ?? remoteData.dashboardLayout
+  }
 
   return merged
 }

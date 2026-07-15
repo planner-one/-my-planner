@@ -1,4 +1,4 @@
-import { doc, getDoc, runTransaction, setDoc } from 'firebase/firestore'
+import { doc, getDoc, runTransaction } from 'firebase/firestore'
 import { db } from '../config/firebase'
 import type { UserData } from '../types'
 import { mergeUserDataForStaleSave } from '../utils/userDataMerge'
@@ -15,16 +15,14 @@ export const saveUserData = async (
 ): Promise<UserData> => {
   const userRef = doc(db, 'users', uid)
 
-  if (!expectedLastSaved) {
-    await setDoc(userRef, data, { merge: true })
-    return data
-  }
-
   return runTransaction(db, async transaction => {
     const snap = await transaction.get(userRef)
     const remoteData = snap.exists() ? (snap.data() as UserData) : null
     const remoteLastSaved = remoteData?._lastSaved
-    const nextData = remoteLastSaved && remoteLastSaved !== expectedLastSaved
+    const shouldMerge = Boolean(
+      remoteData && (!expectedLastSaved || remoteLastSaved !== expectedLastSaved)
+    )
+    const nextData = shouldMerge
       ? mergeUserDataForStaleSave(remoteData, data)
       : data
 

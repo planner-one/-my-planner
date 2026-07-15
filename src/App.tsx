@@ -3,6 +3,7 @@ import { AppProvider, useApp } from './store/AppContext'
 import { RouterProvider, useRouter } from './store/RouterContext'
 import LoginPage from './pages/LoginPage'
 import PageShell from './components/PageShell'
+import { OnboardingGuide } from './components/OnboardingGuide'
 import { Suspense, lazy, type ComponentType, type LazyExoticComponent } from 'react'
 
 type PageId =
@@ -58,18 +59,45 @@ function PageLoading() {
 }
 
 function AppMain() {
-  const { dataLoaded } = useApp()
-  const { page } = useRouter()
+  const {
+    dataLoaded,
+    onboarding,
+    onboardingOpen,
+    onboardingMode,
+    completeOnboarding,
+    skipOnboarding,
+    selectOnboardingPurpose,
+    closeOnboardingGuide,
+    requestDashboardEdit,
+  } = useApp()
+  const { page, setPage } = useRouter()
   const PageComponent = PAGE_MAP[page] ?? PAGE_MAP.dashboard
 
   if (!dataLoaded) return <Loading />
 
+  const openDashboardEditor = () => {
+    setPage('dashboard')
+    requestDashboardEdit()
+  }
+
   return (
-    <PageShell>
-      <Suspense fallback={<PageLoading />}>
-        <PageComponent />
-      </Suspense>
-    </PageShell>
+    <>
+      <PageShell>
+        <Suspense fallback={<PageLoading />}>
+          <PageComponent />
+        </Suspense>
+      </PageShell>
+      <OnboardingGuide
+        open={onboardingOpen}
+        mode={onboardingMode}
+        initialPurpose={onboarding?.purpose}
+        onComplete={completeOnboarding}
+        onSkip={skipOnboarding}
+        onPurposeChange={selectOnboardingPurpose}
+        onClose={closeOnboardingGuide}
+        onOpenDashboardEditor={openDashboardEditor}
+      />
+    </>
   )
 }
 

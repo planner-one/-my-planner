@@ -46,10 +46,19 @@ export default function Dashboard() {
   const {
     dashboardLayout, dashboardActive,
     uiScale, setUiScale, saveWithOverrides,
+    dashboardEditRequestKey, consumeDashboardEditRequest,
   } = useApp()
   const [isEditing, setIsEditing] = useState(false)
+  const [focusEditorHeading, setFocusEditorHeading] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const [containerW, setContainerW] = useState(0)
+
+  useEffect(() => {
+    if (dashboardEditRequestKey <= 0) return
+    setFocusEditorHeading(true)
+    setIsEditing(true)
+    consumeDashboardEditRequest()
+  }, [dashboardEditRequestKey, consumeDashboardEditRequest])
 
   useEffect(() => {
     const el = containerRef.current
@@ -63,7 +72,15 @@ export default function Dashboard() {
   }, [isEditing])
 
   if (isEditing) {
-    return <DashboardEditor onDone={() => setIsEditing(false)} />
+    return (
+      <DashboardEditor
+        focusHeading={focusEditorHeading}
+        onDone={() => {
+          setIsEditing(false)
+          setFocusEditorHeading(false)
+        }}
+      />
+    )
   }
 
   const layout = normalizeLayout(
@@ -201,7 +218,7 @@ export default function Dashboard() {
               +
             </button>
           </div>
-          <button onClick={() => setIsEditing(true)} style={{
+          <button onClick={() => { setFocusEditorHeading(false); setIsEditing(true) }} style={{
             padding: '6px 16px', borderRadius: 8, border: '1px solid var(--border)',
             background: 'var(--bg2)', color: 'var(--text)', cursor: 'pointer', fontSize: 13,
           }}>
