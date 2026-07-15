@@ -74,6 +74,62 @@ assert.equal(getCareerNextMilestone(contestEvent, '2026-07-11')?.label, '선발 
 const confirmedContest = { ...contestEvent, status: 'confirmed' }
 assert.equal(getCareerNextMilestone(confirmedContest, '2026-07-11')?.label, '본선', 'confirmed contest should prioritize final/participation milestone')
 
+const editedEvent = syncCareerEventDateFields({
+  id: 'edited-event',
+  title: '날짜를 수정한 설명회',
+  category: 'briefing',
+  status: 'interested',
+  date: '2026-07-20',
+  milestones: [
+    { id: 'main', type: 'main', label: '설명회', date: '2026-07-25' },
+  ],
+})
+
+assert.equal(editedEvent.date, '2026-07-25', 'edited milestone date should replace the legacy date field')
+assert.deepEqual(
+  editedEvent.milestones.map(item => item.date),
+  ['2026-07-25'],
+  'edited event should not restore the previous legacy date as another milestone',
+)
+
+const previouslyCorruptedEvent = syncCareerEventDateFields({
+  id: 'previously-corrupted',
+  title: '이전 수정 실패 일정',
+  category: 'briefing',
+  status: 'interested',
+  date: '2026-07-20',
+  milestones: [
+    { id: 'previously-corrupted-legacy-main', type: 'main', label: '일정', date: '2026-07-20' },
+    { id: 'main', type: 'main', label: '설명회', date: '2026-07-25' },
+  ],
+})
+
+assert.equal(previouslyCorruptedEvent.date, '2026-07-25', 'a previously restored legacy milestone should not keep the old date active')
+assert.deepEqual(
+  previouslyCorruptedEvent.milestones.map(item => item.id),
+  ['main'],
+  'a generated legacy milestone should be removed when the edited milestone exists',
+)
+
+const duplicatedLegacyIdEvent = syncCareerEventDateFields({
+  id: 'duplicated-legacy-id',
+  title: '레거시 일정 수정 실패',
+  category: 'briefing',
+  status: 'interested',
+  date: '2026-07-20',
+  milestones: [
+    { id: 'duplicated-legacy-id-legacy-main', type: 'main', label: '일정', date: '2026-07-20' },
+    { id: 'duplicated-legacy-id-legacy-main', type: 'main', label: '일정', date: '2026-07-25' },
+  ],
+})
+
+assert.equal(duplicatedLegacyIdEvent.date, '2026-07-25', 'an edited legacy milestone should win over the stale date with the same generated id')
+assert.deepEqual(
+  duplicatedLegacyIdEvent.milestones.map(item => item.date),
+  ['2026-07-25'],
+  'the stale duplicate with the same generated legacy id should be removed',
+)
+
 const contestTemplate = createCareerCategoryMilestones('contest', { date: '2026-07-20' })
 assert.deepEqual(
   contestTemplate.map(item => item.label),

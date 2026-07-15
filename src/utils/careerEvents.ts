@@ -227,10 +227,45 @@ const legacyMilestones = (event: Partial<CareerEvent>): CareerMilestone[] => {
 }
 
 export function normalizeCareerMilestones(event: Partial<CareerEvent>): CareerMilestone[] {
-  const supplied = (Array.isArray(event.milestones) ? event.milestones : [])
+  const hasSuppliedMilestones = Array.isArray(event.milestones)
+  const suppliedMilestones = Array.isArray(event.milestones) ? event.milestones : []
+  const sanitizedSupplied = suppliedMilestones
     .map((milestone, index) => sanitizeMilestone(milestone, index, event.id ?? 'career-milestone'))
     .filter((milestone): milestone is CareerMilestone => Boolean(milestone))
-  const legacy = legacyMilestones(event).filter(milestone => {
+  const legacyIdPrefix = `${event.id ?? 'career'}-legacy-`
+  const legacyDateById: Record<string, string | undefined> = {
+    [`${legacyIdPrefix}main`]: event.date,
+    [`${legacyIdPrefix}application`]: event.applicationDeadline,
+    [`${legacyIdPrefix}result`]: event.resultDate,
+    [`${legacyIdPrefix}operation`]: event.operationStartDate,
+  }
+  const suppliedWithoutStaleDuplicates = sanitizedSupplied.filter((milestone, index, milestones) => {
+    const legacyDate = legacyDateById[milestone.id]
+    if (!legacyDate || milestone.date !== legacyDate) return true
+    return !milestones.some((other, otherIndex) =>
+      otherIndex !== index
+      && other.id === milestone.id
+      && other.date !== legacyDate,
+    )
+  })
+  const editedMilestones = suppliedWithoutStaleDuplicates.filter(milestone => !milestone.id.startsWith(legacyIdPrefix))
+  const supplied = suppliedWithoutStaleDuplicates.filter(milestone => {
+    if (!milestone.id.startsWith(legacyIdPrefix)) return true
+    if (milestone.id === `${legacyIdPrefix}main`) {
+      return !editedMilestones.some(item => ['main', 'round', 'final_round', 'operation', 'custom'].includes(item.type))
+    }
+    if (milestone.id === `${legacyIdPrefix}application`) {
+      return !editedMilestones.some(item => item.type === 'application_deadline')
+    }
+    if (milestone.id === `${legacyIdPrefix}result`) {
+      return !editedMilestones.some(item => ['result_announcement', 'selection_announcement'].includes(item.type))
+    }
+    if (milestone.id === `${legacyIdPrefix}operation`) {
+      return !editedMilestones.some(item => item.type === 'operation')
+    }
+    return true
+  })
+  const legacy = (hasSuppliedMilestones ? [] : legacyMilestones(event)).filter(milestone => {
     if (milestone.type === 'main') return !supplied.some(item => item.date === milestone.date)
     if (milestone.type === 'application_deadline') {
       return !supplied.some(item => item.type === 'application_deadline' && item.date === milestone.date)
