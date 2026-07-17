@@ -15,10 +15,16 @@ import {
 import { detectJobPlatform, normalizeJobUrl } from '../utils/jobPostingDraft'
 import { buildStarterDashboard, resolveInitialOnboardingState } from '../utils/onboarding'
 import { mergeOnboardingState, rebaseUserDataAfterSave } from '../utils/userDataMerge'
+import {
+  normalizeDisplayPreferences,
+  normalizeNavigationPreferences,
+  resolveDisplayScale,
+} from '../utils/responsiveUi'
 import type {
   Todo, TodoDailyResult, DeletedTodoDailyResult, Habit, Task, Goal, Project, TopGoal, Counters,
   Note, QuickMemoEntry, WeekTask, ScheduledTask, CareerEvent, JournalEntry, LayoutItem, UserData,
-  ReviewDailyEntry, PersonalApplication, JobPosting, NotificationPreferences,
+  ReviewDailyEntry, PersonalApplication, JobPosting, NotificationPreferences, NavigationPreferences,
+  DisplayPreferences,
   OnboardingFirstEntry, OnboardingPurpose, OnboardingState,
 } from '../types'
 
@@ -72,6 +78,10 @@ interface AppContextValue {
   nickname: string;          setNickname: React.Dispatch<React.SetStateAction<string>>
   notificationPreferences: NotificationPreferences
   setNotificationPreferences: React.Dispatch<React.SetStateAction<NotificationPreferences>>
+  navigationPreferences: NavigationPreferences
+  setNavigationPreferences: React.Dispatch<React.SetStateAction<NavigationPreferences>>
+  displayPreferences: DisplayPreferences
+  setDisplayPreferences: React.Dispatch<React.SetStateAction<DisplayPreferences>>
   onboarding: OnboardingState | null
   onboardingOpen: boolean
   onboardingMode: OnboardingMode
@@ -84,6 +94,7 @@ interface AppContextValue {
   requestDashboardEdit: () => void
   consumeDashboardEditRequest: () => void
   saveWithOverrides: (overrides?: Partial<UserData>) => Promise<void>
+  saveImmediately: (overrides: Partial<UserData>) => Promise<void>
   saveNow: () => Promise<void>
 }
 
@@ -209,6 +220,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [uiScale, setUiScale] = useState<number>(90)
   const [nickname, setNickname] = useState<string>('')
   const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES)
+  const [navigationPreferences, setNavigationPreferences] = useState<NavigationPreferences>(() =>
+    normalizeNavigationPreferences(undefined),
+  )
+  const [displayPreferences, setDisplayPreferences] = useState<DisplayPreferences>(() =>
+    normalizeDisplayPreferences(undefined),
+  )
   const [onboarding, setOnboarding] = useState<OnboardingState | null>(null)
   const [onboardingOpen, setOnboardingOpen] = useState(false)
   const [onboardingMode, setOnboardingMode] = useState<OnboardingMode>('setup')
@@ -304,6 +321,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       uiScale,
       nickname,
       notificationPreferences,
+      navigationPreferences,
+      displayPreferences,
       onboarding: onboarding ?? undefined,
       _lastSaved: new Date().toISOString(),
       _displayName: userMeta.displayName,
@@ -388,6 +407,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setUiScale(90)
     setNickname('')
     setNotificationPreferences(DEFAULT_NOTIFICATION_PREFERENCES)
+    setNavigationPreferences(normalizeNavigationPreferences(undefined))
+    setDisplayPreferences(normalizeDisplayPreferences(undefined))
     setOnboarding(null)
     setOnboardingOpen(false)
     setOnboardingMode('setup')
@@ -469,6 +490,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setNickname(d?.nickname ?? '')
       setUiScale(d?.uiScale ?? 90)
       setNotificationPreferences(migrateNotificationPreferences(d?.notificationPreferences))
+      setNavigationPreferences(normalizeNavigationPreferences(d?.navigationPreferences))
+      setDisplayPreferences(normalizeDisplayPreferences(d?.displayPreferences))
       setOnboarding(loadedOnboarding)
       setOnboardingMode('setup')
       setOnboardingOpen(loadedOnboarding?.version === 1 && loadedOnboarding.status === 'pending')
@@ -487,10 +510,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [user?.uid])
 
   useEffect(() => {
-    const scale = Math.min(110, Math.max(80, uiScale)) / 100
+    const desktopScalePercent = resolveDisplayScale({
+      viewportWidth: 1200,
+      densityMode: displayPreferences.densityMode,
+      manualScale: uiScale,
+    })
+    const scale = desktopScalePercent / 100
     document.documentElement.style.setProperty('--app-scale', String(scale))
-    document.documentElement.style.setProperty('--app-viewport-height', `${100 / scale}vh`)
-  }, [uiScale])
+    document.documentElement.style.setProperty('--app-viewport-height', `${100 / scale}dvh`)
+  }, [displayPreferences.densityMode, uiScale])
 
   useEffect(() => {
     const now = new Date()
@@ -562,6 +590,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     timeBlockData, scheduledTasks, careerEvents, personalApplications, jobPostings,
     journal, chartHistory,
     dashboardLayout, dashboardActive, uiScale, nickname, notificationPreferences, onboarding, dataLoaded,
+    navigationPreferences, displayPreferences,
   ])
 
   const hydrateSavedUserData = (saved: UserData) => {
@@ -600,6 +629,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setUiScale(saved.uiScale ?? 90)
     setNickname(saved.nickname ?? '')
     setNotificationPreferences(migrateNotificationPreferences(saved.notificationPreferences))
+    setNavigationPreferences(normalizeNavigationPreferences(saved.navigationPreferences))
+    setDisplayPreferences(normalizeDisplayPreferences(saved.displayPreferences))
     setOnboarding(saved.onboarding ?? null)
     if (saved.onboarding && saved.onboarding.status !== 'pending' && onboardingMode === 'setup') {
       setOnboardingOpen(false)
@@ -649,7 +680,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ...overrides,
       _lastSaved: new Date().toISOString(),
     })
-    const saved = await saveSyncedUserData(uid, payload, true)
+    const saved = await saveSyncedUserData(uid, payload)
     if (
       currentUidRef.current !== uid
       || sessionGenerationRef.current !== generation
@@ -667,6 +698,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       hydrateSavedUserDataWithoutAutosave(reconciled)
     }
     return reconciled
+  }
+
+  const saveImmediately = async (overrides: Partial<UserData>): Promise<void> => {
+    await saveWithOverridesStrict(overrides)
   }
 
   const openOnboardingGuide = () => {
@@ -879,6 +914,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     uiScale, setUiScale,
     nickname, setNickname,
     notificationPreferences, setNotificationPreferences,
+    navigationPreferences, setNavigationPreferences,
+    displayPreferences, setDisplayPreferences,
     onboarding,
     onboardingOpen,
     onboardingMode,
@@ -891,6 +928,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     requestDashboardEdit,
     consumeDashboardEditRequest,
     saveWithOverrides,
+    saveImmediately,
     saveNow,
   }
 

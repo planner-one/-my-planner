@@ -29,11 +29,11 @@
 - Consumes: 현재 `useWidgetSize`, `PageShell`, `index.css` 소스 계약
 - Produces: `npm run check:mobile-ux`
 
-- [ ] **Step 1: 실패 회귀 검사 작성**
+- [x] **Step 1: 실패 회귀 검사 작성**
 
   `check-mobile-ux.mjs`에서 Node `assert`와 소스 읽기를 사용해 다음을 요구한다: `border-box` 관찰, `offsetWidth/offsetHeight` 측정, 같은 크기 state 재사용, `.app-main`, `.mobile-account-actions`, `.mobile-signout-btn`, 모바일 16px 입력, 44px 입력/하단 탭, safe area. 340px 모델에서는 border-box 기준 compact 결과가 반복 측정해도 같아야 한다.
 
-- [ ] **Step 2: RED 확인**
+- [x] **Step 2: RED 확인**
 
   Run: `npm run check:mobile-ux`
 
@@ -51,11 +51,11 @@
 - Consumes: `HTMLElement.offsetWidth`, `HTMLElement.offsetHeight`, `ResizeObserver`
 - Produces: 기존 `{ ref, w, h }` API를 유지하는 안정된 border-box 크기
 
-- [ ] **Step 1: 최소 구현**
+- [x] **Step 1: 최소 구현**
 
   관찰 대상의 `offsetWidth/offsetHeight`를 반올림해 측정하고 이전 `w/h`와 같으면 이전 state를 반환한다. 최초 1회 즉시 측정한 뒤 `ResizeObserver.observe(el, { box: 'border-box' })`를 사용하고, 옵션을 지원하지 않는 환경에서는 기본 observe로 fallback한다.
 
-- [ ] **Step 2: GREEN 일부 확인**
+- [x] **Step 2: GREEN 일부 확인**
 
   Run: `npm run check:mobile-ux`
 
@@ -74,15 +74,15 @@
 - Consumes: 기존 `saveNow`, `signOut`, 사용자 이름·사진
 - Produces: 모바일 메뉴 계정 영역, `.app-main`, 모바일 입력·하단 탭 공통 규칙
 
-- [ ] **Step 1: 독립 로그아웃 구현**
+- [x] **Step 1: 독립 로그아웃 구현**
 
   전체 메뉴 그리드 뒤에 `.mobile-account-actions`를 추가하고 사용자 정보와 `.mobile-signout-btn`을 렌더링한다. `signingOut` 상태로 중복 실행을 막고 실패 시 버튼을 다시 활성화한다. 데스크톱 로그아웃도 같은 상태를 사용한다.
 
-- [ ] **Step 2: 모바일 공통 CSS 구현**
+- [x] **Step 2: 모바일 공통 CSS 구현**
 
   main에 `.app-main`을 붙이고 767px 이하에서 12px 좌우 padding, 입력/선택 16px·44px, textarea 96px, 하단 탭 44px와 safe area, 본문 scroll padding을 적용한다.
 
-- [ ] **Step 3: GREEN 확인**
+- [x] **Step 3: GREEN 확인**
 
   Run: `npm run check:mobile-ux`
 
@@ -103,11 +103,11 @@
 - Consumes: 구현·검증 결과
 - Produces: SC-10 모바일 1차 실기기 피드백 반영 기록
 
-- [ ] **Step 1: 문서 반영**
+- [x] **Step 1: 문서 반영**
 
   일일 루틴 안정화, 독립 로그아웃, 모바일 입력 16px/44px·본문 여백·safe area를 요구사항과 진행 기록에 한국어로 남긴다. 실기기 전체 최적화 완료로 표현하지 않는다.
 
-- [ ] **Step 2: 전체 검증**
+- [x] **Step 2: 전체 검증**
 
   Run: `npm run check:mobile-ux && npm run check:doc-sync && npm run check:onboarding && npm run check:user-data-merge && npm run check:todo-history && npm run check:planner-briefing && npm run check:career-milestones && npm run check:job-draft && npm run check:productivity-log && npx tsc --noEmit && npm run build && git diff --check`
 
@@ -117,7 +117,7 @@
 
   로컬 Vite 서버를 기존 서버와 충돌하지 않는 포트로 실행하고 390px viewport에서 페이지 내용, 오류 오버레이, 모바일 입력 CSS와 안전 영역을 확인한다. 인증 세션이 없으면 로그인 후 화면 미검증을 명시한다.
 
-- [ ] **Step 4: Firebase Hosting 반영**
+- [x] **Step 4: Firebase Hosting 반영**
 
   Run: `firebase deploy --only hosting`
 

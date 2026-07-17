@@ -37,6 +37,17 @@ const byLatestIso = <T>(left: T, right: T, getDate: (item: T) => string | undefi
   return rightDate > leftDate ? right : left
 }
 
+const newerPreference = <T extends { updatedAt?: string }>(
+  remoteValue: T | undefined,
+  incomingValue: T | undefined,
+): T | undefined => {
+  if (!remoteValue) return incomingValue
+  if (!incomingValue) return remoteValue
+  return (incomingValue.updatedAt ?? '') > (remoteValue.updatedAt ?? '')
+    ? incomingValue
+    : remoteValue
+}
+
 const mergeByIdRemoteFirst = <T extends Identified>(
   remoteItems: T[] = [],
   incomingItems: T[] = [],
@@ -368,6 +379,26 @@ export function mergeUserDataForStaleSave(
   merged.jobPostings = mergeByIdRemoteFirst(remoteData.jobPostings, incomingData.jobPostings)
   merged.journal = mergeJournal(remoteData.journal, incomingData.journal)
   merged.onboarding = mergeOnboardingState(remoteData.onboarding, incomingData.onboarding)
+  merged.navigationPreferences = newerPreference(
+    remoteData.navigationPreferences,
+    incomingData.navigationPreferences,
+  )
+  if (remoteData.displayPreferences && incomingData.displayPreferences) {
+    const incomingDisplayIsNewer = incomingData.displayPreferences.updatedAt
+      > remoteData.displayPreferences.updatedAt
+    if (incomingDisplayIsNewer) {
+      merged.displayPreferences = incomingData.displayPreferences
+      merged.uiScale = incomingData.uiScale ?? remoteData.uiScale
+    } else {
+      merged.displayPreferences = remoteData.displayPreferences
+      merged.uiScale = remoteData.uiScale ?? incomingData.uiScale
+    }
+  } else {
+    merged.displayPreferences = newerPreference(
+      remoteData.displayPreferences,
+      incomingData.displayPreferences,
+    )
+  }
 
   const incomingOnboardingVersion = Number(incomingData.onboarding?.version ?? 0)
   const remoteOnboardingVersion = Number(remoteData.onboarding?.version ?? 0)

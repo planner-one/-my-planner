@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { measureWidgetBorderBox } from '../utils/widgetSize'
 
 interface WidgetSize {
   ref: React.RefObject<HTMLDivElement | null>
@@ -15,10 +16,7 @@ export function useWidgetSize(): WidgetSize {
     if (!el) return
 
     const updateSize = () => {
-      const next = {
-        w: Math.round(el.offsetWidth),
-        h: Math.round(el.offsetHeight),
-      }
+      const next = measureWidgetBorderBox(el)
       setSize(previous => (
         previous.w === next.w && previous.h === next.h
           ? previous

@@ -5,6 +5,7 @@ import 'react-resizable/css/styles.css'
 import { useApp } from '../store/AppContext'
 import { WIDGET_MAP } from '../widgets'
 import type { LayoutItem } from '../types'
+import { resolveDisplayScale } from '../utils/responsiveUi'
 import DashboardEditor from './DashboardEditor'
 
 const COLS = 48
@@ -46,6 +47,7 @@ export default function Dashboard() {
   const {
     dashboardLayout, dashboardActive,
     uiScale, setUiScale, saveWithOverrides,
+    displayPreferences, setDisplayPreferences,
     dashboardEditRequestKey, consumeDashboardEditRequest,
   } = useApp()
   const [isEditing, setIsEditing] = useState(false)
@@ -154,10 +156,24 @@ export default function Dashboard() {
     )
   }
 
+  const scaleControlValue = resolveDisplayScale({
+    viewportWidth: 1200,
+    densityMode: displayPreferences.densityMode,
+    manualScale: uiScale,
+  })
+
   const changeScale = (next: number) => {
-    const value = Math.min(110, Math.max(80, next))
+    const value = Math.min(110, Math.max(80, Math.round(next / 5) * 5))
+    const nextDisplayPreferences = {
+      densityMode: 'manual' as const,
+      updatedAt: new Date().toISOString(),
+    }
     setUiScale(value)
-    saveWithOverrides({ uiScale: value })
+    setDisplayPreferences(nextDisplayPreferences)
+    void saveWithOverrides({
+      uiScale: value,
+      displayPreferences: nextDisplayPreferences,
+    })
   }
 
   return (
@@ -172,22 +188,24 @@ export default function Dashboard() {
           }}>
             <button
               type="button"
-              onClick={() => changeScale(uiScale - 5)}
-              disabled={uiScale <= 80}
+              onClick={() => changeScale(scaleControlValue - 5)}
+              disabled={scaleControlValue <= 80}
               title="화면 축소"
               aria-label="화면 축소"
               style={{
                 width: 30, height: '100%', border: 'none',
                 background: 'transparent', color: 'var(--muted)',
-                fontSize: 17, cursor: uiScale <= 80 ? 'default' : 'pointer',
-                opacity: uiScale <= 80 ? 0.35 : 1,
+                fontSize: 17, cursor: scaleControlValue <= 80 ? 'default' : 'pointer',
+                opacity: scaleControlValue <= 80 ? 0.35 : 1,
               }}
             >
               −
             </button>
             <select
-              value={uiScale}
-              onChange={event => changeScale(Number(event.target.value))}
+              value={displayPreferences.densityMode === 'auto' ? 'auto' : scaleControlValue}
+              onChange={event => {
+                if (event.target.value !== 'auto') changeScale(Number(event.target.value))
+              }}
               aria-label="화면 비율"
               style={{
                 height: '100%', border: 'none',
@@ -198,21 +216,22 @@ export default function Dashboard() {
                 outline: 'none', cursor: 'pointer',
               }}
             >
+              <option value="auto" disabled>자동 90%</option>
               {[80, 85, 90, 95, 100, 105, 110].map(value => (
                 <option key={value} value={value}>{value}%</option>
               ))}
             </select>
             <button
               type="button"
-              onClick={() => changeScale(uiScale + 5)}
-              disabled={uiScale >= 110}
+              onClick={() => changeScale(scaleControlValue + 5)}
+              disabled={scaleControlValue >= 110}
               title="화면 확대"
               aria-label="화면 확대"
               style={{
                 width: 30, height: '100%', border: 'none',
                 background: 'transparent', color: 'var(--muted)',
-                fontSize: 17, cursor: uiScale >= 110 ? 'default' : 'pointer',
-                opacity: uiScale >= 110 ? 0.35 : 1,
+                fontSize: 17, cursor: scaleControlValue >= 110 ? 'default' : 'pointer',
+                opacity: scaleControlValue >= 110 ? 0.35 : 1,
               }}
             >
               +
@@ -228,6 +247,9 @@ export default function Dashboard() {
       </div>
 
       <style>{`
+        @media (max-width: 1199px) {
+          .dashboard-scale-control { display: none !important; }
+        }
         @media (max-width: 767px) {
           .dashboard-page {
             padding: 0 0 18px !important;
@@ -238,7 +260,6 @@ export default function Dashboard() {
           .dashboard-header h2 {
             font-size: 19px !important;
           }
-          .dashboard-scale-control { display: none !important; }
         }
       `}</style>
 

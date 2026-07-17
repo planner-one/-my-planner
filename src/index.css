@@ -237,10 +237,11 @@ body {
   padding-right: 32px;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 1199px) {
   :root {
     --app-scale: 1 !important;
     --app-viewport-height: 100vh !important;
+    --app-viewport-height: 100dvh !important;
   }
 }
 
@@ -1275,29 +1276,267 @@ body {
 /* 모바일 글쓰기 1차 최적화 */
 @media (max-width: 767px) {
   .app-main {
+    min-height: 0;
     padding: 12px 12px calc(20px + env(safe-area-inset-bottom)) !important;
     scroll-padding-block: 12px calc(88px + env(safe-area-inset-bottom));
     overscroll-behavior-y: contain;
   }
 
-  .app-main input:not([type='checkbox']):not([type='radio']):not([type='color']):not([type='range']),
-  .app-main select {
+  :is(.app-main, .link-modal, .onboarding-dialog, .quick-add-modal) input:not([type='checkbox']):not([type='radio']):not([type='color']):not([type='range']),
+  :is(.app-main, .link-modal, .onboarding-dialog, .quick-add-modal) select {
     min-height: 44px !important;
     font-size: 16px !important;
   }
 
-  .app-main textarea {
+  :is(.app-main, .link-modal, .onboarding-dialog, .quick-add-modal) textarea {
     min-height: 96px !important;
     font-size: 16px !important;
     line-height: 1.5 !important;
   }
 
   .bottom-nav {
+    flex-shrink: 0;
     padding-bottom: calc(8px + env(safe-area-inset-bottom)) !important;
   }
 
   .bottom-nav button {
+    flex: 1 1 20%;
     min-width: 44px;
     min-height: 44px;
   }
+
+  .bottom-nav button span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.mobile-navigation-edit-trigger {
+  width: 100%;
+  min-height: 52px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--border));
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mobile-navigation-edit-trigger span {
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.mobile-navigation-edit-trigger small {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.mobile-navigation-editor {
+  display: grid;
+  gap: 14px;
+  color: var(--text);
+}
+
+.mobile-navigation-editor button {
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg3);
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.mobile-navigation-editor button:disabled {
+  cursor: default;
+  opacity: 0.48;
+}
+
+.mobile-navigation-edit-trigger:focus-visible,
+.mobile-navigation-editor button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 34%, transparent);
+  outline-offset: 2px;
+}
+
+.mobile-navigation-editor-intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mobile-navigation-editor-intro p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.mobile-navigation-editor-intro button {
+  flex: 0 0 auto;
+  padding: 0 12px;
+}
+
+.mobile-navigation-editor-section {
+  display: grid;
+  gap: 9px;
+}
+
+.mobile-navigation-editor-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.mobile-navigation-editor-title h3 {
+  margin: 0;
+  font-size: 13px;
+}
+
+.mobile-navigation-editor-title > span {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.mobile-navigation-editor-selected {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mobile-navigation-editor-selected li {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg2);
+}
+
+.mobile-navigation-editor-order {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.mobile-navigation-editor-label {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-navigation-editor-row-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.mobile-navigation-editor-row-actions button {
+  min-width: 44px;
+  padding: 0 7px;
+}
+
+.mobile-navigation-editor-status,
+.mobile-navigation-editor-error {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.mobile-navigation-editor-status {
+  color: var(--muted);
+}
+
+.mobile-navigation-editor-error {
+  padding: 10px 11px;
+  border: 1px solid color-mix(in srgb, var(--red) 35%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--red) 7%, var(--bg2));
+  color: var(--red);
+  font-weight: 800;
+}
+
+.mobile-navigation-editor-options,
+.mobile-navigation-editor-group,
+.mobile-navigation-editor-group > div {
+  display: grid;
+  gap: 7px;
+}
+
+.mobile-navigation-editor-group h4 {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.mobile-navigation-editor-group > div {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.mobile-navigation-editor-group button {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px;
+  padding: 0 10px;
+  text-align: left;
+}
+
+.mobile-navigation-editor-group button span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-navigation-editor-group button strong {
+  flex: 0 0 auto;
+  color: var(--accent);
+  font-size: 10px;
+}
+
+.mobile-navigation-editor-actions {
+  position: sticky;
+  bottom: -14px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 12px 0 14px;
+  border-top: 1px solid var(--border);
+  background: var(--bg2);
+}
+
+.mobile-navigation-editor-actions .primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
 }

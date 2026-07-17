@@ -1,5 +1,7 @@
+import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
+import ts from 'typescript'
 
 const ROOT = process.cwd()
 
@@ -39,10 +41,257 @@ const extractObjectKeys = (source, constName) => {
   return match ? [...match[1].matchAll(/^\s*([A-Za-z][\w]*)\s*:/gm)].map(item => item[1]) : []
 }
 
-const extractConstQuotedList = (source, constName) => {
-  const match = source.match(new RegExp(`const\\s+${constName}[\\s\\S]*?=\\s*\\[([\\s\\S]*?)\\]`))
-  return match ? extractQuotedIds(match[1]) : []
+const describeTsNode = (sourceFile, node) => {
+  const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile))
+  return `${ts.SyntaxKind[node.kind]} at ${sourceFile.fileName}:${line + 1}:${character + 1}`
 }
+
+const navItemsError = (sourceFile, node, message) =>
+  new Error(`PageShell NAV_ITEMS ${describeTsNode(sourceFile, node)}: ${message}`)
+
+const getStaticPropertyName = property => {
+  const name = property.name
+  return name && (ts.isIdentifier(name) || ts.isStringLiteral(name)) ? name.text : null
+}
+
+const extractPageShellNavIds = source => {
+  const sourceFile = ts.createSourceFile(
+    'PageShell.tsx',
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  )
+  let parsedItems = null
+
+  const visit = node => {
+    if (parsedItems !== null) return
+    if (
+      ts.isVariableDeclaration(node)
+      && ts.isIdentifier(node.name)
+      && node.name.text === 'NAV_ITEMS'
+    ) {
+      if (!node.initializer || !ts.isArrayLiteralExpression(node.initializer)) {
+        throw navItemsError(
+          sourceFile,
+          node.initializer ?? node,
+          'initializer must be a direct ArrayLiteralExpression',
+        )
+      }
+      parsedItems = node.initializer.elements.map((element, index) => {
+        if (!ts.isObjectLiteralExpression(element)) {
+          throw navItemsError(
+            sourceFile,
+            element,
+            `element ${index + 1} must be a direct ObjectLiteralExpression`,
+          )
+        }
+
+        element.properties.forEach(property => {
+          if (ts.isSpreadAssignment(property)) {
+            throw navItemsError(sourceFile, property, 'object spread is not supported')
+          }
+          if (property.name && ts.isComputedPropertyName(property.name)) {
+            throw navItemsError(sourceFile, property.name, 'computed properties are not supported')
+          }
+        })
+
+        const idProperties = element.properties.filter(property =>
+          getStaticPropertyName(property) === 'id',
+        )
+        if (idProperties.length === 0) {
+          throw navItemsError(
+            sourceFile,
+            element,
+            `element ${index + 1} is missing a direct id property`,
+          )
+        }
+        if (idProperties.length > 1) {
+          throw navItemsError(
+            sourceFile,
+            idProperties[1],
+            `element ${index + 1} has duplicate direct id properties`,
+          )
+        }
+
+        const idProperty = idProperties[0]
+        if (!ts.isPropertyAssignment(idProperty)) {
+          throw navItemsError(
+            sourceFile,
+            idProperty,
+            `element ${index + 1} id must be a non-computed PropertyAssignment`,
+          )
+        }
+        if (!ts.isStringLiteral(idProperty.initializer)) {
+          throw navItemsError(
+            sourceFile,
+            idProperty.initializer,
+            `element ${index + 1} id value must be a string literal`,
+          )
+        }
+        return { id: idProperty.initializer.text, idProperty }
+      })
+      return
+    }
+    ts.forEachChild(node, visit)
+  }
+
+  visit(sourceFile)
+  const items = parsedItems ?? []
+  const seenIds = new Set()
+  for (const item of items) {
+    if (seenIds.has(item.id)) {
+      throw navItemsError(sourceFile, item.idProperty, `중복 id: ${item.id}`)
+    }
+    seenIds.add(item.id)
+  }
+  return items.map(item => item.id)
+}
+
+const commentFixture = `
+const NAV_ITEMS: NavItem[] = [
+  // { id: 'comment-only', label: '주석 항목' },
+  /* { id: 'block-comment-only', label: '블록 주석 항목' }, */
+  { id: 'dashboard', label: '홈' },
+]
+
+const MOBILE_NAVIGATION_OPTIONS = []
+`
+const semicolonFixture = `
+const NAV_ITEMS: NavItem[] = [
+  { id: 'dashboard', label: '홈' },
+];
+`
+const duplicateFixture = `
+const NAV_ITEMS: NavItem[] = [
+  { id: 'dashboard', label: '홈' },
+  { id: 'dashboard', label: '중복 홈' },
+]
+
+const MOBILE_NAVIGATION_OPTIONS = []
+`
+const unsupportedNavFixtures = [
+  {
+    label: 'array spread',
+    source: `
+const extraItems = [{ id: 'ghost', label: '숨은 항목' }]
+const NAV_ITEMS: NavItem[] = [
+  { id: 'dashboard', label: '홈' },
+  ...extraItems,
+]
+`,
+    error: /SpreadElement.*PageShell\.tsx:\d+:\d+/,
+  },
+  {
+    label: 'object spread after id',
+    source: `
+const override = { id: 'ghost' }
+const NAV_ITEMS: NavItem[] = [
+  { id: 'dashboard', label: '홈', ...override },
+]
+`,
+    error: /SpreadAssignment.*PageShell\.tsx:\d+:\d+/,
+  },
+  {
+    label: 'object spread before id',
+    source: `
+const override = { id: 'ghost' }
+const NAV_ITEMS: NavItem[] = [
+  { ...override, id: 'dashboard', label: '홈' },
+]
+`,
+    error: /SpreadAssignment.*PageShell\.tsx:\d+:\d+/,
+  },
+  {
+    label: 'computed id',
+    source: `
+const NAV_ITEMS: NavItem[] = [
+  { ['id']: 'dashboard', label: '홈' },
+]
+`,
+    error: /ComputedPropertyName.*PageShell\.tsx:\d+:\d+/,
+  },
+  {
+    label: 'shorthand id',
+    source: `
+const id = 'dashboard'
+const NAV_ITEMS: NavItem[] = [
+  { id, label: '홈' },
+]
+`,
+    error: /ShorthandPropertyAssignment.*PageShell\.tsx:\d+:\d+/,
+  },
+  {
+    label: 'method id',
+    source: `
+const NAV_ITEMS: NavItem[] = [
+  { id() { return 'dashboard' }, label: '홈' },
+]
+`,
+    error: /MethodDeclaration.*PageShell\.tsx:\d+:\d+/,
+  },
+  {
+    label: 'getter id',
+    source: `
+const NAV_ITEMS: NavItem[] = [
+  { get id() { return 'dashboard' }, label: '홈' },
+]
+`,
+    error: /GetAccessor.*PageShell\.tsx:\d+:\d+/,
+  },
+  {
+    label: 'non-string id',
+    source: `
+const pageId = 'dashboard'
+const NAV_ITEMS: NavItem[] = [
+  { id: pageId, label: '홈' },
+]
+`,
+    error: /Identifier.*PageShell\.tsx:\d+:\d+/,
+  },
+  {
+    label: 'missing id',
+    source: `
+const NAV_ITEMS: NavItem[] = [
+  { label: '홈' },
+]
+`,
+    error: /ObjectLiteralExpression.*PageShell\.tsx:\d+:\d+/,
+  },
+  {
+    label: 'duplicate direct id',
+    source: `
+const NAV_ITEMS: NavItem[] = [
+  { id: 'dashboard', id: 'ghost', label: '홈' },
+]
+`,
+    error: /PropertyAssignment.*PageShell\.tsx:\d+:\d+/,
+  },
+]
+
+assert.deepEqual(
+  extractPageShellNavIds(commentFixture),
+  ['dashboard'],
+  'PageShell NAV_ITEMS parser should ignore commented-out objects',
+)
+assert.deepEqual(
+  extractPageShellNavIds(semicolonFixture),
+  ['dashboard'],
+  'PageShell NAV_ITEMS parser should accept an array followed by a semicolon',
+)
+assert.throws(
+  () => extractPageShellNavIds(duplicateFixture),
+  /중복.*dashboard/,
+  'PageShell NAV_ITEMS parser should fail explicitly on duplicate ids',
+)
+unsupportedNavFixtures.forEach(({ label, source, error }) => {
+  assert.throws(
+    () => extractPageShellNavIds(source),
+    error,
+    `PageShell NAV_ITEMS parser should reject ${label} with source kind and location`,
+  )
+})
+ok('PageShell NAV_ITEMS AST parser fixture 통과')
 
 const extractDocPageIds = source =>
   [...source.matchAll(/^\|\s*R-P\d+\s*\|\s*`([^`]+)`\s*\|/gm)].map(match => match[1])
@@ -134,11 +383,7 @@ compareVersionText('UPDATE_SCHEDULE.md', updateScheduleSource, appVersion, relea
 
 const appPages = extractObjectKeys(appSource, 'PAGE_MAP')
 const routerPages = extractTypeUnion(routerSource, 'PageId')
-const navItemsBlock = pageShellSource.match(/const NAV_ITEMS:[\s\S]*?=\s*\[([\s\S]*?)\]\n\nconst BOTTOM_TABS/)?.[1] ?? ''
-const pageShellPages = unique([
-  ...extractConstQuotedList(pageShellSource, 'BOTTOM_TABS'),
-  ...[...navItemsBlock.matchAll(/id:\s*'([^']+)'\s*,\s*label:/g)].map(match => match[1]),
-])
+const pageShellPages = extractPageShellNavIds(pageShellSource)
 const menuPages = [...menuWidgetSource.matchAll(/\{\s*id:\s*'([^']+)'\s*,\s*icon:/g)].map(match => match[1])
 const requirementPages = extractDocPageIds(requirementsSource)
 const scenarioPages = extractScenarioPageIds(scenariosSource)

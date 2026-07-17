@@ -1,9 +1,16 @@
-import { type ReactNode, useState, useEffect } from 'react'
+import { type ReactNode, useState, useEffect, useRef } from 'react'
 import { useAuth } from '../store/AuthContext'
 import { useApp } from '../store/AppContext'
 import { useRouter } from '../store/RouterContext'
 import { signOut } from '../services/authService'
+import {
+  MOBILE_BOTTOM_TAB_IDS,
+  MOBILE_BOTTOM_TAB_LIMIT,
+  normalizeMobileBottomTabs,
+  type MobileBottomTabId,
+} from '../utils/responsiveUi'
 import LinkOrganizerModal from './LinkOrganizerModal'
+import MobileNavigationEditor from './MobileNavigationEditor'
 
 type PageId =
   | 'dashboard' | 'calendar' | 'habits' | 'tasks' | 'todos' | 'goals' | 'projects'
@@ -12,6 +19,7 @@ type PageId =
 
 type NavGroupId = 'core' | 'plan' | 'record' | 'system'
 type Theme = 'light' | 'dark' | 'coral' | 'blue'
+type MobilePanel = 'pages' | 'navigation' | 'themes'
 
 interface NavItem {
   id: PageId
@@ -28,6 +36,10 @@ const SIGN_OUT_PATHS = ['M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4', 'M16 17l5-5-5-5'
 const LINK_IMPORT_PATHS = [
   'M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71',
   'M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71',
+]
+const PALETTE_PATHS = [
+  'M12 3a9 9 0 100 18h1.4a2.1 2.1 0 001.5-3.6 2 2 0 011.4-3.4H18a3 3 0 003-3c0-4.4-4-8-9-8z',
+  'M7.5 10h.01M9.5 6.5h.01M14.5 6.5h.01M17 10h.01',
 ]
 
 function Icon({ paths }: { paths: string[] }) {
@@ -130,17 +142,44 @@ const NAV_ITEMS: NavItem[] = [
   },
 ]
 
-const BOTTOM_TABS: PageId[] = ['dashboard', 'tasks', 'calendar', 'career', 'weekly', 'profile']
+const MOBILE_NAVIGATION_OPTIONS = NAV_ITEMS
+  .filter((item): item is NavItem & { id: MobileBottomTabId } =>
+    MOBILE_BOTTOM_TAB_IDS.some(id => id === item.id),
+  )
+  .map(item => ({
+    id: item.id,
+    label: item.label,
+    groupLabel: NAV_GROUPS.find(group => group.id === item.group)?.label ?? '기타',
+  }))
+const MOBILE_MENU_FOCUSABLE_SELECTOR = [
+  'button:not([disabled])',
+  'a[href]',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',')
 
 export default function PageShell({ children }: { children: ReactNode }) {
   const { user } = useAuth()
-  const { saveNow } = useApp()
+  const { navigationPreferences, saveImmediately, saveNow } = useApp()
   const { page, setPage } = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(() => localStorage.getItem(SIDEBAR_OPEN_KEY) !== 'false')
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [mobilePanel, setMobilePanel] = useState<MobilePanel | null>(null)
+  const [mobileNavDraft, setMobileNavDraft] = useState<MobileBottomTabId[]>(() =>
+    normalizeMobileBottomTabs(navigationPreferences.mobileBottomTabs),
+  )
+  const [mobileNavSaving, setMobileNavSaving] = useState(false)
+  const [mobileNavError, setMobileNavError] = useState('')
   const [linkModalOpen, setLinkModalOpen] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const [signOutError, setSignOutError] = useState('')
+  const mobileMenuTriggerRef = useRef<HTMLButtonElement>(null)
+  const mobileMenuDialogRef = useRef<HTMLElement>(null)
+  const mobilePanelTitleRef = useRef<HTMLElement>(null)
+  const mobilePanelOpenerRef = useRef<HTMLButtonElement>(null)
+  const mobileNavSavingRef = useRef(false)
+  const mobileMenuOpen = mobilePanel !== null
   const [theme, setThemeState] = useState<Theme>(() => {
     const raw = localStorage.getItem('theme')
     const saved = raw === 'karrot' ? 'coral' : raw === 'toss' ? 'blue' : raw
@@ -154,10 +193,71 @@ export default function PageShell({ children }: { children: ReactNode }) {
     document.documentElement.setAttribute('data-theme', t === 'light' ? '' : t)
   }
 
+  const selectMobileTheme = (option: (typeof THEME_OPTIONS)[number]) => {
+    applyTheme(option.id)
+    setMobilePanel(null)
+  }
+
   useEffect(() => {
     localStorage.setItem('theme', theme)
     document.documentElement.setAttribute('data-theme', theme === 'light' ? '' : theme)
   }, [theme])
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return
+
+    const dialog = mobileMenuDialogRef.current
+    if (!dialog) return
+
+    const getFocusableElements = () => Array.from(
+      dialog.querySelectorAll<HTMLElement>(MOBILE_MENU_FOCUSABLE_SELECTOR),
+    )
+    const focusFrame = window.requestAnimationFrame(() => {
+      mobilePanelTitleRef.current?.focus()
+    })
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        if (!mobileNavSavingRef.current) setMobilePanel(null)
+        return
+      }
+      if (event.key !== 'Tab') return
+
+      const focusableElements = getFocusableElements()
+      const firstElement = focusableElements[0]
+      const lastElement = focusableElements[focusableElements.length - 1]
+      if (!firstElement || !lastElement) {
+        event.preventDefault()
+        dialog.focus()
+        return
+      }
+
+      if (event.shiftKey && (
+        document.activeElement === firstElement
+        || document.activeElement === dialog
+        || document.activeElement === mobilePanelTitleRef.current
+      )) {
+        event.preventDefault()
+        lastElement.focus()
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault()
+        firstElement.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.cancelAnimationFrame(focusFrame)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [mobilePanel])
+
+  useEffect(() => {
+    if (mobilePanel !== null) return
+    mobilePanelOpenerRef.current?.focus()
+    mobilePanelOpenerRef.current = null
+  }, [mobilePanel])
 
   const toggleSidebar = () => {
     setSidebarOpen(open => {
@@ -169,7 +269,45 @@ export default function PageShell({ children }: { children: ReactNode }) {
 
   const navigateToPage = (id: PageId) => {
     setPage(id)
-    setMobileMenuOpen(false)
+    setMobilePanel(null)
+  }
+
+  const openMobilePanel = (panel: 'pages' | 'themes', opener: HTMLButtonElement) => {
+    mobilePanelOpenerRef.current = opener
+    setMobilePanel(panel)
+  }
+
+  const openMobileNavigationEditor = () => {
+    setMobileNavDraft(normalizeMobileBottomTabs(navigationPreferences.mobileBottomTabs))
+    setMobileNavError('')
+    setMobilePanel('navigation')
+  }
+
+  const closeMobilePanel = () => {
+    if (mobileNavSavingRef.current) return
+    setMobilePanel(null)
+  }
+
+  const handleSaveMobileNavigation = async () => {
+    if (mobileNavSavingRef.current || mobileNavDraft.length !== MOBILE_BOTTOM_TAB_LIMIT) return
+
+    mobileNavSavingRef.current = true
+    setMobileNavSaving(true)
+    setMobileNavError('')
+    const next = {
+      mobileBottomTabs: [...mobileNavDraft],
+      updatedAt: new Date().toISOString(),
+    }
+
+    try {
+      await saveImmediately({ navigationPreferences: next })
+      setMobilePanel('pages')
+    } catch {
+      setMobileNavError('하단 메뉴를 저장하지 못했습니다. 다시 시도해주세요.')
+    } finally {
+      mobileNavSavingRef.current = false
+      setMobileNavSaving(false)
+    }
   }
 
   const handleSignOut = async () => {
@@ -188,6 +326,10 @@ export default function PageShell({ children }: { children: ReactNode }) {
   const initial = user?.displayName?.[0]?.toUpperCase() ?? '?'
   const currentNavItem = NAV_ITEMS.find(item => item.id === page)
   const showReturnHeader = page !== 'dashboard'
+  const mobileBottomTabs = normalizeMobileBottomTabs(navigationPreferences.mobileBottomTabs)
+  const mobileBottomNavItems = ['dashboard', ...mobileBottomTabs]
+    .map(id => NAV_ITEMS.find(item => item.id === id))
+    .filter((item): item is NavItem => Boolean(item))
 
   return (
     <div style={{ display: 'flex', height: 'var(--app-viewport-height)', background: 'var(--bg)', overflow: 'hidden' }}>
@@ -234,8 +376,18 @@ export default function PageShell({ children }: { children: ReactNode }) {
           </button>
           <button
             type="button"
+            className="mobile-theme-trigger"
+            onClick={event => openMobilePanel('themes', event.currentTarget)}
+            aria-label="테마 선택 열기"
+            title="테마 선택"
+          >
+            <Icon paths={PALETTE_PATHS} />
+          </button>
+          <button
+            ref={mobileMenuTriggerRef}
+            type="button"
             className="mobile-page-menu-trigger"
-            onClick={() => setMobileMenuOpen(true)}
+            onClick={event => openMobilePanel('pages', event.currentTarget)}
             aria-label="전체 페이지 메뉴 열기"
           >
             전체 메뉴
@@ -250,17 +402,24 @@ export default function PageShell({ children }: { children: ReactNode }) {
         <nav style={{
           borderTop: '1px solid var(--border)', background: 'var(--bg2)',
           display: 'none', justifyContent: 'space-around', padding: '6px 0 8px',
-        }} className="bottom-nav">
-          {NAV_ITEMS.filter(i => BOTTOM_TABS.includes(i.id)).map(item => {
+        }} className="bottom-nav" aria-label="모바일 하단 메뉴">
+          {mobileBottomNavItems.map(item => {
             const active = page === item.id
             return (
-              <button key={item.id} onClick={() => navigateToPage(item.id)} style={{
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => navigateToPage(item.id)}
+                aria-current={active ? 'page' : undefined}
+                aria-label={item.label}
+                style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
                 border: 'none', background: 'transparent', cursor: 'pointer',
                 color: active ? 'var(--accent)' : 'var(--muted)',
                 fontSize: 10, fontWeight: active ? 600 : 400,
                 padding: '4px 8px',
-              }}>
+                }}
+              >
                 <Icon paths={item.paths} />
                 <span>{item.label}</span>
               </button>
@@ -272,60 +431,136 @@ export default function PageShell({ children }: { children: ReactNode }) {
           <div
             className="mobile-page-menu-backdrop"
             role="presentation"
-            onClick={() => setMobileMenuOpen(false)}
+            onClick={closeMobilePanel}
           >
             <section
+              ref={mobileMenuDialogRef}
               className="mobile-page-menu"
               role="dialog"
               aria-modal="true"
-              aria-label="전체 페이지 메뉴"
+              aria-label={
+                mobilePanel === 'navigation'
+                  ? '하단 메뉴 편집'
+                  : mobilePanel === 'themes'
+                    ? '테마 선택'
+                    : '전체 페이지 메뉴'
+              }
+              tabIndex={-1}
               onClick={event => event.stopPropagation()}
             >
               <div className="mobile-page-menu-head">
-                <strong>전체 메뉴</strong>
-                <button type="button" onClick={() => setMobileMenuOpen(false)} aria-label="전체 페이지 메뉴 닫기">
+                <strong ref={mobilePanelTitleRef} tabIndex={-1}>
+                  {mobilePanel === 'navigation'
+                    ? '하단 메뉴 편집'
+                    : mobilePanel === 'themes'
+                      ? '테마 선택'
+                      : '전체 메뉴'}
+                </strong>
+                <button
+                  type="button"
+                  onClick={closeMobilePanel}
+                  disabled={mobileNavSaving}
+                  aria-label="모바일 메뉴 닫기"
+                >
                   닫기
                 </button>
               </div>
-              <div className="mobile-page-menu-grid">
-                {NAV_ITEMS.map(item => {
-                  const active = page === item.id
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      className={active ? 'active' : ''}
-                      onClick={() => navigateToPage(item.id)}
-                    >
-                      <Icon paths={item.paths} />
-                      <span>{item.label}</span>
-                    </button>
-                  )
-                })}
-              </div>
-              <div className="mobile-account-actions">
-                <div className="mobile-account-summary">
-                  {user?.photoURL ? (
-                    <img src={user.photoURL} alt="" />
-                  ) : (
-                    <span aria-hidden="true">{initial}</span>
-                  )}
-                  <div>
-                    <strong>{user?.displayName ?? '사용자'}</strong>
-                    <small>현재 계정</small>
-                  </div>
+              {mobilePanel === 'themes' ? (
+                <div className="mobile-theme-picker" aria-label="테마 목록">
+                  {THEME_OPTIONS.map(option => {
+                    const active = theme === option.id
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => selectMobileTheme(option)}
+                        aria-current={active ? 'true' : undefined}
+                        aria-label={`${option.label} 테마`}
+                        style={{
+                          borderColor: active ? option.accent : undefined,
+                          background: active ? option.dot : undefined,
+                          color: active ? option.accent : undefined,
+                        }}
+                      >
+                        <span
+                          className="mobile-theme-picker-swatch"
+                          aria-hidden="true"
+                          style={{ background: option.dot, borderColor: option.accent }}
+                        >
+                          <span style={{ background: option.accent }} />
+                        </span>
+                        <span>{option.label}</span>
+                        <span className="mobile-theme-picker-check" aria-hidden="true">
+                          {active ? '✓' : ''}
+                        </span>
+                      </button>
+                    )
+                  })}
                 </div>
-                <button
-                  type="button"
-                  className="mobile-signout-btn"
-                  onClick={handleSignOut}
-                  disabled={signingOut}
-                >
-                  <Icon paths={SIGN_OUT_PATHS} />
-                  <span>{signingOut ? '저장 후 로그아웃 중…' : '로그아웃'}</span>
-                </button>
-                {signOutError && <p className="mobile-signout-error" role="alert">{signOutError}</p>}
-              </div>
+              ) : mobilePanel === 'navigation' ? (
+                <MobileNavigationEditor
+                  value={mobileNavDraft}
+                  options={MOBILE_NAVIGATION_OPTIONS}
+                  onChange={setMobileNavDraft}
+                  onSave={handleSaveMobileNavigation}
+                  onCancel={() => {
+                    setMobileNavError('')
+                    setMobilePanel('pages')
+                  }}
+                  saving={mobileNavSaving}
+                  error={mobileNavError}
+                />
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className="mobile-navigation-edit-trigger"
+                    onClick={openMobileNavigationEditor}
+                  >
+                    <span>하단 메뉴 편집</span>
+                    <small>홈 옆 네 칸 선택 · 순서 변경</small>
+                  </button>
+                  <div className="mobile-page-menu-grid">
+                    {NAV_ITEMS.map(item => {
+                      const active = page === item.id
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          className={active ? 'active' : ''}
+                          onClick={() => navigateToPage(item.id)}
+                        >
+                          <Icon paths={item.paths} />
+                          <span>{item.label}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div className="mobile-account-actions">
+                    <div className="mobile-account-summary">
+                      {user?.photoURL ? (
+                        <img src={user.photoURL} alt="" />
+                      ) : (
+                        <span aria-hidden="true">{initial}</span>
+                      )}
+                      <div>
+                        <strong>{user?.displayName ?? '사용자'}</strong>
+                        <small>현재 계정</small>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="mobile-signout-btn"
+                      onClick={handleSignOut}
+                      disabled={signingOut}
+                    >
+                      <Icon paths={SIGN_OUT_PATHS} />
+                      <span>{signingOut ? '저장 후 로그아웃 중…' : '로그아웃'}</span>
+                    </button>
+                    {signOutError && <p className="mobile-signout-error" role="alert">{signOutError}</p>}
+                  </div>
+                </>
+              )}
             </section>
           </div>
         )}
@@ -653,6 +888,19 @@ export default function PageShell({ children }: { children: ReactNode }) {
           font-weight: 700;
           cursor: pointer;
         }
+        .mobile-theme-trigger {
+          display: none;
+          width: 44px;
+          height: 44px;
+          flex: 0 0 44px;
+          place-items: center;
+          padding: 0;
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          background: var(--bg3);
+          color: var(--text);
+          cursor: pointer;
+        }
         .header-link-tool {
           min-height: 32px;
           border: 1px solid var(--border);
@@ -666,6 +914,9 @@ export default function PageShell({ children }: { children: ReactNode }) {
           margin-left: auto;
         }
         .header-link-tool + .mobile-page-menu-trigger {
+          margin-left: 0;
+        }
+        .mobile-theme-trigger + .mobile-page-menu-trigger {
           margin-left: 0;
         }
         .sidebar-link-tool-wrap {
@@ -726,8 +977,13 @@ export default function PageShell({ children }: { children: ReactNode }) {
           font-size: 15px;
           color: var(--text);
         }
+        .mobile-page-menu-head strong:focus-visible {
+          outline: 3px solid color-mix(in srgb, var(--accent) 34%, transparent);
+          outline-offset: 3px;
+          border-radius: 4px;
+        }
         .mobile-page-menu-head button {
-          min-height: 34px;
+          min-height: 44px;
           border: 1px solid var(--border);
           border-radius: 7px;
           background: var(--bg3);
@@ -736,6 +992,10 @@ export default function PageShell({ children }: { children: ReactNode }) {
           font-size: 12px;
           font-weight: 700;
           cursor: pointer;
+        }
+        .mobile-page-menu-head button:disabled {
+          cursor: wait;
+          opacity: 0.58;
         }
         .mobile-page-menu-grid {
           display: grid;
@@ -768,11 +1028,61 @@ export default function PageShell({ children }: { children: ReactNode }) {
           text-overflow: ellipsis;
           white-space: nowrap;
         }
+        .mobile-theme-picker {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 8px;
+        }
+        .mobile-theme-picker > button {
+          min-width: 0;
+          min-height: 56px;
+          display: grid;
+          grid-template-columns: 24px minmax(0, 1fr) 20px;
+          align-items: center;
+          gap: 9px;
+          padding: 6px 10px;
+          border: 1.5px solid var(--border);
+          border-radius: 8px;
+          background: var(--bg3);
+          color: var(--text);
+          font: inherit;
+          font-size: 13px;
+          font-weight: 800;
+          text-align: left;
+          cursor: pointer;
+        }
+        .mobile-theme-picker > button:focus-visible,
+        .mobile-theme-trigger:focus-visible {
+          outline: 3px solid color-mix(in srgb, var(--accent) 34%, transparent);
+          outline-offset: 2px;
+        }
+        .mobile-theme-picker-swatch {
+          width: 22px;
+          height: 22px;
+          display: grid;
+          place-items: center;
+          border: 1px solid;
+          border-radius: 50%;
+          box-sizing: border-box;
+        }
+        .mobile-theme-picker-swatch > span {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+        }
+        .mobile-theme-picker-check {
+          min-height: 20px;
+          display: grid;
+          place-items: center;
+          color: currentColor;
+          font-size: 16px;
+          font-weight: 900;
+        }
         .mobile-account-actions {
           position: sticky;
           bottom: -14px;
           display: grid;
-          grid-template-columns: minmax(0, 1fr) auto;
+          grid-template-columns: minmax(0, 1fr);
           align-items: center;
           gap: 10px;
           margin-top: 14px;
@@ -821,7 +1131,7 @@ export default function PageShell({ children }: { children: ReactNode }) {
           font-size: 10px;
         }
         .mobile-signout-btn {
-          min-width: 112px;
+          width: 100%;
           min-height: 44px;
           display: flex;
           align-items: center;
@@ -849,6 +1159,7 @@ export default function PageShell({ children }: { children: ReactNode }) {
         @media (max-width: 767px) {
           .sidebar { display: none !important; }
           .page-return-header { display: flex !important; }
+          .mobile-theme-trigger { display: grid !important; }
           .mobile-page-menu-trigger { display: flex !important; align-items: center; justify-content: center; }
           .mobile-page-menu-backdrop { display: flex !important; }
           .bottom-nav { display: flex !important; }

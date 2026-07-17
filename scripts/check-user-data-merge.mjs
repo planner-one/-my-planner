@@ -270,6 +270,207 @@ try {
     'onboarding rebase should select one whole state instead of mixing status and purpose fields',
   )
 
+  const newerIncomingPreferences = mergeUserDataForStaleSave(
+    {
+      navigationPreferences: {
+        mobileBottomTabs: ['calendar', 'tasks', 'career', 'profile'],
+        updatedAt: '2026-07-16T10:00:00.000Z',
+      },
+    },
+    {
+      navigationPreferences: {
+        mobileBottomTabs: ['notes', 'todos', 'weekly', 'profile'],
+        updatedAt: '2026-07-16T10:05:00.000Z',
+      },
+    },
+  )
+  assert(
+    newerIncomingPreferences.navigationPreferences?.mobileBottomTabs[0] === 'notes',
+    'newer incoming navigation preferences should beat stale remote preferences',
+  )
+
+  const newerIncomingDisplay = mergeUserDataForStaleSave(
+    {
+      uiScale: 85,
+      displayPreferences: { densityMode: 'auto', updatedAt: '2026-07-16T10:01:00.000Z' },
+    },
+    {
+      uiScale: 105,
+      displayPreferences: { densityMode: 'manual', updatedAt: '2026-07-16T10:06:00.000Z' },
+    },
+  )
+  assert(
+    newerIncomingDisplay.displayPreferences?.densityMode === 'manual'
+      && newerIncomingDisplay.uiScale === 105,
+    'newer incoming display preferences should keep their ui scale as one setting pair',
+  )
+
+  const newerRemoteDisplay = mergeUserDataForStaleSave(
+    {
+      uiScale: 85,
+      displayPreferences: { densityMode: 'manual', updatedAt: '2026-07-16T10:06:00.000Z' },
+    },
+    {
+      uiScale: 105,
+      displayPreferences: { densityMode: 'auto', updatedAt: '2026-07-16T10:01:00.000Z' },
+    },
+  )
+  assert(
+    newerRemoteDisplay.displayPreferences?.densityMode === 'manual'
+      && newerRemoteDisplay.uiScale === 85,
+    'newer remote display preferences should keep their ui scale as one setting pair',
+  )
+
+  const newerIncomingDisplayWithoutScale = mergeUserDataForStaleSave(
+    {
+      uiScale: 85,
+      displayPreferences: { densityMode: 'auto', updatedAt: '2026-07-16T10:01:00.000Z' },
+    },
+    {
+      displayPreferences: { densityMode: 'manual', updatedAt: '2026-07-16T10:06:00.000Z' },
+    },
+  )
+  assert(
+    newerIncomingDisplayWithoutScale.displayPreferences?.densityMode === 'manual'
+      && newerIncomingDisplayWithoutScale.uiScale === 85,
+    'newer incoming display preferences without scale should keep the remote scale fallback',
+  )
+
+  const newerRemoteDisplayWithoutScale = mergeUserDataForStaleSave(
+    {
+      displayPreferences: { densityMode: 'manual', updatedAt: '2026-07-16T10:06:00.000Z' },
+    },
+    {
+      uiScale: 105,
+      displayPreferences: { densityMode: 'auto', updatedAt: '2026-07-16T10:01:00.000Z' },
+    },
+  )
+  assert(
+    newerRemoteDisplayWithoutScale.displayPreferences?.densityMode === 'manual'
+      && newerRemoteDisplayWithoutScale.uiScale === 105,
+    'newer remote display preferences without scale should keep the incoming scale fallback',
+  )
+
+  const equalTimestampRemoteDisplayWithoutScale = mergeUserDataForStaleSave(
+    {
+      displayPreferences: { densityMode: 'auto', updatedAt: '2026-07-16T10:06:00.000Z' },
+    },
+    {
+      uiScale: 105,
+      displayPreferences: { densityMode: 'manual', updatedAt: '2026-07-16T10:06:00.000Z' },
+    },
+  )
+  assert(
+    equalTimestampRemoteDisplayWithoutScale.displayPreferences?.densityMode === 'auto'
+      && equalTimestampRemoteDisplayWithoutScale.uiScale === 105,
+    'equal display timestamps should keep the remote preference with incoming scale fallback',
+  )
+
+  const emptyTimestampRemoteDisplayWithoutScale = mergeUserDataForStaleSave(
+    {
+      displayPreferences: { densityMode: 'manual', updatedAt: '' },
+    },
+    {
+      uiScale: 0,
+      displayPreferences: { densityMode: 'auto', updatedAt: '' },
+    },
+  )
+  assert(
+    emptyTimestampRemoteDisplayWithoutScale.displayPreferences?.densityMode === 'manual'
+      && emptyTimestampRemoteDisplayWithoutScale.uiScale === 0,
+    'empty display timestamps should keep the remote preference and preserve a zero scale fallback',
+  )
+
+  const legacyRemoteWithoutDisplayPreferences = mergeUserDataForStaleSave(
+    { uiScale: 85 },
+    {
+      uiScale: 105,
+      displayPreferences: { densityMode: 'manual', updatedAt: '2026-07-16T10:06:00.000Z' },
+    },
+  )
+  assert(
+    legacyRemoteWithoutDisplayPreferences.uiScale === 85
+      && legacyRemoteWithoutDisplayPreferences.displayPreferences?.densityMode === 'manual',
+    'a legacy remote document without display preferences should keep remote-first ui scale behavior',
+  )
+
+  const legacyIncomingWithoutDisplayPreferences = mergeUserDataForStaleSave(
+    {
+      uiScale: 85,
+      displayPreferences: { densityMode: 'auto', updatedAt: '2026-07-16T10:01:00.000Z' },
+    },
+    { uiScale: 105 },
+  )
+  assert(
+    legacyIncomingWithoutDisplayPreferences.uiScale === 85
+      && legacyIncomingWithoutDisplayPreferences.displayPreferences?.densityMode === 'auto',
+    'a legacy incoming document without display preferences should keep remote-first ui scale behavior',
+  )
+
+  const legacyBothWithoutDisplayPreferences = mergeUserDataForStaleSave(
+    { uiScale: 85 },
+    { uiScale: 105 },
+  )
+  assert(
+    legacyBothWithoutDisplayPreferences.uiScale === 85
+      && legacyBothWithoutDisplayPreferences.displayPreferences === undefined,
+    'legacy documents without display preferences should keep remote-first ui scale behavior',
+  )
+
+  const forcedStalePreferenceMerge = mergeUserDataForStaleSave(
+    {
+      nickname: '서버값',
+      notes: [{ id: 'draft', title: '초안', content: '서버 초안', fav: false }],
+      navigationPreferences: {
+        mobileBottomTabs: ['calendar', 'tasks', 'career', 'profile'],
+        updatedAt: '2026-07-16T10:01:00.000Z',
+      },
+    },
+    {
+      nickname: '로컬 편집',
+      notes: [{ id: 'draft', title: '초안', content: '로컬 초안', fav: false }],
+      navigationPreferences: {
+        mobileBottomTabs: ['notes', 'todos', 'weekly', 'profile'],
+        updatedAt: '2026-07-16T10:06:00.000Z',
+      },
+    },
+  )
+  assert(
+    forcedStalePreferenceMerge.nickname === '서버값'
+      && forcedStalePreferenceMerge.notes?.[0]?.content === '서버 초안'
+      && forcedStalePreferenceMerge.navigationPreferences?.mobileBottomTabs[0] === 'notes',
+    'forced stale merge demonstrates why strict preference saves must retain the cached last-saved baseline',
+  )
+
+  const staleSliderWithFreshTimestamp = mergeUserDataForStaleSave(
+    {
+      uiScale: 90,
+      displayPreferences: { densityMode: 'auto', updatedAt: '2026-07-16T10:06:00.000Z' },
+    },
+    {
+      uiScale: 105,
+      displayPreferences: { densityMode: 'manual', updatedAt: '2026-07-16T10:07:00.000Z' },
+    },
+  )
+  assert(
+    staleSliderWithFreshTimestamp.uiScale === 105
+      && staleSliderWithFreshTimestamp.displayPreferences?.densityMode === 'manual',
+    'a stale slider save with a fresh display timestamp should win as one setting pair',
+  )
+
+  const appContextSource = readFileSync(join(root, 'src/store/AppContext.tsx'), 'utf8')
+  const strictSaveSource = appContextSource.match(
+    /const saveWithOverridesStrict[\s\S]*?\n  const saveImmediately/,
+  )?.[0] ?? ''
+  assert(
+    /const saved = await saveSyncedUserData\(uid,\s*payload\)/.test(strictSaveSource),
+    'strict preference saves should use the cached last-saved baseline',
+  )
+  assert(
+    !/saveSyncedUserData\(uid,\s*payload,\s*true\)/.test(strictSaveSource),
+    'strict preference saves should not force stale merge',
+  )
+
   console.log('User data stale-save merge checks passed.')
 } finally {
   rmSync(tmp, { recursive: true, force: true })

@@ -1,10 +1,11 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../store/AuthContext'
 import { useApp } from '../store/AppContext'
 import { useRouter } from '../store/RouterContext'
 import type { CareerEvent, Goal, JobPosting, PersonalApplication, Project, ScheduledTask, Task, Todo, TopGoal } from '../types'
 import { toLocalDateKey } from '../utils/date'
 import { getCareerMilestones, getCareerNextMilestone } from '../utils/careerEvents'
+import { getViewportKind, resolveDisplayScale, type DensityMode } from '../utils/responsiveUi'
 import { APP_RELEASE_DATE, APP_RELEASE_NAME, APP_RELEASE_NOTES, APP_VERSION } from '../version'
 
 export default function ProfilePage() {
@@ -13,14 +14,76 @@ export default function ProfilePage() {
   const {
     nickname, setNickname,
     uiScale, setUiScale,
+    displayPreferences, setDisplayPreferences,
     notificationPreferences, setNotificationPreferences,
     todos, habits, goals, projects, notes, journal,
     scheduledTasks, careerEvents, personalApplications, jobPostings,
     tasks, topGoals,
     dashboardActive, dashboardLayout,
     openOnboardingGuide,
+    saveImmediately,
+    saveWithOverrides,
     saveNow,
   } = useApp()
+
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === 'undefined' ? 1200 : window.innerWidth,
+  )
+  const [densitySaving, setDensitySaving] = useState(false)
+  const [densitySaveError, setDensitySaveError] = useState('')
+
+  useEffect(() => {
+    const updateViewportWidth = () => setViewportWidth(window.innerWidth)
+    updateViewportWidth()
+    window.addEventListener('resize', updateViewportWidth)
+    return () => window.removeEventListener('resize', updateViewportWidth)
+  }, [])
+
+  const viewportKind = getViewportKind(viewportWidth)
+  const viewportLabel = {
+    phone: '휴대폰',
+    tablet: '태블릿',
+    desktop: '웹',
+  }[viewportKind]
+  const appliedScale = resolveDisplayScale({
+    viewportWidth,
+    densityMode: displayPreferences.densityMode,
+    manualScale: uiScale,
+  })
+  const manualScaleEnabled = viewportKind === 'desktop'
+    && displayPreferences.densityMode === 'manual'
+
+  const changeDensityMode = async (nextMode: DensityMode) => {
+    if (densitySaving || nextMode === displayPreferences.densityMode) return
+    const nextDisplayPreferences = {
+      densityMode: nextMode,
+      updatedAt: new Date().toISOString(),
+    }
+    setDensitySaving(true)
+    setDensitySaveError('')
+    try {
+      await saveImmediately({ displayPreferences: nextDisplayPreferences })
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : '잠시 후 다시 시도해주세요.'
+      setDensitySaveError(`화면 밀도 모드를 저장하지 못했습니다. ${detail}`)
+    } finally {
+      setDensitySaving(false)
+    }
+  }
+
+  const changeManualScale = (nextScale: number) => {
+    const value = Math.min(110, Math.max(80, Math.round(nextScale / 5) * 5))
+    const nextDisplayPreferences = {
+      densityMode: 'manual' as const,
+      updatedAt: new Date().toISOString(),
+    }
+    setUiScale(value)
+    setDisplayPreferences(nextDisplayPreferences)
+    void saveWithOverrides({
+      uiScale: value,
+      displayPreferences: nextDisplayPreferences,
+    })
+  }
 
   const displayName = nickname.trim() || user?.displayName || '플래너 사용자'
   const updateNotificationPreferences = (patch: Partial<typeof notificationPreferences>) => {
@@ -74,20 +137,62 @@ export default function ProfilePage() {
             <span>표시 이름</span>
             <input value={nickname} onChange={event => setNickname(event.target.value)} placeholder={user?.displayName ?? '닉네임'} />
           </label>
-          <label>
-            <span>화면 밀도</span>
-            <div className="scale-row">
-              <input
-                type="range"
-                min={80}
-                max={110}
-                step={5}
-                value={uiScale}
-                onChange={event => setUiScale(Number(event.target.value))}
-              />
-              <b>{uiScale}%</b>
+          <div className="density-settings" aria-busy={densitySaving}>
+            <span className="density-label">화면 밀도</span>
+            <div className="density-mode-options" role="group" aria-label="화면 밀도 모드">
+              <button
+                type="button"
+                className={displayPreferences.densityMode === 'auto' ? 'selected' : ''}
+                aria-pressed={displayPreferences.densityMode === 'auto'}
+                disabled={densitySaving}
+                onClick={() => void changeDensityMode('auto')}
+              >
+                <strong>자동(권장)</strong>
+                <small>화면 폭에 맞춰 적용</small>
+              </button>
+              <button
+                type="button"
+                className={displayPreferences.densityMode === 'manual' ? 'selected' : ''}
+                aria-pressed={displayPreferences.densityMode === 'manual'}
+                disabled={densitySaving}
+                onClick={() => void changeDensityMode('manual')}
+              >
+                <strong>직접 설정</strong>
+                <small>웹에서 저장 배율 사용</small>
+              </button>
             </div>
-          </label>
+            <p className="density-current" role="status">
+              현재: <strong>{viewportLabel} · {appliedScale}%</strong>
+              {densitySaving && <span> · 모드 저장 중</span>}
+            </p>
+            <label>
+              <span>웹 직접 설정 값</span>
+              <div className="scale-row">
+                <input
+                  type="range"
+                  min={80}
+                  max={110}
+                  step={5}
+                  value={uiScale}
+                  disabled={!manualScaleEnabled || densitySaving}
+                  onChange={event => changeManualScale(Number(event.target.value))}
+                />
+                <b>{uiScale}%</b>
+              </div>
+            </label>
+            {viewportKind !== 'desktop' ? (
+              <p className="density-help">
+                저장된 웹 직접 설정 값은 {uiScale}%입니다. 터치와 글자 가독성을 위해 100%가 적용됩니다.
+              </p>
+            ) : displayPreferences.densityMode === 'auto' ? (
+              <p className="density-help">
+                웹에서는 자동으로 90%가 적용됩니다. 직접 설정을 선택하면 저장된 {uiScale}% 값을 사용합니다.
+              </p>
+            ) : (
+              <p className="density-help">웹 직접 설정은 80~110% 범위에서 5% 단위로 적용됩니다.</p>
+            )}
+            {densitySaveError && <p className="density-error" role="alert">{densitySaveError}</p>}
+          </div>
           <button type="button" className="primary-button" onClick={() => void saveNow()}>
             지금 저장
           </button>
@@ -235,7 +340,21 @@ export default function ProfilePage() {
         .account-scope { display: flex; justify-content: space-between; gap: 10px; align-items: center; border: 1px solid var(--border); border-radius: 8px; background: var(--bg3); padding: 10px 11px; }
         .account-scope span { color: var(--muted); font-size: 11px; font-weight: 800; }
         .account-scope b { min-width: 0; color: var(--text); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .density-settings { display: flex; flex-direction: column; gap: 9px; }
+        .density-label { color: var(--muted); font-size: 12px; line-height: 1.5; }
+        .density-mode-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+        .density-mode-options button { min-width: 0; min-height: 52px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg3); color: var(--text); padding: 8px 10px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; font: inherit; text-align: left; cursor: pointer; }
+        .density-mode-options button.selected { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+        .density-mode-options button:disabled { cursor: default; opacity: 0.65; }
+        .density-mode-options button:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 32%, transparent); outline-offset: 2px; }
+        .density-mode-options strong { font-size: 12px; }
+        .density-mode-options small { color: var(--muted); font-size: 10px; line-height: 1.4; }
+        .density-current { margin: 0; color: var(--muted); font-size: 12px; }
+        .density-current strong { color: var(--text); }
+        .density-help { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+        .density-error { margin: 0; border: 1px solid color-mix(in srgb, var(--red) 35%, var(--border)); border-radius: 8px; background: color-mix(in srgb, var(--red) 7%, var(--bg2)); color: var(--red); padding: 9px 10px; font-size: 11px; font-weight: 800; line-height: 1.45; }
         .scale-row { display: grid; grid-template-columns: minmax(0, 1fr) 52px; gap: 10px; align-items: center; }
+        .scale-row input:disabled { cursor: not-allowed; opacity: 0.48; }
         .scale-row b { color: var(--accent); font-size: 13px; text-align: right; }
         .primary-button { height: 36px; border: 0; border-radius: 7px; background: var(--accent); color: #fff; padding: 0 13px; font-size: 12px; font-weight: 800; cursor: pointer; align-self: flex-start; }
         .profile-stats, .storage-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }

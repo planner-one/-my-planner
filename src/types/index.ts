@@ -1,3 +1,7 @@
+import type { DensityMode } from '../utils/responsiveUi'
+
+export type { DensityMode } from '../utils/responsiveUi'
+
 export interface Todo {
   id: string
   text: string
@@ -303,6 +307,16 @@ export interface NotificationPreferences {
   timezone: string
 }
 
+export interface NavigationPreferences {
+  mobileBottomTabs: string[]
+  updatedAt: string
+}
+
+export interface DisplayPreferences {
+  densityMode: DensityMode
+  updatedAt: string
+}
+
 export type OnboardingPurpose = 'daily' | 'workStudy' | 'jobSearch' | 'opportunity'
 export type OnboardingStatus = 'pending' | 'completed' | 'skipped'
 
@@ -385,6 +399,8 @@ export interface UserData {
   uiScale?: number
   nickname?: string
   notificationPreferences?: NotificationPreferences
+  navigationPreferences?: NavigationPreferences
+  displayPreferences?: DisplayPreferences
   onboarding?: OnboardingState
   _lastSaved?: string
   _displayName?: string

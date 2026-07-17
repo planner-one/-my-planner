@@ -10,6 +10,7 @@ interface QuickAddModalProps {
 export default function QuickAddModal({ title, onClose, children }: QuickAddModalProps) {
   return createPortal(
     <div
+      className="quick-add-backdrop"
       role="presentation"
       onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}
       style={{
@@ -19,6 +20,7 @@ export default function QuickAddModal({ title, onClose, children }: QuickAddModa
       }}
     >
       <div
+        className="quick-add-modal"
         role="dialog"
         aria-modal="true"
         aria-label={title}
