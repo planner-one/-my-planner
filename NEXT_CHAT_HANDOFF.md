@@ -18,9 +18,9 @@ _갱신일: 2026-07-16 (SC-10 모바일 탐색·테마·반응형 밀도 운영 
 - 배포: Firebase Hosting
 - 배포 URL: `https://my-planner-487bd.web.app`
 - GitHub Pages는 사용하지 않습니다.
-- 현재 HEAD: `d12a1a2 feat: refine planner scheduling and mobile UX`
+- 현재 HEAD: `2659aaa feat: improve mobile planner responsiveness`
 - 현재 앱 버전: `v0.3.17 UI System Pass`
-- 현재 로컬 브랜치 상태: SC-10 모바일 입력·루틴 안정화 1차 보강과 후속 탐색·테마·밀도 변경은 모두 Firebase Hosting에 배포됐고 후속 운영 자산도 확인했습니다. 로컬 변경은 아직 커밋/푸시하지 않았으며, 로그인 세션 기능과 실기기 주소창·키보드 QA가 필요합니다.
+- 현재 로컬 브랜치 상태: SC-10 모바일 입력·루틴 안정화 1차 보강과 후속 탐색·테마·밀도 변경을 `main`에 커밋·push했고 Firebase Hosting 배포와 후속 운영 자산 확인도 완료했습니다. `main`과 `origin/main`은 동기화된 상태이며, 로그인 세션 기능과 실기기 주소창·키보드 QA가 필요합니다.
 - 최근 push와 Firebase Hosting 배포는 `planner-one` 계정으로 성공했습니다.
 
 ## 2026-07-14 SC-16 신규 사용자 온보딩 진행 기준
@@ -386,7 +386,6 @@ SC-07 위젯 검토는 완료입니다.
 2. SC-10 바로가기 저장·즉시 반영·포커스 복귀와 SC-16 완료·건너뛰기·저장 실패 재시도·계정 전환 확인
 3. 실제 기기에서 주소창이 열린 첫 화면과 키보드가 열린 긴 폼 스크롤을 확인
 4. 로그인 QA 결과를 자동 검사·운영 배포 기록과 구분해 문서에 추가한 뒤 사용자 확인
-5. 사용자 지시가 있으면 커밋/푸시
 
 ## 작업 시 주의
 
