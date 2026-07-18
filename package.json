@@ -16,6 +16,7 @@
     "check:productivity-log": "node scripts/check-productivity-log.mjs",
     "check:onboarding": "node scripts/check-onboarding.mjs",
     "check:mobile-ux": "node scripts/check-mobile-ux.mjs",
+    "check:memo-widget": "node scripts/check-memo-widget.mjs",
     "check:responsive-ui": "node scripts/check-responsive-ui.mjs",
     "build": "vite build",
     "preview": "vite preview"

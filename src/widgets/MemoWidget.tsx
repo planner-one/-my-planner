@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useApp } from '../store/AppContext'
 import { useRouter } from '../store/RouterContext'
 import type { QuickMemoEntry } from '../types'
@@ -14,27 +14,76 @@ export const meta = {
   order: 2,
 }
 
+let memoManageMode = false
+const memoManageListeners = new Set<() => void>()
+
+const setMemoManageMode = (next: boolean) => {
+  if (memoManageMode === next) return
+  memoManageMode = next
+  memoManageListeners.forEach(listener => listener())
+}
+
+const subscribeMemoManageMode = (listener: () => void) => {
+  memoManageListeners.add(listener)
+  return () => memoManageListeners.delete(listener)
+}
+
+const getMemoManageMode = () => memoManageMode
+
+const useMemoManageMode = () => useSyncExternalStore(
+  subscribeMemoManageMode,
+  getMemoManageMode,
+  getMemoManageMode,
+)
+
 export function MemoActions() {
   const { setPage } = useRouter()
+  const manageMode = useMemoManageMode()
+
   return (
-    <button
-      type="button"
-      onClick={() => setPage('notes')}
-      style={{
-        fontSize: 11, color: 'var(--muted)', background: 'transparent',
-        border: '1px solid var(--border)', borderRadius: 6,
-        cursor: 'pointer', padding: '3px 8px', fontFamily: 'inherit',
-      }}
-    >
-      보관함
-    </button>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+      <button
+        type="button"
+        onClick={() => setMemoManageMode(!manageMode)}
+        aria-label="빠른 메모 편집"
+        aria-pressed={manageMode}
+        title={manageMode ? '편집 완료' : '빠른 메모 편집'}
+        style={{
+          width: 26, height: 26, display: 'grid', placeItems: 'center',
+          padding: 0, border: '1px solid var(--border)', borderRadius: 6,
+          background: manageMode ? 'var(--accent-soft)' : 'transparent',
+          color: manageMode ? 'var(--accent)' : 'var(--muted)',
+          cursor: 'pointer', fontFamily: 'inherit', fontSize: 15, lineHeight: 1,
+        }}
+      >
+        {manageMode ? '✓' : '✎'}
+      </button>
+      <button
+        type="button"
+        onClick={() => setPage('notes')}
+        style={{
+          fontSize: 11, color: 'var(--muted)', background: 'transparent',
+          border: '1px solid var(--border)', borderRadius: 6,
+          cursor: 'pointer', padding: '3px 8px', fontFamily: 'inherit',
+        }}
+      >
+        보관함
+      </button>
+    </div>
   )
 }
 
 export default function MemoWidget() {
   const { quickMemos, setQuickMemos } = useApp()
+  const manageMode = useMemoManageMode()
   const [input, setInput] = useState('')
   const [composing, setComposing] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingContent, setEditingContent] = useState('')
+  const [editingComposing, setEditingComposing] = useState(false)
+  const [isScrolling, setIsScrolling] = useState(false)
+  const skipMemoBlurRef = useRef(false)
+  const scrollTimerRef = useRef<number | null>(null)
 
   const activeMemos = quickMemos
     .filter(memo => !memo.archivedAt)
@@ -54,6 +103,75 @@ export default function MemoWidget() {
     setQuickMemos(previous => [memo, ...previous])
     setInput('')
   }
+
+  const clearMemoEdit = () => {
+    setEditingId(null)
+    setEditingContent('')
+    setEditingComposing(false)
+  }
+
+  const cancelMemoEdit = () => {
+    skipMemoBlurRef.current = true
+    clearMemoEdit()
+    window.setTimeout(() => {
+      skipMemoBlurRef.current = false
+    }, 0)
+  }
+
+  const startMemoEdit = (memo: QuickMemoEntry) => {
+    setEditingId(memo.id)
+    setEditingContent(memo.content)
+  }
+
+  const saveMemoEdit = (id: string) => {
+    const content = editingContent.trim()
+    if (content) {
+      const now = new Date().toISOString()
+      setQuickMemos(previous => previous.map(memo => memo.id === id
+        ? { ...memo, content, updatedAt: now }
+        : memo))
+    }
+    clearMemoEdit()
+  }
+
+  const handleMemoEditBlur = (id: string) => {
+    if (skipMemoBlurRef.current) {
+      skipMemoBlurRef.current = false
+      return
+    }
+    saveMemoEdit(id)
+  }
+
+  const archiveMemo = (id: string) => {
+    const now = new Date().toISOString()
+    setQuickMemos(previous => previous.map(memo => memo.id === id
+      ? { ...memo, archivedAt: now, updatedAt: now }
+      : memo))
+    if (editingId === id) clearMemoEdit()
+  }
+
+  const deleteMemo = (id: string) => {
+    if (!window.confirm('이 빠른 메모를 완전히 삭제할까요?')) return
+    setQuickMemos(previous => previous.filter(memo => memo.id !== id))
+    if (editingId === id) clearMemoEdit()
+  }
+
+  const handleMemoScroll = () => {
+    setIsScrolling(true)
+    if (scrollTimerRef.current !== null) window.clearTimeout(scrollTimerRef.current)
+    scrollTimerRef.current = window.setTimeout(() => {
+      setIsScrolling(false)
+      scrollTimerRef.current = null
+    }, 700)
+  }
+
+  useEffect(() => {
+    if (!manageMode) clearMemoEdit()
+  }, [manageMode])
+
+  useEffect(() => () => {
+    if (scrollTimerRef.current !== null) window.clearTimeout(scrollTimerRef.current)
+  }, [])
 
   return (
     <div style={{
@@ -93,10 +211,14 @@ export default function MemoWidget() {
         </button>
       </div>
 
-      <div style={{
-        flex: 1, minHeight: 0, overflowY: 'auto',
-        display: 'flex', flexDirection: 'column', gap: 5,
-      }}>
+      <div
+        className={`memo-scroll-region${isScrolling ? ' is-scrolling' : ''}`}
+        onScroll={handleMemoScroll}
+        style={{
+          flex: 1, minHeight: 0, overflowY: 'auto',
+          display: 'flex', flexDirection: 'column', gap: 5,
+        }}
+      >
         {recentMemos.length === 0 && (
           <div style={{
             flex: 1, display: 'grid', placeItems: 'center',
@@ -108,6 +230,7 @@ export default function MemoWidget() {
         {recentMemos.map(memo => (
           <div
             key={memo.id}
+            className="memo-widget-row"
             style={{
               display: 'grid', gridTemplateColumns: '6px minmax(0, 1fr) auto',
               alignItems: 'start', gap: 8,
@@ -115,18 +238,149 @@ export default function MemoWidget() {
             }}
           >
             <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--accent)', marginTop: 5, flexShrink: 0 }} />
-            <span style={{
-              minWidth: 0, overflowWrap: 'break-word', whiteSpace: 'pre-wrap',
-              color: 'var(--text)', fontSize: 12, lineHeight: 1.5,
-            }}>
-              {memo.content}
-            </span>
-            <time style={{ color: 'var(--muted)', fontSize: 9, whiteSpace: 'nowrap' }}>
-              {new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit' }).format(new Date(memo.createdAt))}
-            </time>
+            <div style={{ minWidth: 0, display: 'grid', gap: 3 }}>
+              {editingId === memo.id ? (
+                <textarea
+                  autoFocus
+                  className="memo-widget-edit-input"
+                  value={editingContent}
+                  maxLength={240}
+                  rows={2}
+                  onChange={event => setEditingContent(event.target.value)}
+                  onCompositionStart={() => setEditingComposing(true)}
+                  onCompositionEnd={() => setEditingComposing(false)}
+                  onBlur={() => handleMemoEditBlur(memo.id)}
+                  onKeyDown={event => {
+                    if (event.key === 'Enter' && !event.shiftKey && !editingComposing) {
+                      event.preventDefault()
+                      saveMemoEdit(memo.id)
+                    }
+                    if (event.key === 'Escape') {
+                      event.preventDefault()
+                      cancelMemoEdit()
+                    }
+                  }}
+                />
+              ) : (
+                <span style={{
+                  minWidth: 0, overflowWrap: 'break-word', whiteSpace: 'pre-wrap',
+                  color: 'var(--text)', fontSize: 12, lineHeight: 1.5,
+                }}>
+                  {memo.content}
+                </span>
+              )}
+              <time style={{ color: 'var(--muted)', fontSize: 9, whiteSpace: 'nowrap' }}>
+                {new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit' }).format(new Date(memo.createdAt))}
+              </time>
+            </div>
+            <div className="memo-widget-row-actions">
+              {manageMode && editingId !== memo.id && (
+                <>
+                  <button
+                    type="button"
+                    aria-label="빠른 메모 수정"
+                    title="수정"
+                    onClick={() => startMemoEdit(memo)}
+                  >
+                    수정
+                  </button>
+                  <button
+                    type="button"
+                    className="is-danger"
+                    aria-label="빠른 메모 완전히 삭제"
+                    title="완전히 삭제"
+                    onClick={() => deleteMemo(memo.id)}
+                  >
+                    삭제
+                  </button>
+                </>
+              )}
+              <button
+                type="button"
+                className="memo-widget-archive-button"
+                aria-label="보관함으로 이동"
+                title="보관함으로 이동"
+                onClick={() => archiveMemo(memo.id)}
+              >
+                ×
+              </button>
+            </div>
           </div>
         ))}
       </div>
+
+      <style>{`
+        .memo-scroll-region {
+          scrollbar-gutter: stable;
+          scrollbar-width: thin;
+          scrollbar-color: transparent transparent;
+        }
+        .memo-scroll-region::-webkit-scrollbar { width: 8px; }
+        .memo-scroll-region::-webkit-scrollbar-track { background: transparent; }
+        .memo-scroll-region::-webkit-scrollbar-thumb {
+          border: 2px solid transparent;
+          border-radius: 999px;
+          background: transparent;
+          background-clip: content-box;
+          transition: background-color 160ms ease;
+        }
+        .memo-scroll-region.is-scrolling {
+          scrollbar-color: color-mix(in srgb, var(--muted) 55%, transparent) transparent;
+        }
+        .memo-scroll-region.is-scrolling::-webkit-scrollbar-thumb {
+          background-color: color-mix(in srgb, var(--muted) 55%, transparent);
+        }
+        .memo-widget-row-actions {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 4px;
+        }
+        .memo-widget-row-actions button {
+          min-width: 28px;
+          height: 24px;
+          padding: 0 6px;
+          border: 1px solid var(--border);
+          border-radius: 6px;
+          background: transparent;
+          color: var(--muted);
+          font-family: inherit;
+          font-size: 10px;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+        .memo-widget-row-actions button:hover {
+          border-color: var(--accent);
+          color: var(--accent);
+        }
+        .memo-widget-row-actions button.is-danger:hover {
+          border-color: var(--red);
+          color: var(--red);
+        }
+        .memo-widget-row-actions .memo-widget-archive-button {
+          width: 24px;
+          min-width: 24px;
+          padding: 0;
+          border-color: transparent;
+          font-size: 17px;
+          line-height: 1;
+        }
+        .memo-widget-edit-input {
+          width: 100%;
+          min-height: 48px;
+          box-sizing: border-box;
+          padding: 7px 8px;
+          border: 1px solid var(--accent);
+          border-radius: 6px;
+          background: var(--bg3);
+          color: var(--text);
+          font-family: inherit;
+          font-size: 12px;
+          line-height: 1.45;
+          outline: none;
+          resize: none;
+        }
+      `}</style>
 
       {activeMemos.length > recentMemos.length && (
         <div style={{ color: 'var(--muted)', fontSize: 10, textAlign: 'right', flexShrink: 0 }}>

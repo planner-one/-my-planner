@@ -118,6 +118,14 @@ assert.match(pageShellSource, /'dashboard',[\s\S]*mobileBottomTabs/)
 assert.match(pageShellSource, /하단 메뉴 편집/)
 assert.match(pageShellSource, /className="mobile-theme-trigger"/)
 assert.match(pageShellSource, /aria-label="테마 선택 열기"/)
+const mobileThemeTriggerIndex = pageShellSource.indexOf('className="mobile-theme-trigger"')
+const mobileLinkOrganizerIndex = pageShellSource.indexOf('className="header-link-tool"')
+assert.ok(
+  mobileThemeTriggerIndex >= 0
+    && mobileLinkOrganizerIndex >= 0
+    && mobileThemeTriggerIndex < mobileLinkOrganizerIndex,
+  'mobile theme trigger should appear before the link organizer trigger',
+)
 assert.match(pageShellSource, /mobilePanel === 'themes'/)
 assert.match(pageShellSource, /className="mobile-theme-picker"/)
 for (const label of ['라이트', '다크', '코랄', '블루']) {

@@ -1,7 +1,7 @@
 # 다음 채팅 인수인계
 
 _작성일: 2026-06-28_
-_갱신일: 2026-07-16 (SC-10 모바일 탐색·테마·반응형 밀도 운영 배포·자산 확인 기준)_
+_갱신일: 2026-07-18 (SC-10 모바일 헤더 액션 순서 보강 기준)_
 
 이 파일은 새 Codex 또는 Claude Code 세션에서 바로 이어 작업하기 위한 현재 상태 메모입니다.
 새 세션에서는 먼저 이 파일과 `AGENTS.md`, `PROGRESS.md`, `REQUIREMENTS.md`, `SCENARIOS.md`, `RELEASES.md`, `COPYRIGHT_AND_SERVICE_NOTES.md`, `LINK_IMPORT_GUIDE.md`, `JOB_POSTING_LINK_READER.md`, `PLANNER_SYSTEM_AUDIT_2026-07-04.md`, `UPDATE_SCHEDULE.md`를 읽고 시작하면 됩니다.
@@ -18,7 +18,7 @@ _갱신일: 2026-07-16 (SC-10 모바일 탐색·테마·반응형 밀도 운영 
 - 배포: Firebase Hosting
 - 배포 URL: `https://my-planner-487bd.web.app`
 - GitHub Pages는 사용하지 않습니다.
-- 현재 HEAD: `2659aaa feat: improve mobile planner responsiveness`
+- 기준 브랜치: `main`이며 최신 커밋은 Git 이력을 기준으로 확인합니다.
 - 현재 앱 버전: `v0.3.17 UI System Pass`
 - 현재 로컬 브랜치 상태: SC-10 모바일 입력·루틴 안정화 1차 보강과 후속 탐색·테마·밀도 변경을 `main`에 커밋·push했고 Firebase Hosting 배포와 후속 운영 자산 확인도 완료했습니다. `main`과 `origin/main`은 동기화된 상태이며, 로그인 세션 기능과 실기기 주소창·키보드 QA가 필요합니다.
 - 최근 push와 Firebase Hosting 배포는 `planner-one` 계정으로 성공했습니다.
@@ -56,6 +56,12 @@ _갱신일: 2026-07-16 (SC-10 모바일 탐색·테마·반응형 밀도 운영 
 - 운영 자산: `index-CD5IE4I1.js`, `index-D8jI16M-.css`, `App-zMiqyG0Y.js`, `ProfilePage-Be2h5m7v.js`와 `100dvh`, `mobile-navigation-editor`, `mobile-theme-trigger`, `자동(권장)` 표식을 확인했습니다.
 - 운영 로그인 전 화면: 390/768/1024px에서 scale 1, `100dvh`, horizontal overflow 0, console error 0을 확인했습니다.
 - 남은 단계: 브라우저에 인증 세션이 없어 로그인 후 실제 대시보드 하단 메뉴·편집·테마·밀도와 실기기 주소창·키보드 QA는 완료하지 못했습니다. 앞선 1차 배포와 이번 후속 배포 이력을 모두 보존하되 전체 모바일 최적화 완료로 표현하지 않습니다.
+
+## 2026-07-18 SC-10 모바일 헤더 액션 순서 보강
+
+- 모바일 상단 액션을 `테마 → 링크 정리 → 전체 메뉴` 순서로 배치해 테마 선택을 링크 정리보다 먼저 찾을 수 있게 했습니다.
+- 테마 버튼이 액션 그룹의 왼쪽 첫 항목이 되어도 헤더 오른쪽 정렬이 유지되도록 모바일 여백 규칙을 함께 조정했습니다.
+- `check:responsive-ui`에서 테마 버튼이 링크 정리 버튼보다 앞에 있는 DOM 순서를 회귀 검사합니다.
 
 ## 2026-07-04 설계 감사 반영
 

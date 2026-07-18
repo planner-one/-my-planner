@@ -369,19 +369,19 @@ export default function PageShell({ children }: { children: ReactNode }) {
           )}
           <button
             type="button"
-            className="header-link-tool"
-            onClick={() => setLinkModalOpen(true)}
-          >
-            링크 정리
-          </button>
-          <button
-            type="button"
             className="mobile-theme-trigger"
             onClick={event => openMobilePanel('themes', event.currentTarget)}
             aria-label="테마 선택 열기"
             title="테마 선택"
           >
             <Icon paths={PALETTE_PATHS} />
+          </button>
+          <button
+            type="button"
+            className="header-link-tool"
+            onClick={() => setLinkModalOpen(true)}
+          >
+            링크 정리
           </button>
           <button
             ref={mobileMenuTriggerRef}
@@ -1159,7 +1159,8 @@ export default function PageShell({ children }: { children: ReactNode }) {
         @media (max-width: 767px) {
           .sidebar { display: none !important; }
           .page-return-header { display: flex !important; }
-          .mobile-theme-trigger { display: grid !important; }
+          .mobile-theme-trigger { display: grid !important; margin-left: auto; }
+          .mobile-theme-trigger + .header-link-tool { margin-left: 0; }
           .mobile-page-menu-trigger { display: flex !important; align-items: center; justify-content: center; }
           .mobile-page-menu-backdrop { display: flex !important; }
           .bottom-nav { display: flex !important; }
