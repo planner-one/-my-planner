@@ -36,6 +36,39 @@ const useMemoManageMode = () => useSyncExternalStore(
   getMemoManageMode,
 )
 
+const MEMO_ACTION_PATHS = {
+  edit: [
+    'M12 20h9',
+    'M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4 12.5-12.5z',
+  ],
+  delete: [
+    'M3 6h18',
+    'M8 6V4h8v2',
+    'M19 6l-1 14H6L5 6',
+    'M10 10v7M14 10v7',
+  ],
+} as const
+
+function MemoActionIcon({ type }: { type: keyof typeof MEMO_ACTION_PATHS }) {
+  return (
+    <svg
+      data-memo-icon={type}
+      width={16}
+      height={16}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      {MEMO_ACTION_PATHS[type].map((path, index) => <path key={index} d={path} />)}
+    </svg>
+  )
+}
+
 export function MemoActions() {
   const { setPage } = useRouter()
   const manageMode = useMemoManageMode()
@@ -140,14 +173,6 @@ export default function MemoWidget() {
       return
     }
     saveMemoEdit(id)
-  }
-
-  const archiveMemo = (id: string) => {
-    const now = new Date().toISOString()
-    setQuickMemos(previous => previous.map(memo => memo.id === id
-      ? { ...memo, archivedAt: now, updatedAt: now }
-      : memo))
-    if (editingId === id) clearMemoEdit()
   }
 
   const deleteMemo = (id: string) => {
@@ -273,38 +298,27 @@ export default function MemoWidget() {
                 {new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit' }).format(new Date(memo.createdAt))}
               </time>
             </div>
-            <div className="memo-widget-row-actions">
-              {manageMode && editingId !== memo.id && (
-                <>
-                  <button
-                    type="button"
-                    aria-label="빠른 메모 수정"
-                    title="수정"
-                    onClick={() => startMemoEdit(memo)}
-                  >
-                    수정
-                  </button>
-                  <button
-                    type="button"
-                    className="is-danger"
-                    aria-label="빠른 메모 완전히 삭제"
-                    title="완전히 삭제"
-                    onClick={() => deleteMemo(memo.id)}
-                  >
-                    삭제
-                  </button>
-                </>
-              )}
-              <button
-                type="button"
-                className="memo-widget-archive-button"
-                aria-label="보관함으로 이동"
-                title="보관함으로 이동"
-                onClick={() => archiveMemo(memo.id)}
-              >
-                ×
-              </button>
-            </div>
+            {manageMode && editingId !== memo.id && (
+              <div className="memo-widget-row-actions">
+                <button
+                  type="button"
+                  aria-label="빠른 메모 수정"
+                  title="수정"
+                  onClick={() => startMemoEdit(memo)}
+                >
+                  <MemoActionIcon type="edit" />
+                </button>
+                <button
+                  type="button"
+                  className="is-danger"
+                  aria-label="빠른 메모 완전히 삭제"
+                  title="완전히 삭제"
+                  onClick={() => deleteMemo(memo.id)}
+                >
+                  <MemoActionIcon type="delete" />
+                </button>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -337,17 +351,18 @@ export default function MemoWidget() {
           gap: 4px;
         }
         .memo-widget-row-actions button {
-          min-width: 28px;
-          height: 24px;
-          padding: 0 6px;
+          width: 30px;
+          min-width: 30px;
+          height: 30px;
+          display: grid;
+          place-items: center;
+          padding: 0;
           border: 1px solid var(--border);
           border-radius: 6px;
           background: transparent;
           color: var(--muted);
           font-family: inherit;
-          font-size: 10px;
           cursor: pointer;
-          white-space: nowrap;
         }
         .memo-widget-row-actions button:hover {
           border-color: var(--accent);
@@ -356,14 +371,6 @@ export default function MemoWidget() {
         .memo-widget-row-actions button.is-danger:hover {
           border-color: var(--red);
           color: var(--red);
-        }
-        .memo-widget-row-actions .memo-widget-archive-button {
-          width: 24px;
-          min-width: 24px;
-          padding: 0;
-          border-color: transparent;
-          font-size: 17px;
-          line-height: 1;
         }
         .memo-widget-edit-input {
           width: 100%;
