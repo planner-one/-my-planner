@@ -175,7 +175,8 @@ const fetchSameOriginApiText = async (url: string): Promise<JobPostingPageTextRe
 
 const fetchProductionReaderText = async (url: string): Promise<JobPostingPageTextResult> =>
   withTimeout(async signal => {
-    const response = await fetch(`/reader/page?url=${encodeURIComponent(url)}`, {
+    const readerBaseUrl = String(import.meta.env.VITE_READER_BASE_URL ?? '').replace(/\/$/, '')
+    const response = await fetch(`${readerBaseUrl || ''}/reader/page?url=${encodeURIComponent(url)}`, {
       signal,
       credentials: 'same-origin',
       headers: { accept: 'application/json' },
@@ -255,7 +256,8 @@ export const getJobPostingPageText = async (url: string): Promise<JobPostingPage
 }
 
 export const getJobPostingImageBlob = async (url: string) => {
-  const response = await fetch(`/reader/image?url=${encodeURIComponent(url)}`, {
+  const readerBaseUrl = String(import.meta.env.VITE_READER_BASE_URL ?? '').replace(/\/$/, '')
+  const response = await fetch(`${readerBaseUrl || ''}/reader/image?url=${encodeURIComponent(url)}`, {
     credentials: 'same-origin',
   })
   if (!response.ok) throw new Error('IMAGE_FETCH_FAILED')

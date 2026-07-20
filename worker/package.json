@@ -1,0 +1,7 @@
+{
+  "name": "planner-reader-worker",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test src/index.test.js" },
+  "devDependencies": { "wrangler": "^4.21.2" }
+}
