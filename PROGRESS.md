@@ -2,6 +2,13 @@
 
 _마지막 업데이트: 2026-07-18_
 
+## 2026-07-20 운영 링크 Reader 1차 기반
+
+- `functions/src/reader.js`에 공개 URL 검증, SSRF 기본 차단, HTML/meta/JSON-LD/본문/이미지 후보 추출과 실패 결과 형식을 추가했습니다.
+- `readerPage`, `readerImage` Firebase Functions와 Hosting rewrite를 추가하고 지원 공고 화면이 운영 Reader를 fallback으로 호출하도록 연결했습니다.
+- 함수 단위 Node 테스트 3개, 앱 타입 검사와 Vite 빌드를 통과했습니다.
+- 다음 단계는 Functions 의존성 설치, Firebase 배포, 운영 공개 링크 실측이며 로그인·동적 렌더링·접근 차단 페이지는 별도 처리 범위입니다.
+
 ## 전체 진행률
 
 `기존 SC-01~SC-15 범위는 현재 기록 상태를 유지하고, v0.3.17 UI System Pass가 현재 앱 버전입니다. v0.3.18 Planner Flow Clarity 범위의 SC-16 신규 사용자 온보딩은 코드 구현과 자동 회귀 검사를 완료했으며, 로그인 세션 육안 QA 전에는 릴리즈 완료로 계산하지 않습니다. SC-10은 2026-07-16 실기기 피드백 1차 보강과 후속 모바일 하단 메뉴·테마·반응형 밀도 변경을 Firebase Hosting에 반영하고 운영 자산까지 확인했습니다. 로그인 후 실제 대시보드와 실기기 주소창·키보드 QA는 남아 있으므로 전체 모바일 최적화 완료로 계산하지 않습니다.`

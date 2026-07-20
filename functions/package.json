@@ -1,0 +1,10 @@
+{
+  "name": "planner-functions",
+  "private": true,
+  "type": "module",
+  "engines": { "node": "20" },
+  "scripts": { "test": "node --test src/reader.test.js" },
+  "dependencies": {
+    "firebase-functions": "^6.3.2"
+  }
+}

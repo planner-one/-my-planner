@@ -1,4 +1,8 @@
 {
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs20"
+  },
   "firestore": {
     "rules": "firestore.rules"
   },
@@ -11,6 +15,14 @@
       "**/node_modules/**"
     ],
     "rewrites": [
+      {
+        "source": "/reader/page",
+        "function": { "functionId": "readerPage", "region": "asia-northeast3" }
+      },
+      {
+        "source": "/reader/image",
+        "function": { "functionId": "readerImage", "region": "asia-northeast3" }
+      },
       {
         "source": "**",
         "destination": "/index.html"

@@ -173,6 +173,24 @@ const fetchSameOriginApiText = async (url: string): Promise<JobPostingPageTextRe
     }
   }, 12000)
 
+const fetchProductionReaderText = async (url: string): Promise<JobPostingPageTextResult> =>
+  withTimeout(async signal => {
+    const response = await fetch(`/reader/page?url=${encodeURIComponent(url)}`, {
+      signal,
+      credentials: 'same-origin',
+      headers: { accept: 'application/json' },
+    })
+    if (!response.ok || !(response.headers.get('content-type') ?? '').includes('application/json')) {
+      return { text: '', source: 'none', imageUrls: [] }
+    }
+    const result = await response.json() as Partial<JobPostingPageTextResult> & { status?: string }
+    return {
+      text: typeof result.text === 'string' ? result.text : '',
+      source: result.source === 'direct' || result.source === 'reader' ? result.source : 'none',
+      imageUrls: Array.isArray(result.imageUrls) ? result.imageUrls.filter((item): item is string => typeof item === 'string') : [],
+    }
+  }, 15000)
+
 const fetchReaderResult = async (url: string): Promise<JobPostingPageTextResult> =>
   withTimeout(async signal => {
     const response = await fetch(toReaderUrl(url), {
@@ -209,6 +227,13 @@ export const getJobPostingPageText = async (url: string): Promise<JobPostingPage
     // Local dev and future backend use /api first; production without that route falls back below.
   }
 
+  try {
+    const productionResult = await fetchProductionReaderText(url)
+    if (productionResult.imageUrls.length || hasUsefulJobText(productionResult.text)) return productionResult
+  } catch {
+    // Firebase Hosting may be serving an older release without the Reader rewrite.
+  }
+
   const readWithReaderFirst = isReaderFirstHost(url)
   if (readWithReaderFirst) return fetchReaderTargets(url)
 
@@ -230,7 +255,7 @@ export const getJobPostingPageText = async (url: string): Promise<JobPostingPage
 }
 
 export const getJobPostingImageBlob = async (url: string) => {
-  const response = await fetch(`/api/job-posting-image?url=${encodeURIComponent(url)}`, {
+  const response = await fetch(`/reader/image?url=${encodeURIComponent(url)}`, {
     credentials: 'same-origin',
   })
   if (!response.ok) throw new Error('IMAGE_FETCH_FAILED')
