@@ -1,13 +1,30 @@
-const API_KEY = import.meta.env.VITE_WEATHER_API_KEY as string
-const BASE_URL = 'https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst'
+import {
+  mergeDayForecasts,
+  parseOpenMeteoForecast,
+  wmoCodeToSkyPty,
+  type DayForecast,
+} from '../utils/weatherForecast'
 
-export interface DayForecast {
-  date: string       // YYYYMMDD
-  high: number
-  low: number
-  sky: number        // 1:맑음 3:구름많음 4:흐림
-  pty: number        // 0:없음 1:비 2:비/눈 3:눈 4:소나기
-  pop: number        // 강수확률
+export type { DayForecast } from '../utils/weatherForecast'
+
+const API_KEY = import.meta.env.VITE_WEATHER_API_KEY as string | undefined
+const KMA_BASE_URL = 'https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst'
+const OPEN_METEO_FORECAST_URL = 'https://api.open-meteo.com/v1/forecast'
+const KMA_TIMEOUT_MS = 4500
+const OPEN_METEO_TIMEOUT_MS = 8000
+const FORECAST_DAYS = 14
+
+async function fetchJson(url: string, timeoutMs: number): Promise<unknown> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    const res = await fetch(url, { signal: controller.signal })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    return await res.json()
+  } finally {
+    clearTimeout(timeout)
+  }
 }
 
 /** 위도/경도 → 기상청 격자 좌표(nx, ny) 변환 */
@@ -125,13 +142,9 @@ function getBaseDateTime(): { base_date: string; base_time: string } {
   return { base_date, base_time }
 }
 
-export async function fetchForecast(nx: number, ny: number): Promise<DayForecast[]> {
-  const cacheKey = `weather_${nx}_${ny}_${new Date().toISOString().slice(0, 13)}`
-  const cached = sessionStorage.getItem(cacheKey)
-  if (cached) return JSON.parse(cached)
-
+async function fetchKmaForecast(nx: number, ny: number): Promise<DayForecast[]> {
+  if (!API_KEY?.trim()) throw new Error('기상청 API 키가 설정되지 않았습니다.')
   const { base_date, base_time } = getBaseDateTime()
-
   const params = new URLSearchParams({
     ServiceKey: API_KEY,
     pageNo: '1',
@@ -143,19 +156,28 @@ export async function fetchForecast(nx: number, ny: number): Promise<DayForecast
     ny: String(ny),
   })
 
-  const res = await fetch(`${BASE_URL}?${params}`)
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  const data = await res.json()
+  const data = await fetchJson(`${KMA_BASE_URL}?${params}`, KMA_TIMEOUT_MS) as {
+    response?: {
+      header?: { resultCode?: string | number; resultMsg?: string }
+      body?: { items?: { item?: unknown } }
+    }
+  }
+
+  const resultCode = String(data?.response?.header?.resultCode ?? '')
+  if (resultCode !== '00') {
+    throw new Error(`기상청 API 오류: ${resultCode || 'UNKNOWN'}`)
+  }
 
   const items = data?.response?.body?.items?.item
-  if (!items) return []
+  if (!items) throw new Error('기상청 예보 데이터가 비어 있습니다.')
 
   const list = Array.isArray(items) ? items : [items]
 
   // 날짜별로 분류
   const byDate: Record<string, Record<string, string[]>> = {}
-  for (const item of list) {
+  for (const item of list as Array<Record<string, string>>) {
     const { fcstDate, fcstTime, category, fcstValue } = item
+    if (!fcstDate || !fcstTime || !category || fcstValue == null) continue
     if (!byDate[fcstDate]) byDate[fcstDate] = {}
     if (!byDate[fcstDate][category]) byDate[fcstDate][category] = []
     byDate[fcstDate][category].push(fcstValue)
@@ -164,10 +186,10 @@ export async function fetchForecast(nx: number, ny: number): Promise<DayForecast
   const now = new Date()
   const todayStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
 
-  const result: DayForecast[] = Object.entries(byDate)
+  const result = Object.entries(byDate)
     .sort(([a], [b]) => a.localeCompare(b))
     .filter(([date]) => date >= todayStr)
-    .slice(0, 7)
+    .slice(0, FORECAST_DAYS)
     .map(([date, cats]) => {
       const tmps = (cats['TMP'] ?? []).map(Number).filter(n => !isNaN(n))
       const tmx = cats['TMX']?.[0] ? Number(cats['TMX'][0]) : Math.max(...tmps)
@@ -183,20 +205,51 @@ export async function fetchForecast(nx: number, ny: number): Promise<DayForecast
       return { date, high: Math.round(tmx), low: Math.round(tmn), sky, pty, pop }
     })
 
-  sessionStorage.setItem(cacheKey, JSON.stringify(result))
+  if (result.length === 0) throw new Error('기상청 예보 데이터가 비어 있습니다.')
   return result
 }
 
-// WMO 날씨 코드(Open-Meteo) → 기상청 sky/pty 코드로 매핑
-function wmoCodeToSkyPty(code: number): { sky: number; pty: number } {
-  if ([95, 96, 99].includes(code)) return { sky: 4, pty: 4 } // 뇌우
-  if ([80, 81, 82].includes(code)) return { sky: 3, pty: 4 } // 소나기
-  if ([71, 73, 75, 77, 85, 86].includes(code)) return { sky: 4, pty: 3 } // 눈
-  if ([51, 53, 55, 56, 57, 61, 63, 65, 66, 67].includes(code)) return { sky: 4, pty: 1 } // 비
-  if ([45, 48].includes(code)) return { sky: 4, pty: 0 } // 안개
-  if (code === 0) return { sky: 1, pty: 0 } // 맑음
-  if ([1, 2].includes(code)) return { sky: 3, pty: 0 } // 구름 조금/보통
-  return { sky: 4, pty: 0 } // 3(overcast) 등 흐림
+async function fetchOpenMeteoForecast(lat: number, lon: number): Promise<DayForecast[]> {
+  const params = new URLSearchParams({
+    latitude: String(lat),
+    longitude: String(lon),
+    daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max',
+    timezone: 'Asia/Seoul',
+    forecast_days: String(FORECAST_DAYS),
+  })
+  const data = await fetchJson(`${OPEN_METEO_FORECAST_URL}?${params}`, OPEN_METEO_TIMEOUT_MS) as {
+    error?: boolean
+    reason?: string
+    daily?: Parameters<typeof parseOpenMeteoForecast>[0]
+  }
+  if (data?.error) throw new Error(data.reason || 'Open-Meteo API 오류')
+
+  const result = parseOpenMeteoForecast(data?.daily)
+  if (result.length === 0) throw new Error('Open-Meteo 예보 데이터가 비어 있습니다.')
+  return result
+}
+
+export async function fetchForecast(nx: number, ny: number): Promise<DayForecast[]> {
+  const cacheKey = `weather_${nx}_${ny}_${new Date().toISOString().slice(0, 13)}`
+  const cached = sessionStorage.getItem(cacheKey)
+  if (cached) return JSON.parse(cached)
+
+  const { lat, lon } = gridToLatLon(nx, ny)
+  const [kmaResult, openMeteoResult] = await Promise.allSettled([
+    fetchKmaForecast(nx, ny),
+    fetchOpenMeteoForecast(lat, lon),
+  ])
+
+  const kmaForecast = kmaResult.status === 'fulfilled' ? kmaResult.value : []
+  const openMeteoForecast = openMeteoResult.status === 'fulfilled' ? openMeteoResult.value : []
+  const result = mergeDayForecasts(kmaForecast, openMeteoForecast, FORECAST_DAYS)
+
+  if (result.length === 0) {
+    throw new Error('모든 날씨 제공처에서 예보를 가져오지 못했습니다.')
+  }
+
+  sessionStorage.setItem(cacheKey, JSON.stringify(result))
+  return result
 }
 
 /**

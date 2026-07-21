@@ -1,15 +1,24 @@
 import { useMemo, useState } from 'react'
 import { useApp } from '../store/AppContext'
-import type { ScheduledTask, Todo } from '../types'
+import type { ProductivityCategory, ScheduledTask, Todo } from '../types'
 import { addLocalDays, toLocalDateKey } from '../utils/date'
 import { isHabitScheduled } from '../utils/habits'
 import { CAREER_CATEGORY_LABELS, getCareerMilestones } from '../utils/careerEvents'
+import ScheduledTaskTimeButton from '../components/ScheduledTaskTimeButton'
+import {
+  PRODUCTIVITY_CATEGORIES_WITH_UNCATEGORIZED,
+  PRODUCTIVITY_CATEGORY_COLORS,
+  PRODUCTIVITY_CATEGORY_LABELS,
+  normalizeProductivityCategory,
+} from '../utils/productivityCategories'
 
-const TODO_CATEGORIES = ['work', 'personal', 'study'] as const
-const CATEGORY_LABEL: Record<typeof TODO_CATEGORIES[number], string> = {
+const TODO_CATEGORIES: ProductivityCategory[] = ['work', 'study', 'exercise', 'personal', 'uncategorized']
+const CATEGORY_LABEL: Record<ProductivityCategory, string> = {
   work: '업무',
   personal: '개인',
   study: '공부',
+  exercise: '운동',
+  uncategorized: '미분류',
 }
 const TIME_SLOTS = Array.from({ length: 18 }, (_, index) => `${String(index + 6).padStart(2, '0')}:00`)
 
@@ -24,9 +33,10 @@ export default function DailyPlanner() {
   } = useApp()
   const [selectedDate, setSelectedDate] = useState(toLocalDateKey())
   const [todoText, setTodoText] = useState('')
-  const [todoCategory, setTodoCategory] = useState<typeof TODO_CATEGORIES[number]>('work')
+  const [todoCategory, setTodoCategory] = useState<ProductivityCategory>('work')
   const [scheduleTitle, setScheduleTitle] = useState('')
   const [scheduleTime, setScheduleTime] = useState('09:00')
+  const [scheduleCategory, setScheduleCategory] = useState<ProductivityCategory>('uncategorized')
 
   const dateObj = useMemo(() => new Date(`${selectedDate}T12:00:00`), [selectedDate])
   const dayTodos = todos.filter(todo => (!todo.date && selectedDate === toLocalDateKey()) || todo.date === selectedDate)
@@ -95,6 +105,7 @@ export default function DailyPlanner() {
       title,
       date: selectedDate,
       time: scheduleTime,
+      category: scheduleCategory,
       done: false,
     }
     setScheduledTasks(prev => [...prev, task])
@@ -158,11 +169,13 @@ export default function DailyPlanner() {
           <strong>{dayPace}%</strong>
           <div className="daily-pace-bar"><i style={{ width: `${dayPace}%` }} /></div>
         </article>
-        <FocusItem label="다음 Todo" title={nextTodo?.text ?? '남은 Todo 없음'} meta={nextTodo ? CATEGORY_LABEL[(nextTodo.category as typeof TODO_CATEGORIES[number]) ?? 'work'] ?? '업무' : '정리됨'} />
+        <FocusItem label="다음 Todo" title={nextTodo?.text ?? '남은 Todo 없음'} meta={nextTodo ? CATEGORY_LABEL[normalizeProductivityCategory(nextTodo.category)] : '정리됨'} />
         <FocusItem
           label="다음 일정"
           title={nextSchedule?.title ?? nextCareerEvent?.title ?? '예정 없음'}
-          meta={nextSchedule?.time ?? nextCareerEvent?.time ?? '시간 미지정'}
+          meta={nextSchedule
+            ? `${PRODUCTIVITY_CATEGORY_LABELS[normalizeProductivityCategory(nextSchedule.category)]} · ${nextSchedule.time ?? '시간 미지정'}`
+            : nextCareerEvent?.time ?? '시간 미지정'}
         />
         <FocusItem label="연결 마감" title={nextDeadline ?? '오늘 마감 없음'} meta={`${deadlineTotal}개`} />
       </section>
@@ -186,7 +199,16 @@ export default function DailyPlanner() {
             {dayTodos.length === 0 ? <p className="empty-text">오늘 할 일을 추가하세요.</p> : dayTodos.map(todo => (
               <div key={todo.id} className="daily-row">
                 <input type="checkbox" checked={todo.done} onChange={event => updateTodo(todo.id, { done: event.target.checked })} />
-                <span>{CATEGORY_LABEL[(todo.category as typeof TODO_CATEGORIES[number]) ?? 'work'] ?? '업무'}</span>
+                <select
+                  value={normalizeProductivityCategory(todo.category)}
+                  aria-label={`${todo.text} 분야`}
+                  onChange={event => updateTodo(todo.id, { category: event.target.value as ProductivityCategory })}
+                  style={{ color: PRODUCTIVITY_CATEGORY_COLORS[normalizeProductivityCategory(todo.category)] }}
+                >
+                  {TODO_CATEGORIES.map(category => (
+                    <option key={category} value={category}>{CATEGORY_LABEL[category]}</option>
+                  ))}
+                </select>
                 <input value={todo.text} onChange={event => updateTodo(todo.id, { text: event.target.value })} className={todo.done ? 'done-text' : ''} />
                 <button type="button" onClick={() => removeTodo(todo.id)}>삭제</button>
               </div>
@@ -198,6 +220,11 @@ export default function DailyPlanner() {
           <h3>일정</h3>
           <div className="daily-add schedule-add">
             <input type="time" value={scheduleTime} onChange={event => setScheduleTime(event.target.value)} />
+            <select value={scheduleCategory} onChange={event => setScheduleCategory(event.target.value as ProductivityCategory)} aria-label="새 일정 분야">
+              {PRODUCTIVITY_CATEGORIES_WITH_UNCATEGORIZED.map(category => (
+                <option key={category} value={category}>{PRODUCTIVITY_CATEGORY_LABELS[category]}</option>
+              ))}
+            </select>
             <input
               value={scheduleTitle}
               onChange={event => setScheduleTitle(event.target.value)}
@@ -215,7 +242,13 @@ export default function DailyPlanner() {
                   <div key={task.id} className="schedule-row">
                     <input type="checkbox" checked={task.done} onChange={event => updateSchedule(task.id, { done: event.target.checked })} />
                     <input type="time" value={task.time ?? ''} onChange={event => updateSchedule(task.id, { time: event.target.value })} />
+                    <select value={normalizeProductivityCategory(task.category)} onChange={event => updateSchedule(task.id, { category: event.target.value as ProductivityCategory })} aria-label={`${task.title} 분야`}>
+                      {PRODUCTIVITY_CATEGORIES_WITH_UNCATEGORIZED.map(category => (
+                        <option key={category} value={category}>{PRODUCTIVITY_CATEGORY_LABELS[category]}</option>
+                      ))}
+                    </select>
                     <input value={task.title} onChange={event => updateSchedule(task.id, { title: event.target.value })} className={task.done ? 'done-text' : ''} />
+                    <ScheduledTaskTimeButton task={task} compact />
                     <button type="button" onClick={() => removeSchedule(task.id)}>삭제</button>
                   </div>
                 ))}
@@ -287,7 +320,7 @@ export default function DailyPlanner() {
         .daily-header p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
         .daily-date-controls { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
         .daily-date-controls button, .daily-add button { height: 34px; border: 0; border-radius: 7px; background: var(--accent); color: #fff; padding: 0 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
-        .daily-date-controls input, .daily-add input, .daily-add select, .daily-row input:not([type]), .schedule-row input { min-width: 0; height: 34px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); padding: 0 9px; font-size: 13px; outline: none; }
+        .daily-date-controls input, .daily-add input, .daily-add select, .daily-row input:not([type]), .daily-row select, .schedule-row input, .schedule-row select { min-width: 0; height: 34px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); color: var(--text); padding: 0 9px; font-size: 13px; outline: none; }
         .daily-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
         .daily-summary-card, .daily-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; }
         .daily-summary-card { padding: 13px; }
@@ -307,11 +340,11 @@ export default function DailyPlanner() {
         .daily-panel { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
         .daily-panel h3 { margin: 0; font-size: 15px; }
         .daily-add { display: grid; grid-template-columns: 88px minmax(0, 1fr) auto; gap: 8px; }
-        .schedule-add { grid-template-columns: 105px minmax(0, 1fr) auto; }
+        .schedule-add { grid-template-columns: 96px 96px minmax(0, 1fr) auto; }
         .daily-list, .habit-list { display: flex; flex-direction: column; gap: 7px; }
         .daily-row { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; gap: 7px; align-items: center; padding: 8px; border-radius: 8px; background: var(--bg3); }
         .daily-row span { padding: 3px 7px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 10px; font-weight: 800; white-space: nowrap; }
-        .schedule-row { display: grid; grid-template-columns: auto 94px minmax(0, 1fr) auto; gap: 7px; align-items: center; padding: 8px; border-radius: 8px; background: var(--bg3); }
+        .schedule-row { display: grid; grid-template-columns: auto 86px 92px minmax(0, 1fr) auto auto; gap: 7px; align-items: center; padding: 8px; border-radius: 8px; background: var(--bg3); }
         .career-schedule-row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 8px; align-items: center; padding: 9px; border-radius: 8px; background: var(--bg3); border-left: 3px solid #a855f7; }
         .career-schedule-row span { padding: 3px 7px; border-radius: 999px; background: rgba(168, 85, 247, 0.14); color: #a855f7; font-size: 10px; font-weight: 800; white-space: nowrap; }
         .career-schedule-row strong { min-width: 0; color: var(--text); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

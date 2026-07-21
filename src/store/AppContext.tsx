@@ -20,11 +20,13 @@ import {
   normalizeNavigationPreferences,
   resolveDisplayScale,
 } from '../utils/responsiveUi'
+import { normalizeProductivityTimeHistory } from '../utils/productivityCategories'
 import type {
   Todo, TodoDailyResult, DeletedTodoDailyResult, Habit, Task, Goal, Project, TopGoal, Counters,
   Note, QuickMemoEntry, WeekTask, ScheduledTask, CareerEvent, JournalEntry, LayoutItem, UserData,
   ReviewDailyEntry, PersonalApplication, JobPosting, NotificationPreferences, NavigationPreferences,
   DisplayPreferences,
+  ProductivityTimeHistory,
   OnboardingFirstEntry, OnboardingPurpose, OnboardingState,
 } from '../types'
 
@@ -59,6 +61,8 @@ interface AppContextValue {
   setWeekTasks: React.Dispatch<React.SetStateAction<Record<string, WeekTask[]>>>
   timeBlockData: Record<string, Record<string, string>>
   setTimeBlockData: React.Dispatch<React.SetStateAction<Record<string, Record<string, string>>>>
+  productivityTimeHistory: ProductivityTimeHistory
+  setProductivityTimeHistory: React.Dispatch<React.SetStateAction<ProductivityTimeHistory>>
   scheduledTasks: ScheduledTask[]
   setScheduledTasks: React.Dispatch<React.SetStateAction<ScheduledTask[]>>
   careerEvents: CareerEvent[]
@@ -100,7 +104,7 @@ interface AppContextValue {
 
 const AppContext = createContext<AppContextValue | null>(null)
 
-const LS_KEYS = ['dashboard_cols_v', 'weather_location', 'theme', 'clock_widget_mode']
+const LS_KEYS = ['dashboard_cols_v', 'weather_location', 'theme', 'clock_widget_mode', 'pomodoro_productivity_category']
 
 const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   dailyBriefingEnabled: true,
@@ -209,6 +213,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [notes, setNotes] = useState<Note[]>([])
   const [weekTasks, setWeekTasks] = useState<Record<string, WeekTask[]>>({})
   const [timeBlockData, setTimeBlockData] = useState<Record<string, Record<string, string>>>({})
+  const [productivityTimeHistory, setProductivityTimeHistory] = useState<ProductivityTimeHistory>({})
   const [scheduledTasks, setScheduledTasks] = useState<ScheduledTask[]>([])
   const [careerEvents, setCareerEvents] = useState<CareerEvent[]>([])
   const [personalApplications, setPersonalApplications] = useState<PersonalApplication[]>([])
@@ -314,7 +319,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       habitsVersion: HABITS_VERSION, habitsInitialized: true,
       tasks, goals, projects, topGoals,
       energy, counters, quickMemo: '', quickMemos, reviewHistory,
-      notes, weekTasks, timeBlockData, scheduledTasks, careerEvents,
+      notes, weekTasks, timeBlockData, productivityTimeHistory, scheduledTasks, careerEvents,
       personalApplications, jobPostings,
       journal, chartHistory,
       dashboardLayout, dashboardActive,
@@ -396,6 +401,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setNotes([])
     setWeekTasks({})
     setTimeBlockData({})
+    setProductivityTimeHistory({})
     setScheduledTasks([])
     setCareerEvents([])
     setPersonalApplications([])
@@ -479,6 +485,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setNotes(d?.notes ?? [])
       setWeekTasks(d?.weekTasks ?? {})
       setTimeBlockData(d?.timeBlockData ?? {})
+      setProductivityTimeHistory(normalizeProductivityTimeHistory(d?.productivityTimeHistory))
       setScheduledTasks(d?.scheduledTasks ?? [])
       setCareerEvents(migrateCareerEvents(d?.careerEvents))
       setPersonalApplications(migratePersonalApplications(d?.personalApplications))
@@ -587,7 +594,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     todos, todoHistory, todoHistoryTrash, todoHistoryDeletedDates,
     habits, habitHistory, habitSavedAt, tasks, goals, projects, topGoals,
     energy, counters, quickMemos, reviewHistory, notes, weekTasks,
-    timeBlockData, scheduledTasks, careerEvents, personalApplications, jobPostings,
+    timeBlockData, productivityTimeHistory, scheduledTasks, careerEvents, personalApplications, jobPostings,
     journal, chartHistory,
     dashboardLayout, dashboardActive, uiScale, nickname, notificationPreferences, onboarding, dataLoaded,
     navigationPreferences, displayPreferences,
@@ -618,6 +625,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setNotes(saved.notes ?? [])
     setWeekTasks(saved.weekTasks ?? {})
     setTimeBlockData(saved.timeBlockData ?? {})
+    setProductivityTimeHistory(normalizeProductivityTimeHistory(saved.productivityTimeHistory))
     setScheduledTasks(saved.scheduledTasks ?? [])
     setCareerEvents(migrateCareerEvents(saved.careerEvents))
     setPersonalApplications(migratePersonalApplications(saved.personalApplications))
@@ -903,6 +911,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     notes, setNotes,
     weekTasks, setWeekTasks,
     timeBlockData, setTimeBlockData,
+    productivityTimeHistory, setProductivityTimeHistory,
     scheduledTasks, setScheduledTasks,
     careerEvents, setCareerEvents,
     personalApplications, setPersonalApplications,

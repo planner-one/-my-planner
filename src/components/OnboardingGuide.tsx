@@ -11,6 +11,7 @@ import type {
   CareerEventCategory,
   OnboardingFirstEntry,
   OnboardingPurpose,
+  ProductivityCategory,
 } from '../types'
 import { CAREER_CATEGORY_LABELS } from '../utils/careerEvents'
 import { toLocalDateKey } from '../utils/date'
@@ -19,6 +20,10 @@ import {
   ONBOARDING_PURPOSES,
   STARTER_WIDGET_DEFAULTS,
 } from '../utils/onboarding'
+import {
+  PRODUCTIVITY_CATEGORIES_WITH_UNCATEGORIZED,
+  PRODUCTIVITY_CATEGORY_LABELS,
+} from '../utils/productivityCategories'
 
 export interface OnboardingGuideProps {
   open: boolean
@@ -139,7 +144,7 @@ export function OnboardingGuide({
   const [step, setStep] = useState(0)
   const [purpose, setPurpose] = useState<OnboardingPurpose | undefined>(initialPurpose)
   const [dailyText, setDailyText] = useState('')
-  const [dailyCategory, setDailyCategory] = useState<'work' | 'personal' | 'study'>('personal')
+  const [dailyCategory, setDailyCategory] = useState<ProductivityCategory>('personal')
   const [workName, setWorkName] = useState('')
   const [workType, setWorkType] = useState<'업무' | '공부'>('업무')
   const [workDue, setWorkDue] = useState('')
@@ -489,9 +494,9 @@ export function OnboardingGuide({
               onChange={event => setDailyCategory(event.target.value as typeof dailyCategory)}
               disabled={Boolean(savingAction)}
             >
-              <option value="personal">개인</option>
-              <option value="work">업무</option>
-              <option value="study">공부</option>
+              {PRODUCTIVITY_CATEGORIES_WITH_UNCATEGORIZED.map(category => (
+                <option key={category} value={category}>{PRODUCTIVITY_CATEGORY_LABELS[category]}</option>
+              ))}
             </select>
           </label>
           <div className="onboarding-form-note">날짜는 오늘로 자동 저장됩니다.</div>

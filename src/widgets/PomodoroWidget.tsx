@@ -2,6 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import { useWidgetSize } from '../hooks/useWidgetSize'
 import { useApp } from '../store/AppContext'
 import { createDefaultCounters, updateCounterValue } from '../utils/counters'
+import { toLocalDateKey } from '../utils/date'
+import {
+  PRODUCTIVITY_CATEGORIES,
+  PRODUCTIVITY_CATEGORY_LABELS,
+  isProductivityCategory,
+  updateProductivityTimeBucket,
+} from '../utils/productivityCategories'
+import type { ProductivityCategory } from '../types'
 
 export const meta = {
   id: 'pomodoro',
@@ -18,11 +26,18 @@ type Mode = 'focus' | 'short' | 'long'
 const DURATIONS: Record<Mode, number> = { focus: 25 * 60, short: 5 * 60, long: 15 * 60 }
 const LABELS: Record<Mode, string> = { focus: '집중', short: '짧은 휴식', long: '긴 휴식' }
 const SHORT_LABELS: Record<Mode, string> = { focus: '집중', short: '짧휴', long: '긴휴' }
+const CATEGORY_STORAGE_KEY = 'pomodoro_productivity_category'
+
+const getStoredCategory = (): ProductivityCategory => {
+  const stored = localStorage.getItem(CATEGORY_STORAGE_KEY)
+  return isProductivityCategory(stored) && stored !== 'uncategorized' ? stored : 'work'
+}
 
 export default function PomodoroWidget() {
   const { ref, w, h } = useWidgetSize()
-  const { setCounters } = useApp()
+  const { setCounters, setProductivityTimeHistory } = useApp()
   const [mode, setMode] = useState<Mode>('focus')
+  const [category, setCategory] = useState<ProductivityCategory>(getStoredCategory)
   const [remaining, setRemaining] = useState(DURATIONS.focus)
   const [running, setRunning] = useState(false)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -46,6 +61,12 @@ export default function PomodoroWidget() {
                     : counter
                 ))
               })
+              setProductivityTimeHistory(current => updateProductivityTimeBucket(
+                current,
+                toLocalDateKey(),
+                category,
+                bucket => ({ focusSessions: bucket.focusSessions + 1 }),
+              ))
               completedRef.current = true
             }
             return 0
@@ -55,7 +76,13 @@ export default function PomodoroWidget() {
       }, 1000)
     }
     return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
-  }, [mode, running, setCounters])
+  }, [category, mode, running, setCounters, setProductivityTimeHistory])
+
+  const changeCategory = (next: ProductivityCategory) => {
+    if (next === 'uncategorized') return
+    setCategory(next)
+    localStorage.setItem(CATEGORY_STORAGE_KEY, next)
+  }
 
   const switchMode = (m: Mode) => {
     setMode(m)
@@ -122,17 +149,46 @@ export default function PomodoroWidget() {
       overflow: 'hidden',
     }}>
       {/* 모드 선택 */}
-      <div style={{ display: 'flex', gap: compact ? 4 : 6, flexShrink: 0, maxWidth: '100%' }}>
-        {(['focus', 'short', 'long'] as Mode[]).map(m => (
-          <button key={m} onClick={() => switchMode(m)} style={{
-            height: modeHeight, fontSize: veryShort ? 10 : compact ? 11 : 12,
-            padding: veryShort ? '0 7px' : compact ? '0 9px' : '0 12px', borderRadius: 999,
-            border: '1px solid var(--border)', cursor: 'pointer',
-            background: mode === m ? 'var(--accent)' : 'var(--bg3)',
-            color: mode === m ? '#fff' : 'var(--muted)',
-            whiteSpace: 'nowrap', lineHeight: 1,
-          }}>{veryShort || compact ? SHORT_LABELS[m] : LABELS[m]}</button>
-        ))}
+      <div style={{ display: 'flex', gap: compact ? 4 : 6, flexShrink: 0, maxWidth: '100%', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: compact ? 4 : 6, minWidth: 0 }}>
+          {(['focus', 'short', 'long'] as Mode[]).map(m => (
+            <button key={m} onClick={() => switchMode(m)} style={{
+              height: modeHeight, fontSize: veryShort ? 10 : compact ? 11 : 12,
+              padding: veryShort ? '0 6px' : compact ? '0 8px' : '0 11px', borderRadius: 999,
+              border: '1px solid var(--border)', cursor: 'pointer',
+              background: mode === m ? 'var(--accent)' : 'var(--bg3)',
+              color: mode === m ? '#fff' : 'var(--muted)',
+              whiteSpace: 'nowrap', lineHeight: 1,
+            }}>{veryShort || compact ? SHORT_LABELS[m] : LABELS[m]}</button>
+          ))}
+        </div>
+        {mode === 'focus' && (
+          <select
+            aria-label="집중 분야"
+            title="집중 분야"
+            value={category}
+            disabled={running}
+            onChange={event => changeCategory(event.target.value as ProductivityCategory)}
+            style={{
+              height: modeHeight,
+              width: veryShort ? 58 : compact ? 66 : 78,
+              minWidth: 0,
+              border: '1px solid var(--border)',
+              borderRadius: 7,
+              background: 'var(--bg3)',
+              color: 'var(--text)',
+              padding: veryShort ? '0 3px' : '0 6px',
+              fontFamily: 'inherit',
+              fontSize: veryShort ? 10 : 11,
+              fontWeight: 700,
+              cursor: running ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {PRODUCTIVITY_CATEGORIES.map(item => (
+              <option key={item} value={item}>{PRODUCTIVITY_CATEGORY_LABELS[item]}</option>
+            ))}
+          </select>
+        )}
       </div>
 
       {/* 원형 타이머 */}

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useApp } from '../store/AppContext'
-import type { DeletedTodoDailyResult, Todo, TodoCorrection, TodoDailyResult } from '../types'
+import type { DeletedTodoDailyResult, ProductivityCategory, Todo, TodoCorrection, TodoDailyResult } from '../types'
 import { addLocalDays, toLocalDateKey } from '../utils/date'
 import {
   buildTodoDailyResult,
@@ -12,15 +12,17 @@ import {
 } from '../utils/todos'
 import { getPlannerDayBriefing } from '../utils/plannerBriefing'
 
-type Category = 'work' | 'personal' | 'study'
+type Category = ProductivityCategory
 type FilterType = 'all' | Category
 type DateFilter = 'today' | 'tomorrow' | 'week' | 'all'
 type AddTarget = 'today' | 'tomorrow'
 
 const CATEGORY_CONFIG: Record<Category, { label: string; color: string }> = {
-  work:     { label: '업무', color: '#4A90E2' },
-  personal: { label: '개인', color: '#27AE60' },
-  study:    { label: '공부', color: '#8E44AD' },
+  work:     { label: '업무', color: '#2f6fb3' },
+  study:    { label: '공부', color: '#7655a6' },
+  exercise: { label: '운동', color: '#2f855a' },
+  personal: { label: '개인', color: '#c47a22' },
+  uncategorized: { label: '미분류', color: '#7b8491' },
 }
 
 const cat = (t: Todo): Category => getTodoCategory(t)

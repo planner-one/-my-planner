@@ -2,13 +2,20 @@ import type { DeletedTodoDailyResult, Todo, TodoDailyResult } from '../types'
 
 export type TodoCategory = NonNullable<Todo['category']>
 
-export const TODO_DEFAULT_CATEGORY: TodoCategory = 'work'
+export const TODO_DEFAULT_CATEGORY: TodoCategory = 'uncategorized'
 
 export const getTodoCategory = (todo: Pick<Todo, 'category'>): TodoCategory =>
   todo.category ?? TODO_DEFAULT_CATEGORY
 
 export const getTodoCarryKey = (todo: Pick<Todo, 'text' | 'category'>): string =>
   `${todo.text.trim().toLowerCase()}::${getTodoCategory(todo)}`
+
+const getTodoLineageId = (todo: Pick<Todo, 'id'>): string =>
+  todo.id.split('__carry__')[0]
+
+const isSameTodoOccurrence = (left: Todo, right: Todo): boolean =>
+  getTodoLineageId(left) === getTodoLineageId(right)
+  || getTodoCarryKey(left) === getTodoCarryKey(right)
 
 export const getIncompleteTodos = (items: Todo[]): Todo[] =>
   items.filter(item => !item.done)
@@ -152,11 +159,13 @@ export function syncPastTodoHistory({
       const key = getTodoCarryKey(item)
       const hasSameTodoLater = todos.some(todo => {
         const todoDate = todo.date ?? currentDate
-        return todo.id === item.id && todoDate > result.date && getTodoCarryKey(todo) === key
+        return todoDate > result.date
+          && (getTodoLineageId(todo) === getTodoLineageId(item) || getTodoCarryKey(todo) === key)
       }) || historyResults.some(laterResult =>
         laterResult.date > result.date
         && laterResult.items.some(laterItem =>
-          laterItem.id === item.id && getTodoCarryKey(laterItem) === key
+          getTodoLineageId(laterItem) === getTodoLineageId(item)
+          || getTodoCarryKey(laterItem) === key
         )
       )
 
@@ -198,10 +207,11 @@ export function hasLaterTodoOccurrence({
 
   return todoHistory.some(result =>
     isLaterDate(result.date)
-    && result.items.some(item => getTodoCarryKey(item) === key)
+    && result.items.some(item => isSameTodoOccurrence(item, todo))
   ) || todos.some(item => {
     const itemDate = item.date ?? today
-    return isLaterDate(itemDate) && getTodoCarryKey(item) === key
+    return isLaterDate(itemDate)
+      && (getTodoLineageId(item) === getTodoLineageId(todo) || getTodoCarryKey(item) === key)
   })
 }
 
@@ -240,7 +250,7 @@ export function carryIncompleteTodosToDate({
 
     const key = getTodoCarryKey(todo)
     const matchingHistoryItem = sourceHistory.items.find(item =>
-      item.id === todo.id || getTodoCarryKey(item) === key
+      getTodoLineageId(item) === getTodoLineageId(todo) || getTodoCarryKey(item) === key
     )
 
     return !matchingHistoryItem || matchingHistoryItem.done

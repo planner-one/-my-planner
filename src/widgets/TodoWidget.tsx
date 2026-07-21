@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useApp } from '../store/AppContext'
-import type { Todo } from '../types'
+import type { ProductivityCategory, Todo } from '../types'
 import { addLocalDays, toLocalDateKey } from '../utils/date'
 
 export const meta = {
@@ -14,24 +14,28 @@ export const meta = {
   order: 4,
 }
 
-type Category = 'work' | 'personal' | 'study'
+type Category = ProductivityCategory
 type FilterType = 'all' | Category
 type DateScope = 'today' | 'tomorrow'
 
-const DEFAULT_CATEGORY: Category = 'work'
+const DEFAULT_CATEGORY: Category = 'uncategorized'
 const cat = (t: Todo): Category => t.category ?? DEFAULT_CATEGORY
 
 const CATEGORY_CONFIG: Record<Category, { label: string; color: string }> = {
-  work:     { label: '업무', color: '#4A90E2' },
-  personal: { label: '개인', color: '#27AE60' },
-  study:    { label: '공부', color: '#8E44AD' },
+  work:     { label: '업무', color: '#2f6fb3' },
+  study:    { label: '공부', color: '#7655a6' },
+  exercise: { label: '운동', color: '#2f855a' },
+  personal: { label: '개인', color: '#c47a22' },
+  uncategorized: { label: '미분류', color: '#7b8491' },
 }
 
 const FILTER_OPTIONS: { id: FilterType; label: string }[] = [
   { id: 'all',      label: '전체' },
   { id: 'work',     label: '업무' },
-  { id: 'personal', label: '개인' },
   { id: 'study',    label: '공부' },
+  { id: 'exercise', label: '운동' },
+  { id: 'personal', label: '개인' },
+  { id: 'uncategorized', label: '미분류' },
 ]
 
 const DATE_OPTIONS: { id: DateScope; label: string }[] = [

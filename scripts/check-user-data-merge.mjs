@@ -46,7 +46,9 @@ try {
   assert(compiledPath, 'compiled user data merge utility was not found')
   writeFileSync(
     compiledPath,
-    readFileSync(compiledPath, 'utf8').replace("from './todos'", "from './todos.js'"),
+    readFileSync(compiledPath, 'utf8')
+      .replace("from './todos'", "from './todos.js'")
+      .replace("from './productivityCategories'", "from './productivityCategories.js'"),
   )
 
   const { mergeUserDataForStaleSave, rebaseUserDataAfterSave } = await import(pathToFileURL(compiledPath).href)
@@ -120,6 +122,82 @@ try {
   assert(!merged.todos.some(todo => todo.id === 'old-live'), 'old live todo already resolved in history should not be resurrected')
   assert(merged.todoHistory?.length === 1, 'remote todo history should be preserved')
   assert(merged.todoHistory?.[0].done === 1, 'completed remote history should remain completed')
+
+  const mergedTimeBuckets = mergeUserDataForStaleSave(
+    {
+      productivityTimeHistory: {
+        '2026-07-06': {
+          work: { manualMinutes: 30, focusSessions: 1, updatedAt: '2026-07-06T10:00:00.000Z' },
+          study: { manualMinutes: 20, focusSessions: 0, updatedAt: '2026-07-06T10:03:00.000Z' },
+        },
+      },
+    },
+    {
+      productivityTimeHistory: {
+        '2026-07-06': {
+          work: { manualMinutes: 60, focusSessions: 1, updatedAt: '2026-07-06T10:05:00.000Z' },
+          study: { manualMinutes: 10, focusSessions: 0, updatedAt: '2026-07-06T10:01:00.000Z' },
+        },
+      },
+    },
+  )
+  assert(
+    mergedTimeBuckets.productivityTimeHistory?.['2026-07-06']?.work?.manualMinutes === 60,
+    'a newer incoming time bucket should win for the same date and category',
+  )
+  assert(
+    mergedTimeBuckets.productivityTimeHistory?.['2026-07-06']?.study?.manualMinutes === 20,
+    'a newer remote time bucket should remain when the incoming bucket is stale',
+  )
+
+  const mergedScheduledTime = mergeUserDataForStaleSave(
+    {
+      productivityTimeHistory: {
+        '2026-07-06': {
+          work: {
+            manualMinutes: 0,
+            focusSessions: 0,
+            linkedEntries: {
+              'scheduled:remote': { sourceType: 'scheduled', sourceId: 'remote', title: '원격 일정', minutes: 30, updatedAt: '2026-07-06T10:02:00.000Z' },
+              'scheduled:shared': { sourceType: 'scheduled', sourceId: 'shared', title: '공통 일정', minutes: 20, updatedAt: '2026-07-06T10:03:00.000Z' },
+              'scheduled:cleared': { sourceType: 'scheduled', sourceId: 'cleared', title: '초기화 일정', minutes: 0, updatedAt: '2026-07-06T10:08:00.000Z' },
+            },
+            updatedAt: '2026-07-06T10:08:00.000Z',
+          },
+        },
+      },
+    },
+    {
+      productivityTimeHistory: {
+        '2026-07-06': {
+          work: {
+            manualMinutes: 0,
+            focusSessions: 0,
+            linkedEntries: {
+              'scheduled:incoming': { sourceType: 'scheduled', sourceId: 'incoming', title: '로컬 일정', minutes: 45, updatedAt: '2026-07-06T10:05:00.000Z' },
+              'scheduled:shared': { sourceType: 'scheduled', sourceId: 'shared', title: '공통 일정', minutes: 40, updatedAt: '2026-07-06T10:06:00.000Z' },
+              'scheduled:cleared': { sourceType: 'scheduled', sourceId: 'cleared', title: '초기화 일정', minutes: 50, updatedAt: '2026-07-06T10:07:00.000Z' },
+            },
+            updatedAt: '2026-07-06T10:07:00.000Z',
+          },
+        },
+      },
+    },
+  )
+  const scheduledEntries = mergedScheduledTime.productivityTimeHistory?.['2026-07-06']?.work?.linkedEntries
+  assert(
+    scheduledEntries?.['scheduled:remote']?.minutes === 30
+      && scheduledEntries?.['scheduled:incoming']?.minutes === 45,
+    'stale saves should preserve scheduled time added from different tabs',
+  )
+  assert(
+    scheduledEntries?.['scheduled:shared']?.minutes === 40,
+    'the newest per-schedule update should win without replacing sibling entries',
+  )
+  assert(
+    scheduledEntries?.['scheduled:cleared']?.minutes === 0,
+    'a newer scheduled-time reset should remain as a merge tombstone',
+  )
 
   const onboardingStartedAt = '2026-07-14T09:00:00.000Z'
   const remotePending = {

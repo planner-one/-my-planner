@@ -17,6 +17,7 @@
     "check:onboarding": "node scripts/check-onboarding.mjs",
     "check:mobile-ux": "node scripts/check-mobile-ux.mjs",
     "check:memo-widget": "node scripts/check-memo-widget.mjs",
+    "check:weather-service": "node scripts/check-weather-service.mjs",
     "check:responsive-ui": "node scripts/check-responsive-ui.mjs",
     "build": "vite build",
     "preview": "vite preview"

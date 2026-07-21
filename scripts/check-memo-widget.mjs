@@ -13,16 +13,24 @@ assert.ok(manageActionIndex >= 0, 'memo header should expose a pencil manage but
 assert.ok(archiveActionIndex > manageActionIndex, 'memo manage button should appear before the archive action')
 assert.match(source, /aria-pressed=\{manageMode\}/, 'memo manage button should expose its pressed state')
 
-assert.match(source, /aria-label="보관함으로 이동"/, 'each memo should expose a persistent archive button')
-assert.match(source, /archivedAt:\s*now/, 'closing a memo should archive it instead of deleting it')
-assert.match(source, /aria-label="빠른 메모 수정"/, 'manage mode should expose an edit action')
-assert.match(source, /aria-label="빠른 메모 완전히 삭제"/, 'manage mode should expose a permanent delete action')
+assert.match(
+  source,
+  /\{manageMode && editingId !== memo\.id && \(\s*<div className="memo-widget-row-actions">/,
+  'row actions should only render while manage mode is active',
+)
+assert.match(source, /<MemoActionIcon type="edit" \/>/, 'manage mode should expose an edit icon')
+assert.match(source, /<MemoActionIcon type="delete" \/>/, 'manage mode should expose a delete icon')
+assert.doesNotMatch(source, /memo-widget-archive-button/, 'memo rows should not expose a separate persistent archive action')
+assert.doesNotMatch(source, />\s*수정\s*</, 'memo edit action should use an icon instead of a text label')
+assert.doesNotMatch(source, />\s*삭제\s*</, 'memo delete action should use an icon instead of a text label')
+assert.match(source, /aria-label="빠른 메모 수정"/, 'edit icon should remain accessible')
+assert.match(source, /aria-label="빠른 메모 완전히 삭제"/, 'delete icon should remain accessible')
 assert.match(
   source,
   /window\.confirm\('이 빠른 메모를 완전히 삭제할까요\?'\)/,
   'permanent memo deletion should require confirmation',
 )
-assert.match(source, /updatedAt:\s*now/, 'memo archive and edit operations should update the timestamp')
+assert.match(source, /updatedAt:\s*now/, 'memo edits should update the timestamp')
 
 assert.match(source, /event\.key === 'Enter' && !event\.shiftKey/, 'Enter should save an inline memo edit')
 assert.match(source, /event\.key === 'Escape'/, 'Escape should cancel an inline memo edit')

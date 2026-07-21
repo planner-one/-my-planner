@@ -5,6 +5,11 @@ import { useWidgetSize } from '../hooks/useWidgetSize'
 import { toLocalDateKey } from '../utils/date'
 import { EVERY_DAY, createHabitId, getHabitIcon, isHabitScheduled } from '../utils/habits'
 import QuickAddModal from '../components/QuickAddModal'
+import type { ProductivityCategory } from '../types'
+import {
+  PRODUCTIVITY_CATEGORIES_WITH_UNCATEGORIZED,
+  PRODUCTIVITY_CATEGORY_LABELS,
+} from '../utils/productivityCategories'
 
 // HabitActions(제목줄)와 HabitWidget(본문)이 별개 위치에 렌더링되므로
 // "추가 모달 열기" 요청만 작은 pub/sub로 전달
@@ -116,6 +121,7 @@ export default function HabitWidget() {
   const { setPage } = useRouter()
   const [modalOpen, setModalOpen] = useState(false)
   const [input, setInput] = useState('')
+  const [category, setCategory] = useState<ProductivityCategory>('personal')
   const [composing, setComposing] = useState(false)
   const today = toLocalDateKey()
   const todayRecord = habitHistory[today] ?? {}
@@ -131,7 +137,7 @@ export default function HabitWidget() {
     }))
   }
 
-  const openModal = () => { setInput(''); setModalOpen(true) }
+  const openModal = () => { setInput(''); setCategory('personal'); setModalOpen(true) }
   const closeModal = () => setModalOpen(false)
 
   useEffect(() => subscribeOpenHabitModal(openModal), [])
@@ -143,6 +149,7 @@ export default function HabitWidget() {
       id: createHabitId(),
       name,
       icon: '✨',
+      category,
       repeatDays: [...EVERY_DAY],
       createdAt: new Date().toISOString(),
     }
@@ -281,6 +288,20 @@ export default function HabitWidget() {
               padding: '9px 12px', outline: 'none', fontFamily: 'inherit',
             }}
           />
+          <select
+            value={category}
+            aria-label="새 루틴 분야"
+            onChange={event => setCategory(event.target.value as ProductivityCategory)}
+            style={{
+              height: 40, border: '1px solid var(--border)', borderRadius: 8,
+              background: 'var(--bg3)', color: 'var(--text)', fontSize: 13,
+              padding: '0 10px', outline: 'none', fontFamily: 'inherit',
+            }}
+          >
+            {PRODUCTIVITY_CATEGORIES_WITH_UNCATEGORIZED.map(item => (
+              <option key={item} value={item}>{PRODUCTIVITY_CATEGORY_LABELS[item]}</option>
+            ))}
+          </select>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 7 }}>
             <button
               type="button"

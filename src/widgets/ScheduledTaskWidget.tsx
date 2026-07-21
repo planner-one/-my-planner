@@ -2,7 +2,13 @@ import { useEffect, useState } from 'react'
 import { useApp } from '../store/AppContext'
 import { toLocalDateKey } from '../utils/date'
 import QuickAddModal from '../components/QuickAddModal'
-import type { ScheduledTask } from '../types'
+import ScheduledTaskTimeButton from '../components/ScheduledTaskTimeButton'
+import type { ProductivityCategory, ScheduledTask } from '../types'
+import {
+  PRODUCTIVITY_CATEGORIES_WITH_UNCATEGORIZED,
+  PRODUCTIVITY_CATEGORY_LABELS,
+  normalizeProductivityCategory,
+} from '../utils/productivityCategories'
 
 // ScheduledTaskActions(제목줄)와 본문이 별개 위치에 렌더링되므로
 // "추가 모달 열기" 요청만 작은 pub/sub로 전달
@@ -53,6 +59,7 @@ export default function ScheduledTaskWidget() {
   const [modalOpen, setModalOpen] = useState(false)
   const [title, setTitle] = useState('')
   const [date, setDate] = useState(today)
+  const [category, setCategory] = useState<ProductivityCategory>('uncategorized')
   const [composing, setComposing] = useState(false)
 
   const toggle = (id: string) =>
@@ -61,6 +68,7 @@ export default function ScheduledTaskWidget() {
   const openModal = () => {
     setTitle('')
     setDate(today)
+    setCategory('uncategorized')
     setModalOpen(true)
   }
   const closeModal = () => setModalOpen(false)
@@ -74,6 +82,7 @@ export default function ScheduledTaskWidget() {
       id: `scheduled-${Date.now()}`,
       title: text,
       date: date || today,
+      category,
       done: false,
     }
     setScheduledTasks(prev => [...prev, task])
@@ -122,6 +131,26 @@ export default function ScheduledTaskWidget() {
             aria-label={`${t.title} 완료`}
             style={{ cursor: 'pointer', flexShrink: 0 }}
           />
+          <select
+            value={normalizeProductivityCategory(t.category)}
+            aria-label={`${t.title} 분야`}
+            onClick={event => event.stopPropagation()}
+            onChange={event => {
+              event.stopPropagation()
+              const next = event.target.value as ProductivityCategory
+              setScheduledTasks(prev => prev.map(task => task.id === t.id ? { ...task, category: next } : task))
+            }}
+            style={{
+              width: 72, height: 28, flexShrink: 0,
+              border: '1px solid var(--border)', borderRadius: 6,
+              background: 'var(--bg2)', color: 'var(--muted)', fontSize: 10,
+              padding: '0 4px', outline: 'none', fontFamily: 'inherit',
+            }}
+          >
+            {PRODUCTIVITY_CATEGORIES_WITH_UNCATEGORIZED.map(item => (
+              <option key={item} value={item}>{PRODUCTIVITY_CATEGORY_LABELS[item]}</option>
+            ))}
+          </select>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{
               fontSize: 13, color: t.done ? 'var(--muted)' : 'var(--text)',
@@ -137,6 +166,7 @@ export default function ScheduledTaskWidget() {
               </div>
             )}
           </div>
+          <ScheduledTaskTimeButton task={t} compact />
           <div style={{ textAlign: 'right', flexShrink: 0 }}>
             <div style={{ fontSize: 11, color: t.date === today ? 'var(--accent)' : 'var(--muted)', fontWeight: t.date === today ? 700 : 400 }}>
               {formatDate(t.date)}
@@ -176,6 +206,20 @@ export default function ScheduledTaskWidget() {
               padding: '9px 12px', outline: 'none', fontFamily: 'inherit',
             }}
           />
+          <select
+            value={category}
+            aria-label="예정 작업 분야"
+            onChange={event => setCategory(event.target.value as ProductivityCategory)}
+            style={{
+              height: 40, border: '1px solid var(--border)', borderRadius: 8,
+              background: 'var(--bg3)', color: 'var(--text)', fontSize: 13,
+              padding: '0 10px', outline: 'none', fontFamily: 'inherit',
+            }}
+          >
+            {PRODUCTIVITY_CATEGORIES_WITH_UNCATEGORIZED.map(item => (
+              <option key={item} value={item}>{PRODUCTIVITY_CATEGORY_LABELS[item]}</option>
+            ))}
+          </select>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 7 }}>
             <button
               type="button"

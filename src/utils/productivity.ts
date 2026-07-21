@@ -10,10 +10,19 @@ import type {
   Todo,
   TodoDailyResult,
   TopGoal,
+  ProductivityCategory,
+  ProductivityTimeHistory,
 } from '../types'
 import { getCounterDisplayValue } from './counters'
-import { isHabitScheduled } from './habits'
-import { toLocalDateKey } from './date'
+import { getHabitCreatedDateKey, isHabitScheduled } from './habits'
+import { addLocalDays, toLocalDateKey } from './date'
+import {
+  PRODUCTIVITY_CATEGORIES_WITH_UNCATEGORIZED,
+  PRODUCTIVITY_CATEGORY_LABELS,
+  getProductivityFocusSessions,
+  getProductivityTimeMinutes,
+  normalizeProductivityCategory,
+} from './productivityCategories'
 
 export const SCORE_WEIGHTS = {
   todo: 40,
@@ -43,6 +52,41 @@ export interface ProductivityInput {
   habitHistory: Record<string, Record<string, boolean>>
   scheduledTasks: ScheduledTask[]
   counters: Counters
+  productivityTimeHistory?: ProductivityTimeHistory
+}
+
+export type ProductivityPeriodMode = 'week' | 'month'
+
+export interface ProductivityCategoryMetric {
+  done: number
+  total: number
+  rate: number | null
+  manualMinutes: number
+  focusSessions: number
+  totalMinutes: number
+}
+
+export interface ProductivityCategoryDay {
+  date: string
+  isFuture: boolean
+  categories: Record<ProductivityCategory, ProductivityCategoryMetric>
+}
+
+export interface ProductivityFlowGroup {
+  id: string
+  label: string
+  startDate: string
+  endDate: string
+  categories: Record<ProductivityCategory, ProductivityCategoryMetric>
+}
+
+export interface ProductivityPeriodSummary {
+  mode: ProductivityPeriodMode
+  startDate: string
+  endDate: string
+  days: ProductivityCategoryDay[]
+  categories: Record<ProductivityCategory, ProductivityCategoryMetric>
+  groups: ProductivityFlowGroup[]
 }
 
 export type ProductivityActivityStatus = 'done' | 'open' | 'recorded'
@@ -94,6 +138,16 @@ const getDayTodos = (input: Pick<ProductivityInput, 'date' | 'todos' | 'todoHist
   return saved?.items ?? input.todos.filter(todo => todo.date === input.date)
 }
 
+const wasHabitAvailableOnDate = (
+  habit: Habit,
+  date: string,
+  record?: Record<string, boolean>,
+): boolean => {
+  if (Object.prototype.hasOwnProperty.call(record ?? {}, habit.id)) return true
+  const createdDate = getHabitCreatedDateKey(habit)
+  return !createdDate || createdDate <= date
+}
+
 const getTodoRate = (input: ProductivityInput): number | null => {
   const dayTodos = getDayTodos(input)
   if (dayTodos.length === 0) return null
@@ -122,12 +176,14 @@ const getScheduledRate = (input: ProductivityInput): number | null => {
 }
 
 const getFocusRate = (input: ProductivityInput): number | null => {
-  if (input.date !== toLocalDateKey()) return null
-
   const focusCounter = input.counters.find(counter => counter.autoKey === 'pomodoro-focus')
-  if (!focusCounter) return null
+  if (input.date === toLocalDateKey() && focusCounter) {
+    const sessions = getCounterDisplayValue(focusCounter, input.date)
+    return Math.min(100, Math.round((sessions / FOCUS_TARGET) * 100))
+  }
 
-  const sessions = getCounterDisplayValue(focusCounter, input.date)
+  if (!input.productivityTimeHistory?.[input.date]) return null
+  const sessions = getProductivityFocusSessions(input.productivityTimeHistory, input.date)
   return Math.min(100, Math.round((sessions / FOCUS_TARGET) * 100))
 }
 
@@ -159,17 +215,202 @@ export const getRecentDateKeys = (days: number, endDate = new Date()): string[] 
     return toLocalDateKey(date)
   })
 
+const emptyCategoryMetric = (): ProductivityCategoryMetric => ({
+  done: 0,
+  total: 0,
+  rate: null,
+  manualMinutes: 0,
+  focusSessions: 0,
+  totalMinutes: 0,
+})
+
+const emptyCategoryMetrics = (): Record<ProductivityCategory, ProductivityCategoryMetric> =>
+  Object.fromEntries(
+    PRODUCTIVITY_CATEGORIES_WITH_UNCATEGORIZED.map(category => [category, emptyCategoryMetric()]),
+  ) as Record<ProductivityCategory, ProductivityCategoryMetric>
+
+const finalizeCategoryMetric = (metric: ProductivityCategoryMetric): ProductivityCategoryMetric => ({
+  ...metric,
+  rate: metric.total === 0 ? null : Math.round((metric.done / metric.total) * 100),
+})
+
+const mergeCategoryMetrics = (
+  target: Record<ProductivityCategory, ProductivityCategoryMetric>,
+  source: Record<ProductivityCategory, ProductivityCategoryMetric>,
+) => {
+  PRODUCTIVITY_CATEGORIES_WITH_UNCATEGORIZED.forEach(category => {
+    target[category].done += source[category].done
+    target[category].total += source[category].total
+    target[category].manualMinutes += source[category].manualMinutes
+    target[category].focusSessions += source[category].focusSessions
+    target[category].totalMinutes += source[category].totalMinutes
+  })
+}
+
+const finalizeCategoryMetrics = (
+  metrics: Record<ProductivityCategory, ProductivityCategoryMetric>,
+): Record<ProductivityCategory, ProductivityCategoryMetric> =>
+  Object.fromEntries(
+    PRODUCTIVITY_CATEGORIES_WITH_UNCATEGORIZED.map(category => [
+      category,
+      finalizeCategoryMetric(metrics[category]),
+    ]),
+  ) as Record<ProductivityCategory, ProductivityCategoryMetric>
+
+export const getProductivityPeriodRange = (
+  mode: ProductivityPeriodMode,
+  anchorDate: string,
+): { startDate: string; endDate: string } => {
+  const anchor = new Date(`${anchorDate}T12:00:00`)
+  if (mode === 'month') {
+    return {
+      startDate: toLocalDateKey(new Date(anchor.getFullYear(), anchor.getMonth(), 1, 12)),
+      endDate: toLocalDateKey(new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0, 12)),
+    }
+  }
+
+  const mondayOffset = anchor.getDay() === 0 ? -6 : 1 - anchor.getDay()
+  const monday = addLocalDays(anchor, mondayOffset)
+  return {
+    startDate: toLocalDateKey(monday),
+    endDate: toLocalDateKey(addLocalDays(monday, 6)),
+  }
+}
+
+export const getDateKeysInRange = (startDate: string, endDate: string): string[] => {
+  const keys: string[] = []
+  let cursor = new Date(`${startDate}T12:00:00`)
+  const end = new Date(`${endDate}T12:00:00`)
+  while (cursor <= end) {
+    keys.push(toLocalDateKey(cursor))
+    cursor = addLocalDays(cursor, 1)
+  }
+  return keys
+}
+
+export const getProductivityCategoryDay = (
+  input: ProductivityInput,
+  today = toLocalDateKey(),
+): ProductivityCategoryDay => {
+  const categories = emptyCategoryMetrics()
+  const isFuture = input.date > today
+  if (isFuture) return { date: input.date, isFuture, categories }
+
+  getDayTodos(input).forEach(todo => {
+    const category = normalizeProductivityCategory(todo.category)
+    categories[category].total += 1
+    if (todo.done) categories[category].done += 1
+  })
+
+  const habitRecord = input.habitHistory[input.date] ?? {}
+  const date = new Date(`${input.date}T12:00:00`)
+  input.habits
+    .filter(habit => isHabitScheduled(habit, date) && wasHabitAvailableOnDate(habit, input.date, habitRecord))
+    .forEach(habit => {
+      const category = normalizeProductivityCategory(habit.category)
+      categories[category].total += 1
+      if (habitRecord[habit.id]) categories[category].done += 1
+    })
+
+  input.scheduledTasks
+    .filter(task => task.date === input.date)
+    .forEach(task => {
+      const category = normalizeProductivityCategory(task.category)
+      categories[category].total += 1
+      if (task.done) categories[category].done += 1
+    })
+
+  const timeDay = input.productivityTimeHistory?.[input.date] ?? {}
+  PRODUCTIVITY_CATEGORIES_WITH_UNCATEGORIZED.forEach(category => {
+    const bucket = timeDay[category]
+    categories[category].manualMinutes = bucket?.manualMinutes ?? 0
+    categories[category].focusSessions = bucket?.focusSessions ?? 0
+    categories[category].totalMinutes = getProductivityTimeMinutes(bucket)
+  })
+
+  return {
+    date: input.date,
+    isFuture,
+    categories: finalizeCategoryMetrics(categories),
+  }
+}
+
+const buildFlowGroups = (
+  mode: ProductivityPeriodMode,
+  days: ProductivityCategoryDay[],
+): ProductivityFlowGroup[] => {
+  if (mode === 'week') {
+    return days.map(day => ({
+      id: day.date,
+      label: new Date(`${day.date}T12:00:00`).toLocaleDateString('ko-KR', { weekday: 'short' }),
+      startDate: day.date,
+      endDate: day.date,
+      categories: day.categories,
+    }))
+  }
+
+  const byWeek = new Map<number, ProductivityCategoryDay[]>()
+  const firstDate = new Date(`${days[0]?.date ?? toLocalDateKey()}T12:00:00`)
+  const firstMondayOffset = firstDate.getDay() === 0 ? 6 : firstDate.getDay() - 1
+  days.forEach(day => {
+    const dayOfMonth = Number(day.date.slice(-2))
+    const weekIndex = Math.floor((firstMondayOffset + dayOfMonth - 1) / 7)
+    byWeek.set(weekIndex, [...(byWeek.get(weekIndex) ?? []), day])
+  })
+
+  return Array.from(byWeek.entries()).map(([weekIndex, weekDays]) => {
+    const categories = emptyCategoryMetrics()
+    weekDays.forEach(day => mergeCategoryMetrics(categories, day.categories))
+    return {
+      id: `week-${weekIndex + 1}`,
+      label: `${weekIndex + 1}주`,
+      startDate: weekDays[0].date,
+      endDate: weekDays[weekDays.length - 1].date,
+      categories: finalizeCategoryMetrics(categories),
+    }
+  })
+}
+
+export const getProductivityPeriodSummary = (
+  input: Omit<ProductivityInput, 'date'> & {
+    mode: ProductivityPeriodMode
+    anchorDate: string
+    today?: string
+  },
+): ProductivityPeriodSummary => {
+  const { startDate, endDate } = getProductivityPeriodRange(input.mode, input.anchorDate)
+  const days = getDateKeysInRange(startDate, endDate).map(date =>
+    getProductivityCategoryDay({ ...input, date }, input.today ?? toLocalDateKey()),
+  )
+  const categories = emptyCategoryMetrics()
+  days.forEach(day => mergeCategoryMetrics(categories, day.categories))
+
+  return {
+    mode: input.mode,
+    startDate,
+    endDate,
+    days,
+    categories: finalizeCategoryMetrics(categories),
+    groups: buildFlowGroups(input.mode, days),
+  }
+}
+
 export const getProductivityDayLog = (input: ProductivityDayLogInput): ProductivityDayLog => {
   const score = calculateProductivityScore(input)
   const dateObj = new Date(`${input.date}T12:00:00`)
   const dayTodos = getDayTodos(input)
-  const activeHabits = input.habits.filter(habit => isHabitScheduled(habit, dateObj))
   const habitRecord = input.habitHistory[input.date] ?? {}
+  const activeHabits = input.habits.filter(habit =>
+    isHabitScheduled(habit, dateObj) && wasHabitAvailableOnDate(habit, input.date, habitRecord),
+  )
   const daySchedules = input.scheduledTasks
     .filter(task => task.date === input.date)
     .sort((a, b) => (a.time ?? '').localeCompare(b.time ?? '') || a.title.localeCompare(b.title))
   const focusCounter = input.counters.find(counter => counter.autoKey === 'pomodoro-focus')
-  const focusSessions = focusCounter ? getCounterDisplayValue(focusCounter, input.date) : 0
+  const savedFocusSessions = getProductivityFocusSessions(input.productivityTimeHistory, input.date)
+  const focusSessions = input.date === toLocalDateKey() && focusCounter
+    ? getCounterDisplayValue(focusCounter, input.date)
+    : input.productivityTimeHistory?.[input.date] ? savedFocusSessions : 0
   const dayTopGoals = input.topGoals.filter(goal => goal.date ? goal.date === input.date : input.date === toLocalDateKey())
   const dueTasks = input.tasks.filter(task => task.due === input.date)
   const dueGoals = input.goals.filter(goal => goal.due === input.date)
@@ -189,7 +430,10 @@ export const getProductivityDayLog = (input: ProductivityDayLogInput): Productiv
       items: dayTodos.map(todo => ({
         id: todo.id,
         title: todo.text,
-        meta: joinMeta([todo.category ?? 'work', todo.priority]),
+        meta: joinMeta([
+          PRODUCTIVITY_CATEGORY_LABELS[normalizeProductivityCategory(todo.category)],
+          todo.priority,
+        ]),
         status: todo.done ? 'done' : 'open',
       })),
     },
@@ -201,7 +445,10 @@ export const getProductivityDayLog = (input: ProductivityDayLogInput): Productiv
       items: activeHabits.map(habit => ({
         id: habit.id,
         title: habit.name,
-        meta: habit.icon,
+        meta: joinMeta([
+          habit.icon,
+          PRODUCTIVITY_CATEGORY_LABELS[normalizeProductivityCategory(habit.category)],
+        ]),
         status: habitRecord[habit.id] ? 'done' : 'open',
       })),
     },
@@ -213,7 +460,12 @@ export const getProductivityDayLog = (input: ProductivityDayLogInput): Productiv
       items: daySchedules.map(task => ({
         id: task.id,
         title: task.title,
-        meta: joinMeta([task.time, task.location, task.note]),
+        meta: joinMeta([
+          PRODUCTIVITY_CATEGORY_LABELS[normalizeProductivityCategory(task.category)],
+          task.time,
+          task.location,
+          task.note,
+        ]),
         status: task.done ? 'done' : 'open',
       })),
     },

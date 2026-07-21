@@ -1,10 +1,16 @@
 import { useMemo, useState } from 'react'
 import { useApp } from '../store/AppContext'
 import { addLocalDays, toLocalDateKey } from '../utils/date'
+import type { ProductivityCategory } from '../types'
 import {
   EVERY_DAY, createDefaultHabits, createHabitId, getHabitIcon,
   getHabitRepeatDays, isHabitScheduled,
 } from '../utils/habits'
+import {
+  PRODUCTIVITY_CATEGORIES_WITH_UNCATEGORIZED,
+  PRODUCTIVITY_CATEGORY_LABELS,
+  normalizeProductivityCategory,
+} from '../utils/productivityCategories'
 
 const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
 const MONTH_LABELS = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월']
@@ -20,6 +26,7 @@ const activityColor = (level: number) => {
 export default function HabitTracker() {
   const { habits, setHabits, habitHistory, setHabitHistory } = useApp()
   const [input, setInput] = useState('')
+  const [newCategory, setNewCategory] = useState<ProductivityCategory>('personal')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
   const [filterHabitId, setFilterHabitId] = useState('all')
@@ -49,6 +56,7 @@ export default function HabitTracker() {
       id: createHabitId(),
       name,
       icon: '✨',
+      category: newCategory,
       repeatDays: [...EVERY_DAY],
       createdAt: new Date().toISOString(),
     }
@@ -102,6 +110,12 @@ export default function HabitTracker() {
         : [...current, day].sort((a, b) => a - b)
       return { ...habit, repeatDays }
     }))
+  }
+
+  const updateHabitCategory = (habitId: string, category: ProductivityCategory) => {
+    setHabits(previous => previous.map(habit =>
+      habit.id === habitId ? { ...habit, category } : habit
+    ))
   }
 
   const restoreDefaults = () => {
@@ -189,6 +203,15 @@ export default function HabitTracker() {
             placeholder="새 루틴을 입력하세요"
             maxLength={40}
           />
+          <select
+            value={newCategory}
+            aria-label="새 루틴 분야"
+            onChange={event => setNewCategory(event.target.value as ProductivityCategory)}
+          >
+            {PRODUCTIVITY_CATEGORIES_WITH_UNCATEGORIZED.map(category => (
+              <option key={category} value={category}>{PRODUCTIVITY_CATEGORY_LABELS[category]}</option>
+            ))}
+          </select>
           <button type="button" className="habit-primary-button" onClick={addHabit}>추가</button>
         </div>
 
@@ -234,6 +257,16 @@ export default function HabitTracker() {
                     {!scheduledToday && <small>오늘 제외</small>}
                   </button>
                 )}
+                <select
+                  className="habit-category-select"
+                  value={normalizeProductivityCategory(habit.category)}
+                  aria-label={`${habit.name} 분야`}
+                  onChange={event => updateHabitCategory(habit.id, event.target.value as ProductivityCategory)}
+                >
+                  {PRODUCTIVITY_CATEGORIES_WITH_UNCATEGORIZED.map(category => (
+                    <option key={category} value={category}>{PRODUCTIVITY_CATEGORY_LABELS[category]}</option>
+                  ))}
+                </select>
                 <div className="habit-repeat-days" aria-label={`${habit.name} 반복 요일`}>
                   {DAY_LABELS.map((label, day) => (
                     <button
@@ -340,15 +373,15 @@ export default function HabitTracker() {
         .habit-section { padding: 20px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); }
         .habit-section-title { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
         .habit-section-title h2 { margin: 0 0 4px; font-size: 17px; }
-        .habit-add-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-bottom: 12px; }
+        .habit-add-row { display: grid; grid-template-columns: minmax(0, 1fr) 110px auto; gap: 8px; margin-bottom: 12px; }
         .habit-add-row input, .habit-edit-input, .habit-section select { border: 1px solid var(--border); background: var(--bg); color: var(--text); border-radius: 7px; outline: none; }
-        .habit-add-row input { height: 42px; padding: 0 13px; font-size: 14px; }
+        .habit-add-row input, .habit-add-row select { height: 42px; padding: 0 13px; font-size: 14px; }
         .habit-add-row input:focus, .habit-edit-input:focus, .habit-section select:focus { border-color: var(--accent); }
         .habit-primary-button, .habit-subtle-button { border: 0; border-radius: 7px; cursor: pointer; font-weight: 700; }
         .habit-primary-button { min-width: 72px; background: var(--accent); color: #fff; }
         .habit-subtle-button { padding: 8px 11px; background: var(--bg3); color: var(--text); }
         .habit-list { display: flex; flex-direction: column; gap: 7px; }
-        .habit-row { min-height: 48px; display: grid; grid-template-columns: 26px minmax(150px, 1fr) auto auto; align-items: center; gap: 10px; padding: 6px 9px; background: var(--bg3); border: 1px solid transparent; border-radius: 7px; }
+        .habit-row { min-height: 48px; display: grid; grid-template-columns: 26px minmax(130px, 1fr) 96px auto auto; align-items: center; gap: 10px; padding: 6px 9px; background: var(--bg3); border: 1px solid transparent; border-radius: 7px; }
         .habit-row.is-done { border-color: color-mix(in srgb, var(--accent) 38%, transparent); }
         .habit-row.is-off-day { opacity: 0.72; }
         .habit-check { width: 24px; height: 24px; padding: 0; border: 1.5px solid var(--border); border-radius: 6px; background: var(--bg); color: #fff; cursor: pointer; font-weight: 800; }
@@ -358,6 +391,7 @@ export default function HabitTracker() {
         .habit-name small { margin-left: 8px; color: var(--muted); font-size: 10px; font-weight: 500; white-space: nowrap; }
         .habit-row.is-done .habit-name { color: var(--muted); text-decoration: line-through; }
         .habit-edit-input { width: 100%; min-width: 0; height: 32px; padding: 0 9px; font-size: 14px; }
+        .habit-category-select { min-width: 0; height: 32px; padding: 0 7px; font-size: 12px; }
         .habit-repeat-days { display: flex; align-items: center; gap: 3px; }
         .habit-repeat-days button { width: 27px; height: 27px; padding: 0; border: 1px solid var(--border); border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; font-size: 10px; }
         .habit-repeat-days button.is-active { border-color: var(--accent); background: var(--accent); color: #fff; font-weight: 700; }
@@ -386,7 +420,9 @@ export default function HabitTracker() {
           .habit-header p { max-width: 230px; }
           .habit-section { padding: 15px; }
           .habit-section-title { align-items: flex-start; }
-          .habit-row { grid-template-columns: 26px minmax(0, 1fr) auto; }
+          .habit-add-row { grid-template-columns: minmax(0, 1fr) 100px; }
+          .habit-add-row .habit-primary-button { grid-column: 1 / -1; height: 42px; }
+          .habit-row { grid-template-columns: 26px minmax(0, 1fr) 92px auto; }
           .habit-repeat-days { grid-column: 2 / -1; grid-row: 2; }
           .habit-actions button { width: 27px; }
           .habit-activity-footer { align-items: flex-start; flex-direction: column; }

@@ -2,12 +2,41 @@ import type { DensityMode } from '../utils/responsiveUi'
 
 export type { DensityMode } from '../utils/responsiveUi'
 
+export type ProductivityCategory =
+  | 'work'
+  | 'study'
+  | 'exercise'
+  | 'personal'
+  | 'uncategorized'
+
+export type ProductivityTimeSourceType = 'scheduled'
+
+export interface ProductivityLinkedTimeEntry {
+  sourceType: ProductivityTimeSourceType
+  sourceId: string
+  title: string
+  minutes: number
+  updatedAt: string
+}
+
+export interface ProductivityTimeBucket {
+  manualMinutes: number
+  focusSessions: number
+  linkedEntries?: Record<string, ProductivityLinkedTimeEntry>
+  updatedAt: string
+}
+
+export type ProductivityTimeHistory = Record<
+  string,
+  Partial<Record<ProductivityCategory, ProductivityTimeBucket>>
+>
+
 export interface Todo {
   id: string
   text: string
   done: boolean
   priority: 'high' | 'medium' | 'low'
-  category?: 'work' | 'personal' | 'study'
+  category?: ProductivityCategory
   date?: string
   sourceUrl?: string
 }
@@ -48,6 +77,7 @@ export interface Habit {
   createdAt: string
   icon?: string
   repeatDays?: number[]
+  category?: ProductivityCategory
 }
 
 export interface Task {
@@ -169,6 +199,7 @@ export interface ScheduledTask {
   address?: string
   note?: string
   sourceUrl?: string
+  category?: ProductivityCategory
   done: boolean
 }
 
@@ -334,7 +365,7 @@ export type OnboardingFirstEntry =
   | {
     purpose: 'daily'
     text: string
-    category: 'work' | 'personal' | 'study'
+    category: ProductivityCategory
   }
   | {
     purpose: 'workStudy'
@@ -388,6 +419,7 @@ export interface UserData {
   notes?: Note[]
   weekTasks?: Record<string, WeekTask[]>
   timeBlockData?: Record<string, Record<string, string>>
+  productivityTimeHistory?: ProductivityTimeHistory
   scheduledTasks?: ScheduledTask[]
   careerEvents?: CareerEvent[]
   personalApplications?: PersonalApplication[]

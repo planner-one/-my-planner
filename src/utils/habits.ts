@@ -1,21 +1,24 @@
 import type { Habit } from '../types'
+import { toLocalDateKey } from './date'
+import { getDefaultHabitCategory, normalizeProductivityCategory } from './productivityCategories'
 
 export const HABITS_VERSION = 3
 export const EVERY_DAY = [0, 1, 2, 3, 4, 5, 6]
 
 const DEFAULT_HABITS = [
-  { name: '물 마시기', icon: '💧' },
-  { name: '스트레칭', icon: '🤸' },
-  { name: '운동', icon: '🏃' },
-  { name: '독서', icon: '📖' },
-  { name: '하루 정리', icon: '📝' },
+  { name: '물 마시기', icon: '💧', category: 'personal' },
+  { name: '스트레칭', icon: '🤸', category: 'exercise' },
+  { name: '운동', icon: '🏃', category: 'exercise' },
+  { name: '독서', icon: '📖', category: 'study' },
+  { name: '하루 정리', icon: '📝', category: 'personal' },
 ]
 
 export const createDefaultHabits = (createdAt = new Date().toISOString()): Habit[] =>
-  DEFAULT_HABITS.map(({ name, icon }, index) => ({
+  DEFAULT_HABITS.map(({ name, icon, category }, index) => ({
     id: `default-habit-${index + 1}`,
     name,
     icon,
+    category: normalizeProductivityCategory(category),
     repeatDays: [...EVERY_DAY],
     createdAt,
   }))
@@ -30,6 +33,12 @@ export const isHabitScheduled = (
   habit: Pick<Habit, 'repeatDays'>,
   date = new Date(),
 ): boolean => getHabitRepeatDays(habit).includes(date.getDay())
+
+export const getHabitCreatedDateKey = (habit: Pick<Habit, 'createdAt'>): string | undefined => {
+  if (!habit.createdAt) return undefined
+  const date = new Date(habit.createdAt)
+  return Number.isNaN(date.getTime()) ? undefined : toLocalDateKey(date)
+}
 
 export const createHabitId = (): string => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -63,6 +72,9 @@ export const migrateHabits = (
         id: habit.id || legacyHabitId(habit.name, index),
         name: habit.name,
         icon: getHabitIcon(habit),
+        category: habit.category
+          ? normalizeProductivityCategory(habit.category)
+          : getDefaultHabitCategory(habit.id || legacyHabitId(habit.name, index)),
         repeatDays: [...getHabitRepeatDays(habit)],
         createdAt: habit.createdAt || createdAt,
       }))

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useWidgetSize } from '../hooks/useWidgetSize'
 import { useApp } from '../store/AppContext'
 import { useRouter } from '../store/RouterContext'
+import ScheduledTaskTimeButton from '../components/ScheduledTaskTimeButton'
 import { fetchHolidays } from '../services/holidayService'
 import {
   CAREER_CATEGORY_LABELS,
@@ -11,7 +12,12 @@ import {
   syncCareerEventDateFields,
 } from '../utils/careerEvents'
 import { getCalendarLinkedItems, makeCalendarDays } from '../utils/calendar'
-import type { Todo, ScheduledTask, CareerEvent, CareerEventCategory, CareerEventStatus, CareerMilestone, Goal, Project, Task } from '../types'
+import type { Todo, ScheduledTask, CareerEvent, CareerEventCategory, CareerEventStatus, CareerMilestone, Goal, Project, Task, ProductivityCategory } from '../types'
+import {
+  PRODUCTIVITY_CATEGORIES_WITH_UNCATEGORIZED,
+  PRODUCTIVITY_CATEGORY_LABELS,
+  normalizeProductivityCategory,
+} from '../utils/productivityCategories'
 
 export function CalendarActions() {
   const { setPage } = useRouter()
@@ -196,6 +202,7 @@ interface FormState {
   careerMilestones: CareerMilestone[]
   url: string
   priority: Todo['priority']
+  productivityCategory: ProductivityCategory
   done: boolean
 }
 
@@ -243,6 +250,19 @@ function ItemForm({
           boxSizing: 'border-box', outline: 'none',
         }}
       />
+
+      {form.type !== 'career' && (
+        <select
+          value={form.productivityCategory}
+          onChange={event => set('productivityCategory', event.target.value as ProductivityCategory)}
+          aria-label={form.type === 'todo' ? 'Todo 분야' : '예정 작업 분야'}
+          style={calendarSelectStyle}
+        >
+          {PRODUCTIVITY_CATEGORIES_WITH_UNCATEGORIZED.map(category => (
+            <option key={category} value={category}>{PRODUCTIVITY_CATEGORY_LABELS[category]}</option>
+          ))}
+        </select>
+      )}
 
       {form.type !== 'todo' && (
         <>
@@ -489,7 +509,7 @@ interface ModalProps {
   goals: Goal[]
   projects: Project[]
   onClose: () => void
-  onAddTodo: (text: string, priority: Todo['priority']) => void
+  onAddTodo: (text: string, priority: Todo['priority'], category: ProductivityCategory) => void
   onAddScheduled: (task: Omit<ScheduledTask, 'id' | 'done'>) => void
   onAddCareer: (event: Omit<CareerEvent, 'id'>) => void
   onUpdateTodo: (id: string, patch: Partial<Todo>) => void
@@ -539,7 +559,7 @@ function DayModal(props: ModalProps) {
     })
 
     if (f.mode === 'add') {
-      if (f.type === 'todo') props.onAddTodo(f.title, f.priority)
+      if (f.type === 'todo') props.onAddTodo(f.title, f.priority, f.productivityCategory)
       else if (f.type === 'career') props.onAddCareer(buildCareerPayload())
       else props.onAddScheduled({
         title: f.title.trim(),
@@ -550,9 +570,10 @@ function DayModal(props: ModalProps) {
         location: f.location.trim() || undefined,
         address: f.address.trim() || undefined,
         note: f.note.trim() || undefined,
+        category: f.productivityCategory,
       })
     } else {
-      if (f.type === 'todo') props.onUpdateTodo(f.id!, { text: f.title, priority: f.priority, done: f.done })
+      if (f.type === 'todo') props.onUpdateTodo(f.id!, { text: f.title, priority: f.priority, category: f.productivityCategory, done: f.done })
       else if (f.type === 'career') props.onUpdateCareer(f.id!, buildCareerPayload())
       else props.onUpdateScheduled(f.id!, {
         title: f.title,
@@ -563,6 +584,7 @@ function DayModal(props: ModalProps) {
         location: f.location.trim() || undefined,
         address: f.address.trim() || undefined,
         note: f.note.trim() || undefined,
+        category: f.productivityCategory,
         done: f.done,
       })
     }
@@ -573,6 +595,7 @@ function DayModal(props: ModalProps) {
     mode:'add', type:'scheduled', title:'', date:dateStr, time:'',
     applicationDeadline:'', resultDate:'', operationStartDate:'', operationEndDate:'',
     endTime:'', scheduleMode:'', location:'', address:'', note:'', priority:'medium', done:false,
+    productivityCategory:'uncategorized',
     organization:'', careerCategory:'briefing', careerStatus:'interested', careerMilestones:[], url:'',
   })
   const startEditTodo = (t: Todo) =>
@@ -581,6 +604,7 @@ function DayModal(props: ModalProps) {
       applicationDeadline:'', resultDate:'', operationStartDate:'', operationEndDate:'',
       time:'', endTime:'', scheduleMode:'', location:'', address:'', note:'', priority:t.priority, done:t.done,
       organization:'', careerCategory:'briefing', careerStatus:'interested', careerMilestones:[], url:'',
+      productivityCategory:normalizeProductivityCategory(t.category),
     })
   const startEditScheduled = (s: ScheduledTask) =>
     setForm({
@@ -590,6 +614,7 @@ function DayModal(props: ModalProps) {
       location:s.location||'', address:s.address||'', note:s.note||'',
       organization:'', careerCategory:'briefing', careerStatus:'interested', careerMilestones:[], url:'',
       priority:'medium', done:s.done,
+      productivityCategory:normalizeProductivityCategory(s.category),
     })
   const startEditCareer = (event: CareerEvent) =>
     setForm({
@@ -601,6 +626,7 @@ function DayModal(props: ModalProps) {
       organization:event.organization||'', careerCategory:event.category,
       careerStatus:event.status, careerMilestones:syncCareerEventDateFields(event).milestones, url:event.url||'', priority:'medium',
       done:event.status === 'completed',
+      productivityCategory:'uncategorized',
     })
 
   const Section = ({ title, color, children }: { title: string; color: string; children: ReactNode }) => (
@@ -611,9 +637,10 @@ function DayModal(props: ModalProps) {
   )
 
   const ItemRow = ({
-    text, done, tag, detail, onEdit, onToggle,
+    text, done, tag, detail, action, onEdit, onToggle,
   }: {
     text: string; done?: boolean; tag?: string; detail?: string
+    action?: ReactNode
     onEdit?: () => void; onToggle?: () => void
   }) => (
     <div style={{
@@ -655,6 +682,7 @@ function DayModal(props: ModalProps) {
           {tag}
         </span>
       )}
+      {action}
     </div>
   )
 
@@ -724,6 +752,7 @@ function DayModal(props: ModalProps) {
                     s.mode === 'offline' ? '오프라인' : s.mode === 'online' ? '온라인' : s.mode === 'hybrid' ? '온·오프라인' : undefined,
                   ].filter(Boolean).join(' · ') || undefined}
                   detail={[s.location, s.address, s.note].filter(Boolean).join(' · ') || undefined}
+                  action={<ScheduledTaskTimeButton task={s} compact />}
                   onEdit={() => startEditScheduled(s)}
                   onToggle={() => props.onUpdateScheduled(s.id, { done: !s.done })}
                 />
@@ -889,8 +918,8 @@ export default function CalendarWidget() {
   }
 
   // CRUD handlers
-  const handleAddTodo = (text: string, priority: Todo['priority']) => {
-    const newTodo: Todo = { id: Date.now().toString(), text, done: false, priority, date: toDateStr(selected!) }
+  const handleAddTodo = (text: string, priority: Todo['priority'], category: ProductivityCategory) => {
+    const newTodo: Todo = { id: Date.now().toString(), text, done: false, priority, category, date: toDateStr(selected!) }
     setTodos(prev => [...prev, newTodo])
   }
   const handleAddScheduled = (task: Omit<ScheduledTask, 'id' | 'done'>) => {

@@ -63,7 +63,7 @@ export function ChartActions() {
 export default function ChartWidget() {
   const {
     todos, todoHistory, chartHistory,
-    habits, habitHistory, scheduledTasks, counters,
+    habits, habitHistory, scheduledTasks, counters, productivityTimeHistory,
   } = useApp()
   const { ref } = useWidgetSize()
   const [accent, setAccent] = useState(getThemeAccent)
@@ -87,6 +87,7 @@ export default function ChartWidget() {
       habitHistory,
       scheduledTasks,
       counters,
+      productivityTimeHistory,
     }))
     .filter((point): point is NonNullable<typeof point> => Boolean(point))
 

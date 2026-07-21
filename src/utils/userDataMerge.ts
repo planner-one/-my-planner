@@ -16,6 +16,7 @@ import type {
   UserData,
 } from '../types'
 import { getTodoCarryKey } from './todos'
+import { mergeProductivityTimeHistory } from './productivityCategories'
 
 type Identified =
   | Habit
@@ -373,6 +374,10 @@ export function mergeUserDataForStaleSave(
   merged.notes = mergeByIdRemoteFirst(remoteData.notes, incomingData.notes)
   merged.weekTasks = mergeRecordRemoteFirst(remoteData.weekTasks, incomingData.weekTasks)
   merged.timeBlockData = mergeRecordRemoteFirst(remoteData.timeBlockData, incomingData.timeBlockData)
+  merged.productivityTimeHistory = mergeProductivityTimeHistory(
+    remoteData.productivityTimeHistory,
+    incomingData.productivityTimeHistory,
+  )
   merged.scheduledTasks = mergeByIdRemoteFirst(remoteData.scheduledTasks, incomingData.scheduledTasks)
   merged.careerEvents = mergeByIdRemoteFirst(remoteData.careerEvents, incomingData.careerEvents)
   merged.personalApplications = mergeByIdRemoteFirst(remoteData.personalApplications, incomingData.personalApplications)

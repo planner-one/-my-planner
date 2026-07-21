@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useApp } from '../store/AppContext'
 import { useRouter } from '../store/RouterContext'
-import type { CareerEventStatus, ScheduledTask } from '../types'
+import ScheduledTaskTimeButton from '../components/ScheduledTaskTimeButton'
+import type { CareerEventStatus, ProductivityCategory, ScheduledTask } from '../types'
 import { toLocalDateKey } from '../utils/date'
 import { countCalendarLinkedItems, getCalendarLinkedItems, makeCalendarDays, type CalendarLinkedItems } from '../utils/calendar'
 import {
@@ -12,6 +13,11 @@ import {
   getCareerNextMilestone,
   syncCareerEventDateFields,
 } from '../utils/careerEvents'
+import {
+  PRODUCTIVITY_CATEGORIES_WITH_UNCATEGORIZED,
+  PRODUCTIVITY_CATEGORY_LABELS,
+  normalizeProductivityCategory,
+} from '../utils/productivityCategories'
 
 type SourceKey = keyof CalendarLinkedItems
 
@@ -63,6 +69,7 @@ export default function CalendarPage() {
   })
   const [quickTitle, setQuickTitle] = useState('')
   const [quickTime, setQuickTime] = useState('')
+  const [quickCategory, setQuickCategory] = useState<ProductivityCategory>('uncategorized')
   const [quickCareerTitle, setQuickCareerTitle] = useState('')
 
   const year = viewDate.getFullYear()
@@ -104,6 +111,7 @@ export default function CalendarPage() {
       title,
       date: selectedDate,
       time: quickTime || undefined,
+      category: quickCategory,
       done: false,
     }
     setScheduledTasks(previous => [...previous, task])
@@ -131,6 +139,9 @@ export default function CalendarPage() {
   const setScheduledDone = (id: string, done: boolean) => {
     setScheduledTasks(previous => previous.map(task => task.id === id ? { ...task, done } : task))
   }
+  const setScheduledCategory = (id: string, category: ProductivityCategory) => {
+    setScheduledTasks(previous => previous.map(task => task.id === id ? { ...task, category } : task))
+  }
   const setCareerStatus = (id: string, status: CareerEventStatus) => {
     setCareerEvents(previous => previous.map(event => event.id === id ? { ...event, status } : event))
   }
@@ -143,12 +154,24 @@ export default function CalendarPage() {
       detail: [item.time, item.location, item.note].filter(Boolean).join(' · '),
       done: item.done,
       action: (
-        <input
-          type="checkbox"
-          checked={item.done}
-          onChange={event => setScheduledDone(item.id, event.target.checked)}
-          aria-label={`${item.title} 완료`}
-        />
+        <div className="agenda-scheduled-actions">
+          <ScheduledTaskTimeButton task={item} compact />
+          <select
+            value={normalizeProductivityCategory(item.category)}
+            onChange={event => setScheduledCategory(item.id, event.target.value as ProductivityCategory)}
+            aria-label={`${item.title} 분야`}
+          >
+            {PRODUCTIVITY_CATEGORIES_WITH_UNCATEGORIZED.map(category => (
+              <option key={category} value={category}>{PRODUCTIVITY_CATEGORY_LABELS[category]}</option>
+            ))}
+          </select>
+          <input
+            type="checkbox"
+            checked={item.done}
+            onChange={event => setScheduledDone(item.id, event.target.checked)}
+            aria-label={`${item.title} 완료`}
+          />
+        </div>
       ),
     })),
     ...items.career.map(item => {
@@ -373,6 +396,11 @@ export default function CalendarPage() {
             </div>
             <div className="quick-add-row">
               <input className="planner-input" type="time" value={quickTime} onChange={event => setQuickTime(event.target.value)} aria-label="예정 작업 시간" />
+              <select className="planner-input" value={quickCategory} onChange={event => setQuickCategory(event.target.value as ProductivityCategory)} aria-label="예정 작업 분야">
+                {PRODUCTIVITY_CATEGORIES_WITH_UNCATEGORIZED.map(category => (
+                  <option key={category} value={category}>{PRODUCTIVITY_CATEGORY_LABELS[category]}</option>
+                ))}
+              </select>
               <input
                 className="planner-input"
                 value={quickTitle}
@@ -455,7 +483,7 @@ export default function CalendarPage() {
         .agenda-heading span { color: var(--muted); font-size: 12px; }
         .agenda-meta { display: flex; flex-wrap: wrap; gap: 6px; }
         .quick-add-panel { display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg3); }
-        .quick-add-row { display: grid; grid-template-columns: 86px minmax(0, 1fr) auto; gap: 6px; }
+        .quick-add-row { display: grid; grid-template-columns: 82px 92px minmax(0, 1fr) auto; gap: 6px; }
         .quick-add-row.career { grid-template-columns: minmax(0, 1fr) auto; }
         .agenda-list { display: flex; flex-direction: column; gap: 7px; }
         .agenda-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 9px; border-left: 3px solid var(--accent); border-radius: 8px; background: var(--bg3); }
@@ -463,6 +491,7 @@ export default function CalendarPage() {
         .agenda-item strong { display: block; min-width: 0; color: var(--text); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .agenda-item small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .agenda-item input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent); }
+        .agenda-scheduled-actions { display: flex; align-items: center; justify-content: flex-end; gap: 7px; }
         .agenda-item select { max-width: 112px; min-width: 92px; height: 30px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg2); color: var(--text); font-size: 11px; }
         .agenda-item button { min-height: 30px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg2); color: var(--text); padding: 0 10px; font-size: 11px; font-weight: 800; cursor: pointer; }
         .done-text { color: var(--muted) !important; text-decoration: line-through; }

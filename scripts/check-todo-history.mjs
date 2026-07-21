@@ -317,6 +317,32 @@ try {
 
   assert(correctedDoneIsNotCarried.length === 0, 'todo completed through correction should not be carried forward')
 
+  const categoryChangedSnapshotIsNotDuplicated = getUnresolvedIncompleteTodos({
+    sourceDate: '2026-07-04',
+    items: [{
+      id: 'category-lineage',
+      text: '분류를 바꾼 과거 Todo',
+      done: false,
+      priority: 'medium',
+      category: 'study',
+      date: '2026-07-04',
+    }],
+    today: '2026-07-05',
+    todoHistory: [],
+    todos: [{
+      id: 'category-lineage__carry__2026-07-05',
+      text: '분류를 바꾼 과거 Todo',
+      done: false,
+      priority: 'medium',
+      category: 'work',
+      date: '2026-07-05',
+    }],
+  })
+  assert(
+    categoryChangedSnapshotIsNotDuplicated.length === 0,
+    'changing only a past snapshot category should not duplicate the same carried todo lineage',
+  )
+
   console.log('Todo history carry-forward checks passed.')
 } finally {
   rmSync(tmp, { recursive: true, force: true })
