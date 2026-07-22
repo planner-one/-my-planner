@@ -10,6 +10,7 @@ export interface LinkAnalysisDraft {
   sourceKind: LinkSourceKind
   target: LinkInsertTarget
   title: string
+  organization?: string
   summary: string
   notice?: string
   date: string
@@ -18,6 +19,8 @@ export interface LinkAnalysisDraft {
   time?: string
   endTime?: string
   location?: string
+  conditions?: string
+  benefits?: string
   category: CareerEventCategory
   status: CareerEventStatus
   mode: 'offline' | 'online' | 'hybrid'
@@ -178,6 +181,14 @@ const extractLabeledLine = (text: string, labelPattern: RegExp) => {
   return ''
 }
 
+const extractInlineLabel = (text: string, label: RegExp, stopLabels: RegExp) => {
+  const match = text.match(label)
+  if (!match || match.index === undefined) return ''
+  const rest = text.slice(match.index + match[0].length)
+  const stop = rest.search(stopLabels)
+  return normalizeSpaces((stop >= 0 ? rest.slice(0, stop) : rest).replace(/^\s*[:：-]\s*/, ''))
+}
+
 const inferMode = (text: string): LinkAnalysisDraft['mode'] => {
   const hasOnline = /온라인|zoom|줌|webinar|웨비나|비대면/i.test(text)
   const hasOffline = /오프라인|장소|주소|역\b|센터|라운지|강의실|회의실|층\b/i.test(text)
@@ -223,7 +234,10 @@ const extractPosterFields = (text: string) => {
     ''
   const resultDate = extractDateNear(text, [/선발\s*발표/, /결과\s*발표/, /발표/], 'first')
   const { time, endTime } = extractTimeRange(text)
-  const location = extractLabeledLine(text, /^(장소|위치|주소)\s*/)
+  const location = extractLabeledLine(text, /^(장소|위치|주소)\s*/) || extractInlineLabel(text, /(?:장소|위치|주소)\s*[:：]?\s*/i, /(?:모집\s*대상|참가\s*대상|신청|문의|혜택|주요\s*프로그램|일시|운영)/i)
+  const organization = extractLabeledLine(text, /^(기관|기관명|주최|주관|회사|회사명)\s*:/) || extractInlineLabel(text, /(?:기관|기관명|주최|주관|회사|회사명)\s*[:：]\s*/i, /(?:행사명|공고명|일시|모집|신청|문의)/i)
+  const conditions = extractLabeledLine(text, /^(모집\s*대상|참가\s*대상|신청\s*조건|지원\s*자격)\s*:/) || extractInlineLabel(text, /(?:모집\s*대상|참가\s*대상|신청\s*조건|지원\s*자격)\s*[:：]\s*/i, /(?:모집\s*인원|혜택|주요\s*프로그램|신청|문의|일시)/i)
+  const benefits = extractLabeledLine(text, /^(참가\s*혜택|혜택|지원\s*내용|비용|참가비)\s*:/) || extractInlineLabel(text, /(?:참가\s*혜택|혜택|지원\s*내용|비용|참가비)\s*[:：]\s*/i, /(?:주요\s*프로그램|신청|문의|모집|일시)/i)
   return {
     deadline,
     eventDate,
@@ -231,6 +245,9 @@ const extractPosterFields = (text: string) => {
     time,
     endTime,
     location,
+    organization,
+    conditions,
+    benefits,
     mode: inferMode(text),
   }
 }
@@ -267,6 +284,8 @@ export function createLinkAnalysisDraft(input: LinkAnalysisInput): LinkAnalysisD
     posterText ? `포스터 내용:\n${posterText}` : '',
     `원본 링크: ${normalized}`,
     `출처: ${hostname}`,
+    posterFields?.conditions ? `신청 조건: ${posterFields.conditions}` : '',
+    posterFields?.benefits ? `혜택/비용: ${posterFields.benefits}` : '',
     sourceKind === 'image-poster'
       ? '현재는 포스터 텍스트와 URL 기반의 초안입니다. 이미지 OCR 자동 실행은 추후 백엔드/API 연결 후 제공됩니다.'
       : '현재는 링크 제목과 URL 기반의 임시 초안입니다. 실제 페이지 본문 분석은 추후 백엔드/API 연결 후 제공됩니다.',
@@ -279,6 +298,7 @@ export function createLinkAnalysisDraft(input: LinkAnalysisInput): LinkAnalysisD
     sourceKind,
     target,
     title,
+    organization: posterFields?.organization || undefined,
     summary,
     notice,
     date,
@@ -287,6 +307,8 @@ export function createLinkAnalysisDraft(input: LinkAnalysisInput): LinkAnalysisD
     time: posterFields?.time || undefined,
     endTime: posterFields?.endTime || undefined,
     location: posterFields?.location || undefined,
+    conditions: posterFields?.conditions || undefined,
+    benefits: posterFields?.benefits || undefined,
     category: inferCategory(haystack),
     status: target === 'career' ? inferStatus(deadline) : 'interested',
     mode: posterFields?.mode || 'online',

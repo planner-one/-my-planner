@@ -463,7 +463,7 @@ export default function CareerEvents() {
     setForm(previous => ({
       ...previous,
       title: previous.title || draft.title,
-      organization: previous.organization || draft.hostname,
+      organization: previous.organization || draft.organization || draft.hostname,
       category: draft.category,
       status: draft.status,
       date: draft.date || previous.date,
@@ -476,7 +476,10 @@ export default function CareerEvents() {
       ].filter((milestone): milestone is CareerMilestone => Boolean(milestone)), {
         replaceDefaultMain: previous.date === toLocalDateKey(),
       }),
-      mode: 'online',
+      time: draft.time || previous.time,
+      endTime: draft.endTime || previous.endTime,
+      mode: draft.mode || previous.mode,
+      location: draft.location || previous.location,
       url: draft.url,
       sourceUrl: draft.url,
       note: [previous.note, draft.summary].filter(Boolean).join('\n\n'),

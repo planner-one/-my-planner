@@ -95,7 +95,9 @@ export function buildPageResult(html, baseUrl) {
   for (const match of source.matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
     try { structured.push(...jsonText(JSON.parse(decodeHtml(match[1])))) } catch { /* Ignore malformed JSON-LD. */ }
   }
-  const text = [...new Set([title, ...metaValues, ...structured, stripHtml(source)].map(compactText).filter(Boolean))]
+  const text = [...new Set([title, ...metaValues, ...structured, stripHtml(source)]
+    .map(value => String(value ?? '').trim())
+    .filter(Boolean))]
     .join('\n').slice(0, MAX_TEXT_LENGTH)
   const imageUrls = []
   for (const match of source.matchAll(/<img\b[^>]*(?:src|data-src|data-lazy-src)=["']([^"']+)["'][^>]*>/gi)) {
