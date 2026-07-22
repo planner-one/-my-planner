@@ -204,10 +204,21 @@ const titleFromPosterText = (text: string, fallback: string) => {
   return picked || fallback
 }
 
+const titleFromPageText = (text: string, fallback: string) => {
+  const lines = text.split('\n').map(line => normalizeSpaces(line)).filter(Boolean)
+  const noise = /^(INNOBIZ|공지사항|입찰\/채용|지원정보|로그인|회원가입|사이트맵|전체보기|사업안내|COPYRIGHT|목록|이전글|다음글)/i
+  const picked = lines.find(line =>
+    line.length >= 8 && line.length <= 100 &&
+    !noise.test(line) &&
+    /(모집|채용|공고|지원|교육|캠프|프로그램|행사|세미나|사업|공모|취업)/i.test(line),
+  )
+  return picked || fallback
+}
+
 const extractPosterFields = (text: string) => {
-  const deadline = extractDateNear(text, [/모집\s*기간/, /접수\s*기간/, /신청\s*기간/], 'last')
+  const deadline = extractDateNear(text, [/모집\s*기간/, /접수\s*기간/, /신청\s*기간/, /신청\s*마감/, /접수\s*마감/], 'last')
   const eventDate =
-    extractDateNear(text, [/응시일/, /행사일/, /운영일/, /교육일/, /일정/], 'first') ||
+    extractDateNear(text, [/응시일/, /행사일/, /운영일/, /교육일/, /일시/, /일정/], 'first') ||
     extractDates(text).find(date => date !== deadline) ||
     ''
   const resultDate = extractDateNear(text, [/선발\s*발표/, /결과\s*발표/, /발표/], 'first')
@@ -232,9 +243,10 @@ export function createLinkAnalysisDraft(input: LinkAnalysisInput): LinkAnalysisD
   const posterText = normalizeAnalysisText(input.posterText)
   const sourceKind = input.sourceKind ?? (posterText || isImageLikeUrl(parsed) ? 'image-poster' : 'web-page')
   const fallbackTitle = googleForm ? 'Google Form 신청 링크' : titleFromUrl(parsed)
-  const title = sourceKind === 'image-poster' ? titleFromPosterText(posterText, fallbackTitle) : fallbackTitle
-  const haystack = `${parsed.hostname} ${parsed.pathname} ${parsed.search} ${title} ${memo ?? ''} ${posterText}`.toLowerCase()
-  const posterFields = sourceKind === 'image-poster' ? extractPosterFields(`${posterText}\n${memo ?? ''}`) : undefined
+  const sourceText = `${posterText}\n${memo ?? ''}`
+  const title = sourceKind === 'image-poster' ? titleFromPosterText(posterText, fallbackTitle) : titleFromPageText(sourceText, fallbackTitle)
+  const haystack = `${parsed.hostname} ${parsed.pathname} ${parsed.search} ${title} ${sourceText}`.toLowerCase()
+  const posterFields = sourceText.trim() ? extractPosterFields(sourceText) : undefined
   const date = posterFields?.eventDate || inferDate(haystack) || toLocalDateKey()
   const target = input.target ?? inferTarget(haystack)
   const hostname = parsed.hostname.replace(/^www\./, '')
@@ -259,7 +271,7 @@ export function createLinkAnalysisDraft(input: LinkAnalysisInput): LinkAnalysisD
       ? '현재는 포스터 텍스트와 URL 기반의 초안입니다. 이미지 OCR 자동 실행은 추후 백엔드/API 연결 후 제공됩니다.'
       : '현재는 링크 제목과 URL 기반의 임시 초안입니다. 실제 페이지 본문 분석은 추후 백엔드/API 연결 후 제공됩니다.',
   ].filter(Boolean).join('\n')
-  const deadline = posterFields?.deadline || (target === 'career' ? date : '')
+  const deadline = posterFields?.deadline || ''
 
   return {
     url: normalized,
