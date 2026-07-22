@@ -98,8 +98,12 @@ export function buildPageResult(html, baseUrl) {
   const text = [...new Set([title, ...metaValues, ...structured, stripHtml(source)].map(compactText).filter(Boolean))]
     .join('\n').slice(0, MAX_TEXT_LENGTH)
   const imageUrls = []
-  for (const match of source.matchAll(/<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi)) {
+  for (const match of source.matchAll(/<img\b[^>]*(?:src|data-src|data-lazy-src)=["']([^"']+)["'][^>]*>/gi)) {
     const image = safeImageUrl(decodeHtml(match[1]), baseUrl)
+    if (image && !imageUrls.includes(image)) imageUrls.push(image)
+  }
+  for (const match of source.matchAll(/\bsrcset=["']([^"']+)["']/gi)) {
+    const image = safeImageUrl(decodeHtml(match[1].split(',')[0].trim().split(/\s+/)[0]), baseUrl)
     if (image && !imageUrls.includes(image)) imageUrls.push(image)
   }
   return { text, source: 'direct', imageUrls: imageUrls.slice(0, MAX_IMAGE_COUNT) }

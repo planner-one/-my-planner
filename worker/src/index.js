@@ -2,6 +2,7 @@ import {
   buildPageResult,
   buildReaderFailure,
   normalizeReaderUrl,
+  safeImageUrl,
 } from '../../functions/src/reader.js'
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024
@@ -38,8 +39,22 @@ const fetchUpstream = async (url, init = {}) => {
 const decodeResponseText = async (response) => {
   const bytes = await response.arrayBuffer()
   const contentType = response.headers.get('content-type') ?? ''
-  const charset = /charset\s*=\s*(euc-kr|ks_c_5601-1987|cp949)/i.test(contentType) ? 'euc-kr' : 'utf-8'
+  const header = new TextDecoder('ascii').decode(bytes.slice(0, 8192))
+  const charset = /charset\s*=\s*(euc-kr|ks_c_5601-1987|cp949)/i.test(`${contentType} ${header}`) ? 'euc-kr' : 'utf-8'
   return new TextDecoder(charset).decode(bytes)
+}
+
+const readReaderFallback = async (target) => {
+  const readerUrl = `https://r.jina.ai/http://${target}`
+  const response = await fetchUpstream(readerUrl, { headers: { accept: 'text/plain,*/*;q=0.8' } })
+  if (!response.ok) return null
+  const text = (await response.text()).slice(0, 30000)
+  const imageUrls = []
+  for (const match of text.matchAll(/!\[[^\]]*\]\(([^)\s]+)[^)]*\)/g)) {
+    const image = safeImageUrl(match[1], target)
+    if (image && !imageUrls.includes(image)) imageUrls.push(image)
+  }
+  return { text, source: 'reader', imageUrls: imageUrls.slice(0, 8) }
 }
 
 const page = async (request) => {
@@ -54,7 +69,13 @@ const page = async (request) => {
     const result = contentType.includes('html') ? buildPageResult(body, target) : {
       text: body.slice(0, 30000), source: 'direct', imageUrls: [],
     }
-    return json({ ...result, status: result.text ? 'success' : 'partial', finalUrl: upstream.url || target })
+    if (result.text.length < 600) {
+      try {
+        const fallback = await readReaderFallback(target)
+        if (fallback?.text.length > result.text.length) return json({ ...fallback, status: 'success', finalUrl: upstream.url || target, fallback: 'jina' })
+      } catch { /* Keep the direct result when the fallback is unavailable. */ }
+    }
+    return json({ ...result, status: result.text ? 'success' : 'partial', finalUrl: upstream.url || target, fallback: 'direct' })
   } catch (error) {
     const code = error?.message === 'UNSAFE_TARGET' ? 'UNSAFE_TARGET' : error?.message === 'INVALID_URL' ? 'INVALID_URL' : 'FETCH_FAILED'
     return json(buildReaderFailure(code, '페이지를 읽지 못했습니다. 링크가 공개되어 있는지 확인하거나 원문을 붙여넣어 주세요.'))
