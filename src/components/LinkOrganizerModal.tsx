@@ -9,6 +9,7 @@ import {
   type LinkSourceKind,
 } from '../services/linkAnalysisService'
 import type { CareerEvent, CareerEventCategory, CareerEventStatus } from '../types'
+import { getJobPostingPageText } from '../services/jobPostingPageReader'
 import {
   CAREER_CATEGORY_LABELS,
   CAREER_STATUS_LABELS,
@@ -104,11 +105,21 @@ export default function LinkOrganizerModal({
 
   if (!open) return null
 
-  const analyze = () => {
+  const analyze = async () => {
+    setError('')
     try {
+      let pageText = ''
+      if (sourceKind === 'web-page') {
+        try {
+          const result = await getJobPostingPageText(url, { acceptAnyText: true })
+          pageText = result.text
+        } catch {
+          pageText = ''
+        }
+      }
       const next = createLinkAnalysisDraft({
         url,
-        memo,
+        memo: [pageText, memo].filter(Boolean).join('\n\n'),
         posterText,
         sourceKind,
         target: targetChoice === 'auto' ? undefined : targetChoice,
@@ -293,7 +304,7 @@ export default function LinkOrganizerModal({
             <input
               value={url}
               onChange={event => setUrl(event.target.value)}
-              onKeyDown={event => { if (event.key === 'Enter' && !event.nativeEvent.isComposing) analyze() }}
+              onKeyDown={event => { if (event.key === 'Enter' && !event.nativeEvent.isComposing) void analyze() }}
               placeholder={sourceKind === 'image-poster' ? '이미지 포스터가 있는 공고 링크 또는 이미지 주소' : 'https://...'}
               autoFocus
             />

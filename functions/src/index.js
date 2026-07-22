@@ -21,6 +21,13 @@ const fetchWithTimeout = async (url, options = {}) => {
   }
 }
 
+const decodeResponseText = async (response) => {
+  const bytes = await response.arrayBuffer()
+  const contentType = response.headers.get('content-type') ?? ''
+  const charset = /charset\s*=\s*(euc-kr|ks_c_5601-1987|cp949)/i.test(contentType) ? 'euc-kr' : 'utf-8'
+  return new TextDecoder(charset).decode(bytes)
+}
+
 export const readerPage = onRequest({ region: REGION, timeoutSeconds: 30, memory: '512MiB' }, async (request, response) => {
   allowCors(response)
   if (request.method === 'OPTIONS') return response.status(204).send('')
@@ -35,7 +42,7 @@ export const readerPage = onRequest({ region: REGION, timeoutSeconds: 30, memory
     })
     if (!upstream.ok) return response.status(200).json(buildReaderFailure('UPSTREAM_HTTP_ERROR', `원문 사이트 응답 코드 ${upstream.status}`))
     const contentType = upstream.headers.get('content-type') ?? ''
-    const body = await upstream.text()
+    const body = await decodeResponseText(upstream)
     const result = contentType.includes('html') ? buildPageResult(body, url) : { text: body.slice(0, 30000), source: 'direct', imageUrls: [] }
     return response.status(200).json({ ...result, status: result.text ? 'success' : 'partial', finalUrl: upstream.url || url })
   } catch (error) {

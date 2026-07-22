@@ -220,17 +220,18 @@ const fetchReaderTargets = async (url: string) => {
   return { text: '', source: 'none', imageUrls: [] } satisfies JobPostingPageTextResult
 }
 
-export const getJobPostingPageText = async (url: string): Promise<JobPostingPageTextResult> => {
+export const getJobPostingPageText = async (url: string, options: { acceptAnyText?: boolean } = {}): Promise<JobPostingPageTextResult> => {
+  const hasReadableText = (text: string) => options.acceptAnyText ? text.trim().length > 40 : hasUsefulJobText(text)
   try {
     const apiResult = await fetchSameOriginApiText(url)
-    if (apiResult.imageUrls.length || hasUsefulJobText(apiResult.text)) return apiResult
+    if (apiResult.imageUrls.length || hasReadableText(apiResult.text)) return apiResult
   } catch {
     // Local dev and future backend use /api first; production without that route falls back below.
   }
 
   try {
     const productionResult = await fetchProductionReaderText(url)
-    if (productionResult.imageUrls.length || hasUsefulJobText(productionResult.text)) return productionResult
+    if (productionResult.imageUrls.length || hasReadableText(productionResult.text)) return productionResult
   } catch {
     // Firebase Hosting may be serving an older release without the Reader rewrite.
   }
@@ -246,7 +247,7 @@ export const getJobPostingPageText = async (url: string): Promise<JobPostingPage
   for (const read of readers) {
     try {
       const result = await read()
-      if (result.imageUrls.length || hasUsefulJobText(result.text)) return result
+      if (result.imageUrls.length || hasReadableText(result.text)) return result
     } catch {
       // Keep link analysis usable when a site blocks browser reads.
     }

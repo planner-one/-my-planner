@@ -35,6 +35,13 @@ const fetchUpstream = async (url, init = {}) => {
   }
 }
 
+const decodeResponseText = async (response) => {
+  const bytes = await response.arrayBuffer()
+  const contentType = response.headers.get('content-type') ?? ''
+  const charset = /charset\s*=\s*(euc-kr|ks_c_5601-1987|cp949)/i.test(contentType) ? 'euc-kr' : 'utf-8'
+  return new TextDecoder(charset).decode(bytes)
+}
+
 const page = async (request) => {
   try {
     const target = normalizeReaderUrl(new URL(request.url).searchParams.get('url'))
@@ -43,7 +50,7 @@ const page = async (request) => {
     })
     if (!upstream.ok) return json(buildReaderFailure('UPSTREAM_HTTP_ERROR', `원문 사이트 응답 코드 ${upstream.status}`))
     const contentType = upstream.headers.get('content-type') ?? ''
-    const body = await upstream.text()
+    const body = await decodeResponseText(upstream)
     const result = contentType.includes('html') ? buildPageResult(body, target) : {
       text: body.slice(0, 30000), source: 'direct', imageUrls: [],
     }
