@@ -1,14 +1,14 @@
 # 다음 채팅 인수인계
 
 _작성일: 2026-06-28_
-_갱신일: 2026-07-18 (SC-10 모바일 헤더 액션 순서 보강 기준)_
+_갱신일: 2026-07-22 (운영 링크 Reader/추출 정확도 보강 기준)_
 
 이 파일은 새 Codex 또는 Claude Code 세션에서 바로 이어 작업하기 위한 현재 상태 메모입니다.
 새 세션에서는 먼저 이 파일과 `AGENTS.md`, `PROGRESS.md`, `REQUIREMENTS.md`, `SCENARIOS.md`, `RELEASES.md`, `COPYRIGHT_AND_SERVICE_NOTES.md`, `LINK_IMPORT_GUIDE.md`, `JOB_POSTING_LINK_READER.md`, `PLANNER_SYSTEM_AUDIT_2026-07-04.md`, `UPDATE_SCHEDULE.md`를 읽고 시작하면 됩니다.
 
 ## 한 줄 요약
 
-2026-07-20 기준 운영 링크 Reader 1차 기반을 `functions/`에 추가했지만 아직 Firebase Functions 배포 전입니다. `/reader/page`와 `/reader/image` Hosting rewrite, 공개 URL 검증, HTML/meta/JSON-LD/이미지 후보 추출, 지원 공고 화면 fallback 연결까지 반영했고 함수 테스트·타입 검사·빌드는 통과했습니다.
+2026-07-22 기준 운영 링크 Reader는 Cloudflare Worker `https://planner-reader.planner-reader-minsoo.workers.dev`를 사용합니다. 공개 URL 검증, EUC-KR/CP949, HTML 표 셀, meta/JSON-LD, PDF/Jina fallback, 콘텐츠 이미지 우선순위와 선택 OCR을 지원합니다. Innobiz 취업캠프와 하나캐피탈 인크루트 실제 링크를 로컬 Worker로 검증했고, 수정 Worker와 Firebase Hosting 프론트엔드는 아직 재배포 전입니다.
 
 플래너는 Firebase 기반 React/Vite/TypeScript 앱이며, SC-07 위젯 검토와 SC-08 사이드바 기능 페이지, SC-09 테마 정리, SC-10 태블릿/모바일 반응형 코드 QA까지 완료했습니다. v0.3.0~v0.3.2에서는 작업 흐름 위젯, 주요 페이지 UX, 내 신청/지원 공고/캘린더 연결을 보강했고, v0.3.3~v0.3.9에서는 지원 공고 링크 Reader와 사람인/원티드 파싱을 보강했습니다. v0.3.10에서는 목표 위젯/목표 페이지의 오늘 집중을 날짜별 오늘 방향으로 정리했고, v0.3.11에서는 오늘 할 일 위젯/페이지에 오늘·내일 선택과 다음 날 브리핑을 추가했습니다. v0.3.12에서는 지난 날짜 미완료 Todo를 오늘 날짜로 자동 이월하도록 보강했고, v0.3.13에서는 브리핑 알림 설정을 내 계정 기준으로 저장하도록 보강했습니다. v0.3.14에서는 생산성 추이 위젯에서 날짜별 생산성 기록 상세 페이지로 이동할 수 있게 했고, v0.3.15에서는 생산성 기록 페이지 요약 UX와 추이/구성 그래프를 보강했습니다. v0.3.16에서는 `check:doc-sync` 문서-코드 자동 점검과 `내 신청`/`지원 공고`/`오늘 할 일`의 빠른 추가·필터 밀도 보정을 반영했고, v0.3.17에서는 공통 패널/버튼/입력 밀도 기준과 캘린더의 표시 항목 패널, sticky agenda, 빠른 추가 패널을 정리했습니다. 현재 v0.3.18 Planner Flow Clarity 범위에서 SC-16 신규 사용자 온보딩의 코드 구현과 자동 회귀 검사를 완료했으며, 앱 버전은 v0.3.17로 유지합니다. SC-10의 동적 viewport 하단 메뉴, 홈 고정+계정별 바로가기 네 개, 모바일 네 테마 패널, viewport 기반 자동 밀도는 전체 자동 검사와 통합 리뷰 후 Firebase Hosting 운영 배포·자산 확인까지 완료했습니다. 인증 세션이 필요한 실제 대시보드와 실기기 주소창·키보드 QA 전에는 전체 모바일 최적화 완료 또는 새 릴리즈로 보지 않습니다.
 
@@ -107,7 +107,7 @@ _갱신일: 2026-07-18 (SC-10 모바일 헤더 액션 순서 보강 기준)_
 - `src/App.tsx`, `vite.config.js`: 페이지 단위 `React.lazy` 로딩과 React/Firebase/그리드/차트/OCR vendor 청크 분리로 500KB 초과 번들 경고 제거
 - `src/pages/JobPostings.tsx`: 지원 공고 링크 입력을 접힌 보조 패널로 분리하고, 링크 기반 초안 반영, 추출 상세/메모 표시, 요약 목록 + 오른쪽 상세 편집 패널, 저장 카드별 분석 반영 추가
 - `src/utils/jobPostingDraft.ts`, `scripts/check-job-posting-draft.mjs`: 지원 공고 링크/본문 분석 로직을 공통 유틸로 분리하고 Google Sites/인크루트/붙여넣기 본문 회귀 테스트 추가
-- `src/services/jobPostingPageReader.ts`, `vite.config.js`, `src/utils/jobPostingDraft.ts`: 로컬 같은 출처 `/api/job-posting-page` Reader API를 추가해 Google Sites CORS 차단 링크 본문을 읽고 주요 업무/조건을 추출하도록 보강. 페이지 이미지 후보가 잡히면 `/api/job-posting-image`와 브라우저 OCR로 첫 이미지 텍스트를 읽어 공고 원문/OCR 칸에 반영. 배포본은 Firebase Functions/백엔드 이관 필요
+- `src/services/jobPostingPageReader.ts`, `vite.config.js`, `worker/`, `src/utils/jobPostingDraft.ts`: 로컬 `/api`와 운영 Cloudflare Worker에서 공개 페이지 본문·이미지 후보를 읽고, 사용자가 선택한 이미지 OCR을 공고 원문과 회사/직무/마감/복지/전형절차/서류 초안에 반영
 - `src/utils/jobPostingDraft.ts`, `src/pages/JobPostings.tsx`, `vite.config.js`, `src/services/jobPostingPageReader.ts`: 사람인/원티드 제목·핵심 정보·근무지역·마감일·키워드 추출 보강, 광고/개인정보/저작권 잡음 제외, 저장된 공고의 `분석 반영` Reader 재분석 흐름 추가
 - `src/pages/JobPostings.tsx`: 지원 공고 상태를 지원 완료/면접/오퍼로 바꾸면 지원일 칸을 즉시 노출하고, 비어 있으면 오늘 날짜를 기본 지원일로 자동 기록
 - `src/pages/JobPostings.tsx`, `src/types/index.ts`: 기업/기관 채용 페이지와 인크루트 기업 도메인 플랫폼 추가, 링크만 있는 공고 저장, 읽을 수 있는 본문 기반 기업명/직무 초안 보강
@@ -184,6 +184,7 @@ firebase deploy --only hosting
 - 2026-07-05 v0.3.15 생산성 기록 그래프/UX 보강 후 `npm run check:productivity-log`, `npx tsc --noEmit`, `npm run build`, `git diff --check` 통과
 - 2026-07-08 Todo 자동 이월 기록 보존 보정 후 `npm run check:todo-history`, `npm run check:user-data-merge`, `npx tsc --noEmit`, `npm run build` 통과
 - 2026-07-16 SC-10 모바일 탐색·테마·밀도 보강 후 `check:responsive-ui`, `check:mobile-ux`, `check:doc-sync`, `check:onboarding`, `check:user-data-merge`, `check:todo-history`, `check:planner-briefing`, `check:career-milestones`, `check:personal-application-dates`, `check:job-draft`, `check:productivity-log`, `npx tsc --noEmit`, `npm run build`, `git diff --check` 통과. Firebase Hosting 33개 파일 배포, 새 운영 자산 표식, 로그인 전 390/768/1024px viewport 확인 완료; 인증 세션·실기기 QA는 대기
+- 2026-07-26 Link Reader/Quick Memo 보강 후 Worker 공통 테스트, 링크·채용·메모 회귀 검사, 전체 `check:*`, `npx tsc --noEmit`, `npm run build`, `git diff --check`를 릴리즈 기준으로 실행. Cloudflare `planner-reader`와 Firebase Hosting 운영 자산 및 로그인 전 렌더링 확인 완료
 
 주의:
 

@@ -1,7 +1,7 @@
 # 플래너 업데이트 스케줄
 
 _작성일: 2026-07-04_
-_마지막 업데이트: 2026-07-16_
+_마지막 업데이트: 2026-07-26_
 _현재 기준: v0.3.17 UI System Pass · v0.3.18 신규 사용자 온보딩 코드·자동 검증 및 SC-10 후속 운영 배포·자산 확인 완료_
 
 이 문서는 다음 업데이트 버전에서 무엇을 먼저 개선할지 기록하는 일정표입니다. 실제 구현은 사용자 확인 후 기능 하나씩 진행합니다.
@@ -140,10 +140,10 @@ _현재 기준: v0.3.17 UI System Pass · v0.3.18 신규 사용자 온보딩 코
 
 ## v0.4.0 Integration Ready
 
-목표: 프론트엔드 단독으로 어려운 기능을 서버 경계로 옮길 준비를 합니다.
+목표: 프론트엔드 단독으로 어려운 공개 페이지 읽기를 무료 운영 서버 경계에서 안정화합니다.
 
-- `/api/job-posting-page`를 Firebase Functions 또는 별도 백엔드 API로 이관
-- `/api/job-posting-image` 이미지 프록시/OCR 후보를 운영 환경에서 사용할 수 있게 설계
+- 완료: Cloudflare Worker `/reader/page`, `/reader/image` 운영 경계와 `VITE_READER_BASE_URL` 연결
+- 완료: EUC-KR/CP949, HTML 표 셀, JSON-LD/meta, PDF/Jina fallback, 이미지 후보 정렬과 선택 OCR
 - 외부 페이지 접근 실패, robots/약관, 로그인 필요한 페이지 처리 정책 정리
 - API 키와 AI 모델 호출을 클라이언트에 노출하지 않는 구조 설계
 - 무료/유료 권한 체크가 가능한 데이터 모델 후보 설계
@@ -175,7 +175,7 @@ _현재 기준: v0.3.17 UI System Pass · v0.3.18 신규 사용자 온보딩 코
 
 | 우선순위 | 항목 | 연결 데이터 |
 |---|---|---|
-| P0 | 운영 배포용 지원 공고 Reader API | `jobPostings`, `sourceUrl`, `imageText`, `note` |
+| 완료(운영 배포 확인) | 운영 배포용 공개 링크 Reader API | `careerEvents`, `jobPostings`, `sourceUrl`, `imageText`, `note` |
 | 완료 | 로컬 Reader URL 조합부 재검증 | `vite.config.js`, `/api/job-posting-page` |
 | 완료 | Codex 지원공고 정밀 정리 보조 | `jobPostings`, `sourceUrl`, `imageText`, `note`, `keywords` |
 | 완료 | Codex 기회 일정 정밀 정리 보조 | `careerEvents`, `sourceUrl`, `url`, `note` |
@@ -184,7 +184,8 @@ _현재 기준: v0.3.17 UI System Pass · v0.3.18 신규 사용자 온보딩 코
 | P1 | 통합 검색 | Todo, 작업, 프로젝트, 목표, 노트, 신청, 공고 |
 | P1 | 내 신청/지원 공고 상태 변경 이력 | `personalApplications`, `jobPostings` |
 | P1 | 캘린더 필터 저장 | `visibleSources` 또는 사용자 설정 |
-| P1 | 지원 공고 이미지 후보 선택 OCR | `jobPostings.imageText` |
+| 완료 | 지원 공고·기회 일정 이미지 후보 선택 OCR | `jobPostings.imageText`, `careerEvents.note` |
+| 완료 | 빠른 메모 전체 목록·작성/편집 모달·번호/불릿 자동 이어쓰기 | `quickMemos` |
 | P2 | 데이터 내보내기/삭제 | `UserData` 전체 |
 | P2 | 약관/개인정보/라이선스 문서 | 온보딩 v1과 분리해 공개 서비스 확대 전 준비할 운영 문서 |
 | 완료 | Codex 내 계정 브리핑 알림 기준 | Todo, 일정, 신청/지원, 마감 |

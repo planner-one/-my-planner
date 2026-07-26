@@ -8,6 +8,7 @@
     "check:env": "node scripts/check-env.mjs",
     "check:doc-sync": "node scripts/check-doc-sync.mjs",
     "check:job-draft": "node scripts/check-job-posting-draft.mjs",
+    "check:link-analysis": "node scripts/check-link-analysis.mjs",
     "check:todo-history": "node scripts/check-todo-history.mjs",
     "check:user-data-merge": "node scripts/check-user-data-merge.mjs",
     "check:planner-briefing": "node scripts/check-planner-briefing.mjs",

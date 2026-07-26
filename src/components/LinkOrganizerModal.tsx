@@ -9,12 +9,13 @@ import {
   type LinkSourceKind,
 } from '../services/linkAnalysisService'
 import type { CareerEvent, CareerEventCategory, CareerEventStatus } from '../types'
-import { getJobPostingPageText } from '../services/jobPostingPageReader'
+import { getJobPostingImageBlob, getJobPostingPageText } from '../services/jobPostingPageReader'
 import {
   CAREER_CATEGORY_LABELS,
   CAREER_STATUS_LABELS,
   syncCareerEventDateFields,
 } from '../utils/careerEvents'
+import { toLocalDateKey } from '../utils/date'
 
 type TargetChoice = 'auto' | LinkInsertTarget
 
@@ -36,7 +37,7 @@ const TARGET_LABELS: Record<LinkInsertTarget, string> = {
 const TASK_TYPES = ['업무', '개인', '공부', '기타'] as const
 const TASK_PRIORITIES = ['높음', '보통', '낮음'] as const
 const TASK_STATUSES = ['진행 중', '대기', '완료'] as const
-const MODE_LABELS: Record<LinkAnalysisDraft['mode'], string> = {
+const MODE_LABELS: Record<NonNullable<LinkAnalysisDraft['mode']>, string> = {
   online: '온라인',
   offline: '오프라인',
   hybrid: '온/오프라인',
@@ -76,6 +77,8 @@ export default function LinkOrganizerModal({
   const [ocrProgress, setOcrProgress] = useState(0)
   const [ocrStatus, setOcrStatus] = useState('')
   const [ocrError, setOcrError] = useState('')
+  const [analyzeBusy, setAnalyzeBusy] = useState(false)
+  const [pageImageUrls, setPageImageUrls] = useState<string[]>([])
   const [targetChoice, setTargetChoice] = useState<TargetChoice>(defaultTarget ?? 'auto')
   const [draft, setDraft] = useState<LinkAnalysisDraft | null>(null)
   const [taskType, setTaskType] = useState('기타')
@@ -94,6 +97,8 @@ export default function LinkOrganizerModal({
     setOcrProgress(0)
     setOcrStatus('')
     setOcrError('')
+    setAnalyzeBusy(false)
+    setPageImageUrls([])
     setDraft(null)
     setError('')
     setTargetChoice(defaultTarget ?? 'auto')
@@ -107,34 +112,47 @@ export default function LinkOrganizerModal({
 
   const analyze = async () => {
     setError('')
+    setAnalyzeBusy(true)
     try {
       let pageText = ''
+      let readerResult: Awaited<ReturnType<typeof getJobPostingPageText>> | undefined
       if (sourceKind === 'web-page') {
         try {
-          const result = await getJobPostingPageText(url, { acceptAnyText: true })
-          pageText = result.text
+          readerResult = await getJobPostingPageText(url, { acceptAnyText: true })
+          pageText = readerResult.text
+          setPageImageUrls(readerResult.imageUrls)
         } catch {
           pageText = ''
+          setPageImageUrls([])
         }
       }
       const next = createLinkAnalysisDraft({
         url,
-        memo: [pageText, memo].filter(Boolean).join('\n\n'),
+        memo,
+        pageText,
         posterText,
         sourceKind,
         target: targetChoice === 'auto' ? undefined : targetChoice,
+        finalUrl: readerResult?.finalUrl,
+        imageUrls: readerResult?.imageUrls,
+        readerStatus: readerResult?.status,
+        readerMessage: readerResult?.message,
+        readerSource: readerResult?.source,
       })
       setDraft(next)
       setTargetChoice(next.target)
+      setOrganization(next.organization ?? '')
       setError('')
     } catch {
       setError('올바른 링크를 입력해 주세요.')
       setDraft(null)
+    } finally {
+      setAnalyzeBusy(false)
     }
   }
 
-  const runPosterOcr = async (file?: File) => {
-    if (!file) return
+  const runOcr = async (source?: File | Blob) => {
+    if (!source) return
     setSourceKind('image-poster')
     setDraft(null)
     setOcrBusy(true)
@@ -152,7 +170,7 @@ export default function LinkOrganizerModal({
         },
       })
       await worker.setParameters({ preserve_interword_spaces: '1' })
-      const result = await worker.recognize(file)
+      const result = await worker.recognize(source)
       const text = result.data.text.trim()
       if (!text) {
         setOcrError('이미지에서 읽힌 텍스트가 없습니다. 포스터 내용을 직접 입력해 주세요.')
@@ -170,6 +188,21 @@ export default function LinkOrganizerModal({
     }
   }
 
+  const runPosterOcr = async (file?: File) => runOcr(file)
+
+  const runPageImageOcr = async (imageUrl: string) => {
+    setOcrError('')
+    setOcrStatus('페이지 이미지 불러오는 중')
+    setOcrBusy(true)
+    try {
+      const blob = await getJobPostingImageBlob(imageUrl)
+      await runOcr(blob)
+    } catch {
+      setOcrError('페이지 이미지를 불러오지 못했습니다. 다른 이미지 후보를 선택하거나 파일로 내려받아 OCR해 주세요.')
+      setOcrBusy(false)
+    }
+  }
+
   const updateDraft = <K extends keyof LinkAnalysisDraft>(key: K, value: LinkAnalysisDraft[K]) => {
     setDraft(previous => previous ? { ...previous, [key]: value } : previous)
   }
@@ -179,7 +212,7 @@ export default function LinkOrganizerModal({
 
     const now = new Date().toISOString()
     if (applyToCareerForm && draft.target === 'career') {
-      applyToCareerForm(draft)
+      applyToCareerForm({ ...draft, organization: organization.trim() || draft.organization })
       onClose()
       return
     }
@@ -188,12 +221,18 @@ export default function LinkOrganizerModal({
       const careerEvent = syncCareerEventDateFields({
         id: `link-career-${Date.now()}`,
         title: draft.title,
-        organization: organization.trim() || draft.hostname,
+        organization: organization.trim() || draft.organization || undefined,
         category: draft.category,
         status: draft.status,
         date: draft.date,
         applicationDeadline: draft.deadline || undefined,
         resultDate: draft.resultDate || undefined,
+        operationStartDate: draft.operationStartDate || undefined,
+        operationEndDate: draft.operationEndDate || undefined,
+        milestones: draft.milestones.map((milestone, index) => ({
+          ...milestone,
+          id: `link-milestone-${Date.now()}-${index}`,
+        })),
         time: draft.time || undefined,
         endTime: draft.endTime || undefined,
         mode: draft.mode,
@@ -230,7 +269,7 @@ export default function LinkOrganizerModal({
         type: taskType,
         priority: taskPriority,
         status: taskStatus,
-        owner: draft.hostname,
+        owner: draft.organization,
         sourceUrl: draft.url,
         done: taskStatus === '완료',
       }, ...previous])
@@ -241,7 +280,7 @@ export default function LinkOrganizerModal({
       setNotes(previous => [{
         id: `link-note-${Date.now()}`,
         title: draft.title,
-        date: draft.date,
+        date: draft.date || toLocalDateKey(),
         content: draft.summary,
         fav: false,
         createdAt: now,
@@ -258,6 +297,15 @@ export default function LinkOrganizerModal({
   const primaryLabel = applyToCareerForm && draft?.target === 'career'
     ? '작성 폼에 적용'
     : `${draft ? TARGET_LABELS[draft.target] : '플래너'}에 정리`
+  const requiresDate = Boolean(
+    draft
+    && !applyToCareerForm
+    && ['career', 'calendar'].includes(draft.target),
+  )
+  const canSave = Boolean(
+    draft?.title.trim()
+    && (!requiresDate || draft.date),
+  )
 
   return createPortal(
     <div
@@ -282,6 +330,7 @@ export default function LinkOrganizerModal({
                 setSourceKind(event.target.value as LinkSourceKind)
                 setDraft(null)
                 setOcrError('')
+                setPageImageUrls([])
               }}
             >
               <option value="web-page">일반 링크</option>
@@ -303,7 +352,11 @@ export default function LinkOrganizerModal({
           <label className="span-2">링크
             <input
               value={url}
-              onChange={event => setUrl(event.target.value)}
+              onChange={event => {
+                setUrl(event.target.value)
+                setDraft(null)
+                setPageImageUrls([])
+              }}
               onKeyDown={event => { if (event.key === 'Enter' && !event.nativeEvent.isComposing) void analyze() }}
               placeholder={sourceKind === 'image-poster' ? '이미지 포스터가 있는 공고 링크 또는 이미지 주소' : 'https://...'}
               autoFocus
@@ -356,14 +409,35 @@ export default function LinkOrganizerModal({
         {error && <div className="link-modal-error">{error}</div>}
 
         <div className="link-modal-actions">
-          <button type="button" style={buttonStyle} onClick={analyze}>초안 만들기</button>
+          <button type="button" style={buttonStyle} onClick={analyze} disabled={analyzeBusy}>
+            {analyzeBusy ? '페이지 읽는 중' : '초안 만들기'}
+          </button>
         </div>
+
+        {pageImageUrls.length > 0 && (
+          <div className="link-image-candidates">
+            <div>
+              <strong>페이지 이미지 후보 {pageImageUrls.length}개</strong>
+              <span>글자가 있는 이미지를 선택해 OCR할 수 있습니다.</span>
+            </div>
+            <div className="link-image-candidate-list">
+              {pageImageUrls.map((imageUrl, index) => (
+                <button key={imageUrl} type="button" onClick={() => void runPageImageOcr(imageUrl)} disabled={ocrBusy}>
+                  <img src={imageUrl} alt={`페이지 이미지 후보 ${index + 1}`} loading="lazy" referrerPolicy="no-referrer" />
+                  <span>{index + 1}번 OCR</span>
+                </button>
+              ))}
+            </div>
+            {ocrStatus && <small aria-live="polite">{ocrStatus}</small>}
+            {ocrError && <small className="link-modal-error">{ocrError}</small>}
+          </div>
+        )}
 
         {draft && (
           <div className="link-preview">
             <div className="link-preview-head">
               <strong>{draft.sourceKind === 'image-poster' ? '포스터 분석' : TARGET_LABELS[draft.target]} 미리보기</strong>
-              <span>{draft.hostname}</span>
+              <span>신뢰도 {draft.confidence === 'high' ? '높음' : draft.confidence === 'medium' ? '보통' : '낮음'} · {draft.hostname}</span>
             </div>
             {draft.notice && <div className="link-modal-notice">{draft.notice}</div>}
             <div className="link-modal-grid">
@@ -374,7 +448,14 @@ export default function LinkOrganizerModal({
               {draft.target === 'career' && (
                 <>
                   <label>기관/회사
-                    <input value={organization} onChange={event => setOrganization(event.target.value)} placeholder={draft.hostname} />
+                    <input
+                      value={organization}
+                      onChange={event => {
+                        setOrganization(event.target.value)
+                        updateDraft('organization', event.target.value || undefined)
+                      }}
+                      placeholder="자동 확인 안 됨"
+                    />
                   </label>
                   <label>구분
                     <select value={draft.category} onChange={event => updateDraft('category', event.target.value as CareerEventCategory)}>
@@ -406,7 +487,8 @@ export default function LinkOrganizerModal({
                     <input type="time" value={draft.endTime ?? ''} onChange={event => updateDraft('endTime', event.target.value)} />
                   </label>
                   <label>진행 방식
-                    <select value={draft.mode} onChange={event => updateDraft('mode', event.target.value as LinkAnalysisDraft['mode'])}>
+                    <select value={draft.mode ?? ''} onChange={event => updateDraft('mode', event.target.value ? event.target.value as NonNullable<LinkAnalysisDraft['mode']> : undefined)}>
+                      <option value="">확인 필요</option>
                       {Object.entries(MODE_LABELS).map(([value, label]) => (
                         <option key={value} value={value}>{label}</option>
                       ))}
@@ -430,7 +512,8 @@ export default function LinkOrganizerModal({
                     <input type="time" value={draft.endTime ?? ''} onChange={event => updateDraft('endTime', event.target.value)} />
                   </label>
                   <label>진행 방식
-                    <select value={draft.mode} onChange={event => updateDraft('mode', event.target.value as LinkAnalysisDraft['mode'])}>
+                    <select value={draft.mode ?? ''} onChange={event => updateDraft('mode', event.target.value ? event.target.value as NonNullable<LinkAnalysisDraft['mode']> : undefined)}>
+                      <option value="">확인 필요</option>
                       {Object.entries(MODE_LABELS).map(([value, label]) => (
                         <option key={value} value={value}>{label}</option>
                       ))}
@@ -477,13 +560,13 @@ export default function LinkOrganizerModal({
           <button
             type="button"
             onClick={save}
-            disabled={!draft || !draft.title.trim()}
+            disabled={!canSave}
             style={{
               ...buttonStyle,
               borderColor: 'var(--accent)',
               background: 'var(--accent)',
               color: '#fff',
-              opacity: !draft || !draft.title.trim() ? 0.55 : 1,
+              opacity: !canSave ? 0.55 : 1,
             }}
           >
             {primaryLabel}
@@ -602,6 +685,47 @@ export default function LinkOrganizerModal({
             padding: 8px 9px;
             font-size: 12px;
             line-height: 1.45;
+          }
+          .link-image-candidates {
+            display: flex;
+            flex-direction: column;
+            gap: 9px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg3);
+            padding: 11px;
+          }
+          .link-image-candidates > div:first-child {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+          }
+          .link-image-candidates strong { font-size: 12px; }
+          .link-image-candidates span,
+          .link-image-candidates small { color: var(--muted); font-size: 11px; line-height: 1.45; }
+          .link-image-candidate-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+            gap: 8px;
+          }
+          .link-image-candidate-list button {
+            min-width: 0;
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            background: var(--bg2);
+            color: var(--text);
+            padding: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            cursor: pointer;
+          }
+          .link-image-candidate-list img {
+            width: 100%;
+            height: 74px;
+            object-fit: contain;
+            background: #fff;
+            border-radius: 5px;
           }
           .link-modal-error {
             border-radius: 7px;

@@ -2,18 +2,11 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { Buffer } from 'node:buffer'
 import { assertFirebaseEnv } from './scripts/env-validation.mjs'
+import { buildJinaReaderUrl, normalizeReaderUrl, rankImageUrls, safeImageUrl } from './functions/src/reader.js'
 
 const READER_FIRST_HOSTS = ['sites.google.com', 'saramin.co.kr', 'incruit.com']
 
-const normalizeTargetUrl = (raw) => {
-  const value = String(raw ?? '').trim()
-  if (!value) throw new Error('EMPTY_URL')
-  const withScheme = /^https?:\/\//i.test(value) ? value : `https://${value}`
-  const parsed = new URL(withScheme)
-  if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('INVALID_URL')
-  parsed.hash = ''
-  return parsed.toString()
-}
+const normalizeTargetUrl = (raw) => normalizeReaderUrl(raw)
 
 const isReaderFirstHost = (url) => {
   const parsed = new URL(url)
@@ -42,7 +35,7 @@ const getReaderTargetUrls = (url) => {
 }
 
 const toReaderUrl = (url) =>
-  `https://r.jina.ai/http://${url}`
+  buildJinaReaderUrl(url)
 
 const JOB_CONTENT_HINTS =
   /기업명|회사명|기관명|채용\s*직무|담당\s*직무|모집\s*직무|모집\s*부문|포지션|주요\s*업무|세부\s*업무|담당업무|기술스택|기술\s*스택|스킬|채용\s*인원|채용예정인원|연봉|급여|보수\s*수준|고용형태|근무형태|채용\s*구분|지원\s*자격|자격요건|응시\s*자격|우대사항|소재지|근무지|근\s*무\s*지|근무\s*지역|사업내용|핵심\s*정보|접수\s*기간|지원서\s*접수|마감일|채용\s*일정|원티드|사람인|블록체인|보안|프론트엔드|백엔드|개발자|엔지니어|engineer|developer/i
@@ -108,7 +101,7 @@ const htmlToText = (html) =>
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')
     .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/(p|div|li|h[1-6]|tr|section|article)>/gi, '\n')
+    .replace(/<\/(p|div|li|h[1-6]|tr|td|th|dt|dd|section|article|main|table|thead|tbody|tfoot|figure|figcaption|option)>/gi, '\n')
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/g, ' ')
     .replace(/&amp;/g, '&')
@@ -160,13 +153,24 @@ const extractImageUrls = (text, baseUrl) => {
     if (imageUrl && isLikelyContentImage(imageUrl) && !urls.includes(imageUrl)) urls.push(imageUrl)
   }
 
-  for (const match of text.matchAll(/<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi)) {
+  for (const match of text.matchAll(/<img\b[^>]*(?:\bsrc|\bdata-src|\bdata-lazy-src)=["']([^"']+)["'][^>]*>/gi)) {
     pushUrl(match[1])
+  }
+  for (const match of text.matchAll(/\bsrcset=["']([^"']+)["']/gi)) {
+    pushUrl(match[1].split(',')[0].trim().split(/\s+/)[0])
   }
   for (const match of text.matchAll(/!\[[^\]]*]\(([^)\s]+)[^)]*\)/g)) {
     pushUrl(match[1])
   }
-  return urls.slice(0, 8)
+  return rankImageUrls(urls).slice(0, 8)
+}
+
+const decodeTextResponse = async (response) => {
+  const bytes = await response.arrayBuffer()
+  const contentType = response.headers.get('content-type') ?? ''
+  const header = new TextDecoder('ascii').decode(bytes.slice(0, 8192))
+  const charset = /charset\s*=\s*(euc-kr|ks_c_5601-1987|cp949)/i.test(`${contentType} ${header}`) ? 'euc-kr' : 'utf-8'
+  return new TextDecoder(charset).decode(bytes)
 }
 
 const fetchText = async (url, source) => {
@@ -181,7 +185,7 @@ const fetchText = async (url, source) => {
       },
     })
     if (!response.ok) return { text: '', imageUrls: [] }
-    const text = await response.text()
+    const text = source === 'reader' ? await response.text() : await decodeTextResponse(response)
     return {
       text: source === 'reader' ? text.slice(0, 30000) : htmlToText(text),
       imageUrls: extractImageUrls(text, url),
@@ -228,6 +232,7 @@ const jobPostingPageApi = () => ({
       try {
         const requestUrl = new URL(req.url ?? '/', 'http://localhost')
         const targetUrl = normalizeTargetUrl(requestUrl.searchParams.get('url'))
+        if (!safeImageUrl(targetUrl, targetUrl)) throw new Error('UNSUPPORTED_IMAGE_URL')
         const controller = new AbortController()
         const timeout = setTimeout(() => controller.abort(), 10000)
         try {

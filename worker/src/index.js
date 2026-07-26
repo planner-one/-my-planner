@@ -1,7 +1,9 @@
 import {
+  buildJinaReaderUrl,
   buildPageResult,
   buildReaderFailure,
   normalizeReaderUrl,
+  rankImageUrls,
   safeImageUrl,
 } from '../../functions/src/reader.js'
 
@@ -22,15 +24,23 @@ const fetchUpstream = async (url, init = {}) => {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 12000)
   try {
-    return await fetch(url, {
-      ...init,
-      signal: controller.signal,
-      redirect: 'follow',
-      headers: {
-        'user-agent': 'Mozilla/5.0 (compatible; PlannerLinkReader/1.0)',
-        ...init.headers,
-      },
-    })
+    let currentUrl = normalizeReaderUrl(url)
+    for (let redirectCount = 0; redirectCount <= 5; redirectCount += 1) {
+      const response = await fetch(currentUrl, {
+        ...init,
+        signal: controller.signal,
+        redirect: 'manual',
+        headers: {
+          'user-agent': 'Mozilla/5.0 (compatible; PlannerLinkReader/1.0)',
+          ...init.headers,
+        },
+      })
+      if (![301, 302, 303, 307, 308].includes(response.status)) return response
+      const location = response.headers.get('location')
+      if (!location) return response
+      currentUrl = normalizeReaderUrl(new URL(location, currentUrl).toString())
+    }
+    throw new Error('TOO_MANY_REDIRECTS')
   } finally {
     clearTimeout(timer)
   }
@@ -45,7 +55,7 @@ const decodeResponseText = async (response) => {
 }
 
 const readReaderFallback = async (target) => {
-  const readerUrl = `https://r.jina.ai/http://${target}`
+  const readerUrl = buildJinaReaderUrl(target)
   const response = await fetchUpstream(readerUrl, { headers: { accept: 'text/plain,*/*;q=0.8' } })
   if (!response.ok) return null
   const text = (await response.text()).slice(0, 30000)
@@ -54,17 +64,47 @@ const readReaderFallback = async (target) => {
     const image = safeImageUrl(match[1], target)
     if (image && !imageUrls.includes(image)) imageUrls.push(image)
   }
-  return { text, source: 'reader', imageUrls: imageUrls.slice(0, 8) }
+  return { text, source: 'reader', imageUrls: rankImageUrls(imageUrls).slice(0, 8) }
 }
 
 const page = async (request) => {
   try {
     const target = normalizeReaderUrl(new URL(request.url).searchParams.get('url'))
-    const upstream = await fetchUpstream(target, {
-      headers: { accept: 'text/html,text/plain,application/xhtml+xml,*/*;q=0.8' },
-    })
-    if (!upstream.ok) return json(buildReaderFailure('UPSTREAM_HTTP_ERROR', `원문 사이트 응답 코드 ${upstream.status}`))
+    let upstream
+    try {
+      upstream = await fetchUpstream(target, {
+        headers: { accept: 'text/html,text/plain,application/xhtml+xml,*/*;q=0.8' },
+      })
+    } catch (directError) {
+      if (directError instanceof Error && directError.message === 'UNSAFE_TARGET') throw directError
+      const fallback = await readReaderFallback(target)
+      if (fallback?.text) return json({ ...fallback, status: 'success', finalUrl: target, fallback: 'jina' })
+      throw directError
+    }
+    if (!upstream.ok) {
+      const fallback = await readReaderFallback(target)
+      if (fallback?.text) return json({ ...fallback, status: 'success', finalUrl: target, fallback: 'jina' })
+      return json(buildReaderFailure('UPSTREAM_HTTP_ERROR', `원문 사이트 응답 코드 ${upstream.status}`))
+    }
     const contentType = upstream.headers.get('content-type') ?? ''
+    if (contentType.includes('application/pdf')) {
+      const fallback = await readReaderFallback(target)
+      return fallback?.text
+        ? json({ ...fallback, status: 'success', finalUrl: upstream.url || target, fallback: 'jina' })
+        : json(buildReaderFailure('PDF_READ_FAILED', 'PDF 본문을 읽지 못했습니다. PDF 파일 또는 내용을 직접 넣어 주세요.'))
+    }
+    if (contentType.startsWith('image/')) {
+      const imageUrl = safeImageUrl(upstream.url || target, target)
+      return json({
+        text: '',
+        source: 'direct',
+        imageUrls: imageUrl ? [imageUrl] : [],
+        status: imageUrl ? 'partial' : 'UNSUPPORTED_CONTENT',
+        message: imageUrl ? '이미지 링크입니다. OCR로 글자를 읽어 주세요.' : '지원하지 않는 이미지 링크입니다.',
+        finalUrl: upstream.url || target,
+        fallback: 'direct',
+      })
+    }
     const body = await decodeResponseText(upstream)
     const result = contentType.includes('html') ? buildPageResult(body, target) : {
       text: body.slice(0, 30000), source: 'direct', imageUrls: [],
@@ -72,11 +112,18 @@ const page = async (request) => {
     if (result.text.length < 600) {
       try {
         const fallback = await readReaderFallback(target)
-        if (fallback?.text.length > result.text.length) return json({ ...fallback, status: 'success', finalUrl: upstream.url || target, fallback: 'jina' })
+        if (fallback?.text.length > result.text.length) return json({
+          ...fallback,
+          imageUrls: rankImageUrls([...fallback.imageUrls, ...result.imageUrls]).slice(0, 8),
+          status: 'success',
+          finalUrl: upstream.url || target,
+          fallback: 'jina',
+        })
       } catch { /* Keep the direct result when the fallback is unavailable. */ }
     }
     return json({ ...result, status: result.text ? 'success' : 'partial', finalUrl: upstream.url || target, fallback: 'direct' })
   } catch (error) {
+    if (!['UNSAFE_TARGET', 'INVALID_URL'].includes(error?.message)) console.error('reader page failed', error)
     const code = error?.message === 'UNSAFE_TARGET' ? 'UNSAFE_TARGET' : error?.message === 'INVALID_URL' ? 'INVALID_URL' : 'FETCH_FAILED'
     return json(buildReaderFailure(code, '페이지를 읽지 못했습니다. 링크가 공개되어 있는지 확인하거나 원문을 붙여넣어 주세요.'))
   }
@@ -85,7 +132,7 @@ const page = async (request) => {
 const image = async (request) => {
   try {
     const target = normalizeReaderUrl(new URL(request.url).searchParams.get('url'))
-    if (!/\.(png|jpe?g|webp|gif|bmp)(\?|$)/i.test(new URL(target).pathname)) return new Response('Unsupported image URL', { status: 400 })
+    if (!safeImageUrl(target, target)) return new Response('Unsupported image URL', { status: 400 })
     const upstream = await fetchUpstream(target)
     const contentType = upstream.headers.get('content-type') ?? ''
     const length = Number(upstream.headers.get('content-length') ?? 0)

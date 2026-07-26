@@ -316,10 +316,10 @@ export default function JobPostings() {
         status: previous.status === 'saved' ? 'preparing' : previous.status,
         company: !isPlaceholderCompany(previous.company)
           ? previous.company
-          : hasReadableContent ? draft.company || previous.company || '기업 미정' : previous.company,
+          : hasReadableContent ? draft.company || previous.company : previous.company,
         position: !isPlaceholderPosition(previous.position)
           ? previous.position
-          : hasReadableContent ? draft.position || previous.position || '공고 확인 필요' : previous.position,
+          : hasReadableContent ? draft.position || previous.position : previous.position,
         deadline: hasReadableContent ? previous.deadline || draft.deadline : previous.deadline,
         location: hasReadableContent ? previous.location || draft.location : previous.location,
         employmentType: hasReadableContent ? previous.employmentType || draft.employmentType : previous.employmentType,
@@ -331,9 +331,12 @@ export default function JobPostings() {
         ? pageTextResult.source === 'reader' ? 'Reader로 읽은 링크 본문과 보조 텍스트' : '링크 본문과 보조 텍스트'
         : manualText ? '붙여넣은 공고 내용과 링크 주소' : '링크 주소'
       const imageNotice = pageTextResult.imageUrls.length ? ` 페이지 이미지 후보 ${pageTextResult.imageUrls.length}개도 찾았습니다.` : ''
+      const missing = [!draft.company ? '회사' : '', !draft.position ? '포지션' : '', !draft.deadline ? '마감일' : ''].filter(Boolean)
+      const missingNotice = missing.length ? ` 자동 확인 필요: ${missing.join(', ')}.` : ''
+      const readerNotice = pageTextResult.message ? ` ${pageTextResult.message}` : ''
       setShowManualLinkText(!hasExtractedDraft || Boolean(linkDraftText.trim()))
       setLinkDraftStatus(hasExtractedDraft
-        ? `${source}를 바탕으로 초안을 반영했습니다.${imageNotice}`
+        ? `${source}를 바탕으로 초안을 반영했습니다.${imageNotice}${missingNotice}${readerNotice}`
         : pageTextResult.imageUrls.length
           ? '링크 본문은 공고 텍스트로 읽지 못했지만 페이지 이미지 후보를 찾았습니다. 페이지 이미지 OCR을 시도해 보세요.'
           : '링크 주소만으로는 공고 본문을 추출하지 못했습니다. 아래 페이지 내용 붙여넣기 칸에 공고 내용을 넣고 다시 반영하면 기업명, 직무, 마감일, 조건을 채웁니다.')
@@ -360,8 +363,8 @@ export default function JobPostings() {
       updatePosting(item.id, {
         sourceUrl: draft.sourceUrl,
         platform: draft.platform,
-        company: !isPlaceholderCompany(item.company) ? item.company : hasReadableContent ? draft.company || item.company || '기업 미정' : item.company,
-        position: !isPlaceholderPosition(item.position) ? item.position : hasReadableContent ? draft.position || item.position || '공고 확인 필요' : item.position,
+        company: !isPlaceholderCompany(item.company) ? item.company : hasReadableContent ? draft.company || item.company : item.company,
+        position: !isPlaceholderPosition(item.position) ? item.position : hasReadableContent ? draft.position || item.position : item.position,
         deadline: hasReadableContent ? item.deadline || draft.deadline || undefined : item.deadline,
         location: hasReadableContent ? item.location || draft.location || undefined : item.location,
         employmentType: hasReadableContent ? item.employmentType || draft.employmentType || undefined : item.employmentType,
@@ -660,10 +663,18 @@ export default function JobPostings() {
           )}
           {linkImageUrls.length > 0 && (
             <div className="job-link-images">
-              <span>페이지 이미지 후보 {linkImageUrls.length}개</span>
-              <button type="button" onClick={() => runPageImageOcr()} disabled={ocrBusy}>
-                {ocrBusy ? 'OCR 중' : '첫 이미지 OCR'}
-              </button>
+              <div>
+                <strong>페이지 이미지 후보 {linkImageUrls.length}개</strong>
+                <span>실제 공고 이미지를 골라 OCR하세요.</span>
+              </div>
+              <div className="job-link-image-grid">
+                {linkImageUrls.map((imageUrl, index) => (
+                  <button key={imageUrl} type="button" onClick={() => runPageImageOcr(imageUrl)} disabled={ocrBusy}>
+                    <img src={imageUrl} alt={`공고 이미지 후보 ${index + 1}`} loading="lazy" referrerPolicy="no-referrer" />
+                    <span>{ocrBusy ? 'OCR 중' : `${index + 1}번 OCR`}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
           {linkDraftStatus && <small>{linkDraftStatus}</small>}
@@ -946,9 +957,13 @@ export default function JobPostings() {
         .job-link-assist-body button:disabled { opacity: 0.65; cursor: wait; }
         .job-link-assist-body p { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
         .job-link-assist-body small { grid-column: 1 / -1; color: var(--accent); font-size: 11px; font-weight: 800; }
-        .job-link-images { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); padding: 8px 9px; }
+        .job-link-images { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg3); padding: 9px; }
+        .job-link-images > div:first-child { display: flex; flex-direction: column; gap: 2px; }
+        .job-link-images strong { font-size: 12px; }
         .job-link-images span { min-width: 0; color: var(--muted); font-size: 11px; font-weight: 800; }
-        .job-link-images button { min-height: 30px; background: var(--bg2); color: var(--text); border: 1px solid var(--border); }
+        .job-link-image-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 8px; }
+        .job-link-assist-body .job-link-image-grid button { min-width: 0; min-height: 118px; background: var(--bg2); color: var(--text); border: 1px solid var(--border); padding: 6px; display: flex; flex-direction: column; gap: 5px; }
+        .job-link-image-grid img { width: 100%; height: 82px; object-fit: contain; border-radius: 5px; background: #fff; }
         .job-codex-assist-body { border-top: 1px solid var(--border); padding: 11px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
         .job-codex-assist-body > div { display: flex; flex-wrap: wrap; gap: 8px; }
         .job-codex-assist-body button { min-height: 34px; border: 0; border-radius: 7px; background: var(--accent); color: #fff; padding: 0 12px; font-size: 12px; font-weight: 900; cursor: pointer; }

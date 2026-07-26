@@ -463,17 +463,17 @@ export default function CareerEvents() {
     setForm(previous => ({
       ...previous,
       title: previous.title || draft.title,
-      organization: previous.organization || draft.organization || draft.hostname,
-      category: draft.category,
-      status: draft.status,
+      organization: previous.organization || draft.organization || '',
+      category: draft.category !== 'other' ? draft.category : previous.category,
+      status: previous.status,
       date: draft.date || previous.date,
       applicationDeadline: draft.deadline || previous.applicationDeadline,
-      resultDate: draft.resultDate || previous.resultDate,
-      milestones: mergeMilestoneRows(previous.milestones, [
-        draft.date ? createMilestoneRow('main', '일정', draft.date) : null,
-        draft.deadline ? createMilestoneRow('application_deadline', '신청 마감', draft.deadline) : null,
-        draft.resultDate ? createMilestoneRow('result_announcement', '결과 발표', draft.resultDate) : null,
-      ].filter((milestone): milestone is CareerMilestone => Boolean(milestone)), {
+      resultDate: draft.finalResultDate || draft.resultDate || previous.resultDate,
+      operationStartDate: draft.operationStartDate || previous.operationStartDate,
+      operationEndDate: draft.operationEndDate || previous.operationEndDate,
+      milestones: mergeMilestoneRows(previous.milestones, draft.milestones.map(milestone =>
+        createMilestoneRow(milestone.type, milestone.label, milestone.date, milestone.endDate),
+      ), {
         replaceDefaultMain: previous.date === toLocalDateKey(),
       }),
       time: draft.time || previous.time,

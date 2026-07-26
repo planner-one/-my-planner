@@ -1,7 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import QuickMemoContent from '../components/QuickMemoContent'
 import { useApp } from '../store/AppContext'
 import type { Note, QuickMemoEntry, Todo } from '../types'
 import { toLocalDateKey } from '../utils/date'
+import { getQuickMemoListEdit } from '../utils/quickMemo'
 
 type View = 'notes' | 'inbox' | 'archive'
 
@@ -66,6 +68,7 @@ export default function Notes() {
   const [view, setView] = useState<View>('notes')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingContent, setEditingContent] = useState('')
+  const memoEditCancelledRef = useRef(false)
   const [noteComposerOpen, setNoteComposerOpen] = useState(false)
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
   const [noteForm, setNoteForm] = useState<NoteFormState>(() => emptyNoteForm())
@@ -168,6 +171,10 @@ export default function Notes() {
   }
 
   const saveMemoEdit = () => {
+    if (memoEditCancelledRef.current) {
+      memoEditCancelledRef.current = false
+      return
+    }
     const content = editingContent.trim()
     if (editingId && content) {
       updateMemo(editingId, memo => ({
@@ -178,6 +185,39 @@ export default function Notes() {
     }
     setEditingId(null)
     setEditingContent('')
+  }
+
+  const cancelMemoEdit = () => {
+    memoEditCancelledRef.current = true
+    setEditingId(null)
+    setEditingContent('')
+    window.setTimeout(() => {
+      memoEditCancelledRef.current = false
+    }, 0)
+  }
+
+  const handleMemoEditorKeyDown = (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      cancelMemoEdit()
+      return
+    }
+    if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return
+
+    const textarea = event.currentTarget
+    const edit = getQuickMemoListEdit(
+      textarea.value,
+      textarea.selectionStart,
+      textarea.selectionEnd,
+    )
+    if (!edit) return
+    if (edit.value.length > 240) return
+
+    event.preventDefault()
+    setEditingContent(edit.value)
+    window.requestAnimationFrame(() => {
+      textarea.setSelectionRange(edit.cursor, edit.cursor)
+    })
   }
 
   const archiveMemo = (memo: QuickMemoEntry, converted?: { type: 'todo' | 'note'; id: string }) => {
@@ -338,20 +378,18 @@ export default function Notes() {
                   <article className="memo-item" key={memo.id}>
                     <div className="memo-item-main">
                       {editingId === memo.id ? (
-                        <input
+                        <textarea
                           className="memo-edit-input"
                           value={editingContent}
                           autoFocus
                           maxLength={240}
+                          rows={4}
                           onChange={event => setEditingContent(event.target.value)}
                           onBlur={saveMemoEdit}
-                          onKeyDown={event => {
-                            if (event.key === 'Enter' && !event.nativeEvent.isComposing) saveMemoEdit()
-                            if (event.key === 'Escape') setEditingId(null)
-                          }}
+                          onKeyDown={handleMemoEditorKeyDown}
                         />
                       ) : (
-                        <p>{memo.content}</p>
+                        <QuickMemoContent content={memo.content} />
                       )}
                       <div className="memo-meta">
                         <time>{new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit' }).format(new Date(memo.createdAt))}</time>
@@ -455,9 +493,9 @@ export default function Notes() {
         .memo-list { border-top: 1px solid var(--border); }
         .memo-item { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-height: 68px; padding: 10px 4px; border-bottom: 1px solid var(--border); }
         .memo-item-main { min-width: 0; flex: 1; }
-        .memo-item-main p { margin: 0 0 6px; line-height: 1.5; font-size: 14px; overflow-wrap: anywhere; }
+        .memo-item-main .quick-memo-content { margin: 0 0 6px; line-height: 1.5; font-size: 14px; overflow-wrap: anywhere; }
         .memo-meta { display: flex; gap: 8px; color: var(--muted); font-size: 10px; }
-        .memo-edit-input { height: 36px; padding: 0 9px; margin-bottom: 5px; }
+        .memo-edit-input { min-height: 96px; padding: 9px; margin-bottom: 5px; resize: vertical; font-size: 14px; line-height: 1.5; }
         .memo-actions { display: flex; gap: 4px; flex-shrink: 0; flex-wrap: wrap; }
         .memo-actions button.is-danger,
         .note-card-actions button.is-danger { color: var(--red); }

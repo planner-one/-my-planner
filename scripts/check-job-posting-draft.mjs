@@ -214,6 +214,47 @@ Title: 한국산업은행 채용정보
 입 행 : 2026. 09. 01. (화) 입행(예정)
 `
 
+const hanaCapitalOcrText = `
+Title: 2026년 하나캐피탈 대졸 채용연계형 인턴사원 모집
+모집 부문
+일반 영업 및 마케팅, 경영지원
+지원 자격
+국내외 4년제 대학 학위 보유자
+지원 기간
+2026년 7월 20일 ~ 2026년 8월 3일 18:00
+전형절차
+서류 전형
+필기 전형
+실무진 면접
+임원 면접
+인턴십
+합격자 발표
+제출 서류
+온라인 입사지원서
+복리후생
+4대보험, 건강검진, 자녀 학자금, 복지포인트, 장기근속 포상
+`
+
+const hanaCapitalNoisyOcrText = `
+2026년
+하나캐피탈은 폭넓은 사업 포트폴리오와 금융 전문성을 기반으로 손님 중심의 차별화된 금융 서비스를 제공하는 회사입니다.
+모죄 부문
+영업 및 마케팅, oa
+Cd 경영지원, 등업무
+지원 자격 및 우대 사항
+국내외 4년제 대학 학위 소지자
+지원 기간
+2026년 7월 20일 ~ 2026년 8월 3일 18:00
+전형절차 및 일정
+5 으, 으
+서류전영 Wimy _ 실무진면접 임원 면접 인턴십 합격자 발표
+＊ 4대보험, 건강검진, 단체상해보험, 의료비 지원
+자녀 학자금, 복지포인트, 자기개발비
+복리후생 기념일 지원, 심리 상담 프로그램
+기타사항
+채용 건강검진 결과 근로가 제한되는 질병이 있는 경우 채용 취소
+`
+
 const linkOnly = buildJobPostingLinkDraft(googleSitesUrl)
 assert.equal(linkOnly.platform, 'company')
 assert.equal(linkOnly.company, '')
@@ -296,6 +337,29 @@ assert.equal(hasUsefulJobText(incruitKdbReaderText), true)
 assert.equal(detectJobPlatform(incruitUrl), 'incruit')
 assert.equal(hasUsefulJobText('Google Sites home cor nextsystem authuser'), false)
 assert.equal(hasUsefulJobText(samplePostingText), true)
+
+const hanaCapitalDraft = buildJobPostingLinkDraft('https://hanacapital.incruit.com/hire/viewhire.asp?projectid=103', hanaCapitalOcrText)
+assert.equal(hanaCapitalDraft.company, '하나캐피탈')
+assert.equal(hanaCapitalDraft.deadline, '2026-08-03')
+assert.match(hanaCapitalDraft.requirements, /4년제 대학/)
+assert.match(hanaCapitalDraft.process, /서류 전형/)
+assert.match(hanaCapitalDraft.process, /실무진 면접/)
+assert.match(hanaCapitalDraft.process, /임원 면접/)
+assert.match(hanaCapitalDraft.process, /인턴십/)
+assert.match(hanaCapitalDraft.process, /합격자 발표/)
+assert.match(hanaCapitalDraft.documents, /온라인 입사지원서/)
+assert.match(hanaCapitalDraft.benefits, /4대보험/)
+assert.match(hanaCapitalDraft.note, /복지\/혜택/)
+assert.match(hanaCapitalDraft.note, /전형절차/)
+
+const hanaCapitalNoisyDraft = buildJobPostingLinkDraft('https://hanacapital.incruit.com/hire/viewhire.asp?projectid=103', hanaCapitalNoisyOcrText)
+assert.equal(hanaCapitalNoisyDraft.company, '하나캐피탈')
+assert.equal(hanaCapitalNoisyDraft.position, '영업 및 마케팅 / 경영지원')
+assert.equal(hanaCapitalNoisyDraft.deadline, '2026-08-03')
+assert.match(hanaCapitalNoisyDraft.process, /실무진면접/)
+assert.match(hanaCapitalNoisyDraft.benefits, /4대보험/)
+assert.match(hanaCapitalNoisyDraft.benefits, /복지포인트/)
+assert.equal(hanaCapitalNoisyDraft.benefits.includes('채용 취소'), false)
 
 const metaTitleDraft = inferJobPostingFromText('청년취업사관학교(SeSAC) 6월 매칭데이 참여 신청 - 주식회사 스탁키퍼')
 assert.equal(metaTitleDraft.company, '주식회사 스탁키퍼')

@@ -6,6 +6,28 @@ export interface JobPostingPageTextResult {
   text: string
   source: JobPostingPageTextSource
   imageUrls: string[]
+  status?: string
+  message?: string
+  finalUrl?: string
+  fallback?: 'direct' | 'jina'
+}
+
+const emptyResult = (status?: string, message?: string): JobPostingPageTextResult => ({
+  text: '',
+  source: 'none',
+  imageUrls: [],
+  status,
+  message,
+})
+
+const markAccessRestriction = (result: JobPostingPageTextResult): JobPostingPageTextResult => {
+  const strongAccessWall = /로그인\s*(?:후|이)\s*(?:이용|필요)|접근\s*권한이?\s*(?:없|필요)|권한이\s*필요|sign\s*in\s*to\s*continue|access\s*denied|enable\s+javascript|captcha|attention\s+required|로봇이\s*아님을\s*확인/i.test(result.text)
+  if (!strongAccessWall) return result
+  return {
+    ...result,
+    status: 'ACCESS_RESTRICTED',
+    message: '로그인, 접근 권한 또는 자동 접속 확인 때문에 본문 전체를 읽지 못했을 수 있습니다.',
+  }
 }
 
 const READER_FIRST_HOSTS = ['sites.google.com', 'saramin.co.kr', 'incruit.com']
@@ -45,7 +67,7 @@ const getReaderTargetUrls = (url: string) => {
 }
 
 const toReaderUrl = (url: string) =>
-  `https://r.jina.ai/http://${url}`
+  `https://r.jina.ai/${url}`
 
 const withTimeout = async <T,>(run: (signal: AbortSignal) => Promise<T>, timeoutMs = 7000) => {
   const controller = new AbortController()
@@ -68,16 +90,38 @@ const isLikelyContentImage = (url: string) => {
   return true
 }
 
+const imageScore = (url: string) => {
+  const lower = url.toLowerCase()
+  let decoded = lower
+  try { decoded = decodeURIComponent(lower) } catch { /* Keep the encoded URL for scoring. */ }
+  let score = 0
+  if (/\/(successdata|addfile|uploads?|uploadfiles?|attachments?|board|contents?|editor|notice|recruit|posters?|data)\//.test(lower)) score += 8
+  if (/poster|recruit|채용|공고|모집|행사|교육|program|content/.test(decoded)) score += 5
+  if (/googleusercontent\.com|saraminimage\.co\.kr|pds\.saramin\.co\.kr/.test(lower)) score += 3
+  if (/\/(header|footer|nav|menu|common|layout|skin|template|sns)\//.test(lower)) score -= 7
+  if (/(^|[/_-])(on|off|over|rollover)([_.-]|$)|subimg|banner|thumb_logo|social|sns[_-]?\d/i.test(lower)) score -= 7
+  return score
+}
+
+const rankImageUrls = (urls: string[]) =>
+  Array.from(new Set(urls.filter(Boolean)))
+    .map((url, index) => ({ url, index, score: imageScore(url) }))
+    .filter(candidate => candidate.score > -5)
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .map(candidate => candidate.url)
+
 const extractImageUrls = (doc: Document, baseUrl: string) =>
-  Array.from(doc.querySelectorAll('img[src]'))
+  Array.from(doc.querySelectorAll('img[src], img[data-src], img[data-lazy-src], source[srcset]'))
     .map(image => {
       try {
-        return new URL(image.getAttribute('src') ?? '', baseUrl).toString()
+        const raw = image.getAttribute('src') ?? image.getAttribute('data-src') ?? image.getAttribute('data-lazy-src') ?? image.getAttribute('srcset')?.split(',')[0]?.trim().split(/\s+/)[0] ?? ''
+        return new URL(raw, baseUrl).toString()
       } catch {
         return ''
       }
     })
     .filter((url, index, urls) => url && isLikelyContentImage(url) && urls.indexOf(url) === index)
+    .sort((a, b) => imageScore(b) - imageScore(a))
     .slice(0, 8)
 
 const extractMarkdownImageUrls = (text: string, baseUrl: string) => {
@@ -93,7 +137,7 @@ const extractMarkdownImageUrls = (text: string, baseUrl: string) => {
   for (const match of text.matchAll(/!\[[^\]]*]\(([^)\s]+)[^)]*\)/g)) {
     pushUrl(match[1])
   }
-  return urls.slice(0, 8)
+  return rankImageUrls(urls).slice(0, 8)
 }
 
 const jsonValueToText = (value: unknown, results: string[] = []) => {
@@ -145,13 +189,16 @@ const htmlToResult = (html: string, baseUrl: string): JobPostingPageTextResult =
       .slice(0, 30000),
     source: 'direct',
     imageUrls: extractImageUrls(doc, baseUrl),
+    status: 'success',
+    finalUrl: baseUrl,
+    fallback: 'direct',
   }
 }
 
 const fetchDirectResult = async (url: string): Promise<JobPostingPageTextResult> =>
   withTimeout(async signal => {
     const response = await fetch(url, { signal, credentials: 'omit' })
-    if (!response.ok) return { text: '', source: 'none', imageUrls: [] }
+    if (!response.ok) return emptyResult('UPSTREAM_HTTP_ERROR')
     const html = await response.text()
     return htmlToResult(html, url)
   }, 5000)
@@ -164,31 +211,40 @@ const fetchSameOriginApiText = async (url: string): Promise<JobPostingPageTextRe
       headers: { accept: 'application/json' },
     })
     const contentType = response.headers.get('content-type') ?? ''
-    if (!response.ok || !contentType.includes('application/json')) return { text: '', source: 'none', imageUrls: [] }
+    if (!response.ok || !contentType.includes('application/json')) return emptyResult('LOCAL_READER_UNAVAILABLE')
     const result = await response.json() as Partial<JobPostingPageTextResult>
     return {
       text: typeof result.text === 'string' ? result.text : '',
       source: result.source === 'direct' || result.source === 'reader' ? result.source : 'none',
-      imageUrls: Array.isArray(result.imageUrls) ? result.imageUrls.filter((item): item is string => typeof item === 'string') : [],
+      imageUrls: rankImageUrls(Array.isArray(result.imageUrls) ? result.imageUrls.filter((item): item is string => typeof item === 'string') : []),
+      status: result.status,
+      message: result.message,
+      finalUrl: result.finalUrl,
+      fallback: result.fallback,
     }
   }, 12000)
 
 const fetchProductionReaderText = async (url: string): Promise<JobPostingPageTextResult> =>
   withTimeout(async signal => {
     const readerBaseUrl = String(import.meta.env.VITE_READER_BASE_URL ?? '').replace(/\/$/, '')
-    const response = await fetch(`${readerBaseUrl || ''}/reader/page?url=${encodeURIComponent(url)}`, {
+    if (!readerBaseUrl) return emptyResult('READER_NOT_CONFIGURED', '운영 Reader 주소가 설정되지 않았습니다.')
+    const response = await fetch(`${readerBaseUrl}/reader/page?url=${encodeURIComponent(url)}`, {
       signal,
       credentials: 'same-origin',
       headers: { accept: 'application/json' },
     })
     if (!response.ok || !(response.headers.get('content-type') ?? '').includes('application/json')) {
-      return { text: '', source: 'none', imageUrls: [] }
+      return emptyResult('PRODUCTION_READER_UNAVAILABLE')
     }
     const result = await response.json() as Partial<JobPostingPageTextResult> & { status?: string }
     return {
       text: typeof result.text === 'string' ? result.text : '',
       source: result.source === 'direct' || result.source === 'reader' ? result.source : 'none',
-      imageUrls: Array.isArray(result.imageUrls) ? result.imageUrls.filter((item): item is string => typeof item === 'string') : [],
+      imageUrls: rankImageUrls(Array.isArray(result.imageUrls) ? result.imageUrls.filter((item): item is string => typeof item === 'string') : []),
+      status: result.status,
+      message: result.message,
+      finalUrl: typeof result.finalUrl === 'string' ? result.finalUrl : undefined,
+      fallback: result.fallback === 'jina' ? 'jina' : result.fallback === 'direct' ? 'direct' : undefined,
     }
   }, 15000)
 
@@ -199,12 +255,15 @@ const fetchReaderResult = async (url: string): Promise<JobPostingPageTextResult>
       credentials: 'omit',
       headers: { accept: 'text/plain,*/*' },
     })
-    if (!response.ok) return { text: '', source: 'none', imageUrls: [] }
+    if (!response.ok) return emptyResult('JINA_READER_UNAVAILABLE')
     const text = (await response.text()).slice(0, 30000)
     return {
       text,
       source: 'reader',
       imageUrls: extractMarkdownImageUrls(text, url),
+      status: 'success',
+      finalUrl: url,
+      fallback: 'jina',
     }
   }, 18000)
 
@@ -217,27 +276,40 @@ const fetchReaderTargets = async (url: string) => {
       // Try the next reader target.
     }
   }
-  return { text: '', source: 'none', imageUrls: [] } satisfies JobPostingPageTextResult
+  return emptyResult('JINA_READER_UNAVAILABLE')
 }
 
 export const getJobPostingPageText = async (url: string, options: { acceptAnyText?: boolean } = {}): Promise<JobPostingPageTextResult> => {
   const hasReadableText = (text: string) => options.acceptAnyText ? text.trim().length > 40 : hasUsefulJobText(text)
+  let bestPartial = emptyResult('READ_FAILED', '페이지 본문을 읽지 못했습니다.')
+  const rememberPartial = (result: JobPostingPageTextResult) => {
+    if (
+      result.imageUrls.length > bestPartial.imageUrls.length
+      || result.text.length > bestPartial.text.length
+      || (result.message && bestPartial.status === 'READ_FAILED')
+    ) bestPartial = result
+  }
   try {
-    const apiResult = await fetchSameOriginApiText(url)
+    const apiResult = markAccessRestriction(await fetchSameOriginApiText(url))
     if (apiResult.imageUrls.length || hasReadableText(apiResult.text)) return apiResult
+    rememberPartial(apiResult)
   } catch {
     // Local dev and future backend use /api first; production without that route falls back below.
   }
 
   try {
-    const productionResult = await fetchProductionReaderText(url)
+    const productionResult = markAccessRestriction(await fetchProductionReaderText(url))
     if (productionResult.imageUrls.length || hasReadableText(productionResult.text)) return productionResult
+    rememberPartial(productionResult)
   } catch {
     // Firebase Hosting may be serving an older release without the Reader rewrite.
   }
 
   const readWithReaderFirst = isReaderFirstHost(url)
-  if (readWithReaderFirst) return fetchReaderTargets(url)
+  if (readWithReaderFirst) {
+    const result = markAccessRestriction(await fetchReaderTargets(url))
+    return result.imageUrls.length || hasReadableText(result.text) ? result : bestPartial
+  }
 
   const readers: Array<() => Promise<JobPostingPageTextResult>> = [
     () => fetchDirectResult(url),
@@ -246,19 +318,21 @@ export const getJobPostingPageText = async (url: string, options: { acceptAnyTex
 
   for (const read of readers) {
     try {
-      const result = await read()
+      const result = markAccessRestriction(await read())
       if (result.imageUrls.length || hasReadableText(result.text)) return result
+      rememberPartial(result)
     } catch {
       // Keep link analysis usable when a site blocks browser reads.
     }
   }
 
-  return { text: '', source: 'none', imageUrls: [] }
+  return bestPartial
 }
 
 export const getJobPostingImageBlob = async (url: string) => {
   const readerBaseUrl = String(import.meta.env.VITE_READER_BASE_URL ?? '').replace(/\/$/, '')
-  const response = await fetch(`${readerBaseUrl || ''}/reader/image?url=${encodeURIComponent(url)}`, {
+  const endpoint = readerBaseUrl ? `${readerBaseUrl}/reader/image` : '/api/job-posting-image'
+  const response = await fetch(`${endpoint}?url=${encodeURIComponent(url)}`, {
     credentials: 'same-origin',
   })
   if (!response.ok) throw new Error('IMAGE_FETCH_FAILED')
