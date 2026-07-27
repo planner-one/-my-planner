@@ -16,13 +16,13 @@ _후속 감사 메모: 2026-07-28_
 ## 현재 결론
 
 - 앱은 React/Vite/TypeScript + Firebase Auth/Firestore/Hosting 기반의 Firebase-only 프론트엔드 앱입니다.
-- 별도 운영 백엔드는 없습니다. 다만 지원 공고 Reader는 로컬 Vite 미들웨어로만 동작하는 `/api/job-posting-page`, `/api/job-posting-image` 경계를 가지고 있어 운영 배포에서 동일 기능을 유지하려면 Firebase Functions 또는 별도 백엔드로 이관해야 합니다.
+- 범용 운영 백엔드는 없습니다. 공개 링크 Reader는 운영 Cloudflare `planner-reader`와 로컬 Vite 미들웨어 경계를 사용하며, Firebase Hosting 앱은 Cloudflare Worker를 우선하고 기존 Functions rewrite를 fallback 설정으로 유지합니다.
 - 사용자 앱 데이터는 `users/{uid}` 단일 문서에 저장되고, 문의 데이터만 `inquiries` 컬렉션에 분리 저장됩니다.
 - 페이지는 18개, 위젯은 15개가 실제 코드에 등록되어 있으며 문서의 SC-07/SC-08 체크와 대체로 일치합니다.
 - `NEXT_CHAT_HANDOFF.md`, `PROGRESS.md`, `RELEASES.md`의 오래된 "다음 작업/현재 HEAD" 문구는 2026-07-04 기준으로 갱신했습니다.
 - 2026-07-26에는 Cloudflare `planner-reader`와 Firebase Hosting을 다시 배포해 운영 자산을 확인했습니다. 2026-07-22의 "수정 Worker와 프론트엔드 재배포 전" 문구는 더 이상 현재 상태가 아닙니다.
 - 빠른 메모의 전체 목록·작성/편집 모달·번호/불릿 자동 이어쓰기·보관함 멀티라인 보강은 `REQUIREMENTS.md`, `SCENARIOS.md`, `PROGRESS.md`, `RELEASES.md`에 기록되어 있습니다. 2026-07-28 후속 문서화에서 Shift+Enter, 한글 IME, Escape·배경 닫기와 포커스 복귀 계약을 추가했습니다.
-- 대시보드 배치는 기존 기능의 단순 애니메이션 문제가 아니라 배율 좌표, 편집/보기 캔버스 폭, 자동 압축, 거친 세로 격자와 기기별 정책이 섞인 구조 문제로 확인했습니다. SC-17 코드와 집중 검증은 완료했지만 로그인·터치·15개 위젯 성능 QA와 배포는 아직 완료 상태가 아닙니다.
+- 대시보드 배치는 기존 기능의 단순 애니메이션 문제가 아니라 배율 좌표, 편집/보기 캔버스 폭, 자동 압축, 거친 세로 격자와 기기별 정책이 섞인 구조 문제로 확인했습니다. SC-17 코드·전체 검사·운영 배포와 자산 확인을 완료했으며 로그인·터치·15개 위젯 성능 QA는 후속 확인으로 남았습니다.
 
 ## 아키텍처
 
@@ -54,7 +54,7 @@ _후속 감사 메모: 2026-07-28_
 | `reviewHistory`, `journal` | `users/{uid}` | 하루 마무리, 저널, 생산성 추이 | 날짜별 회고/저널 |
 | `counters`, `chartHistory` | `users/{uid}` | 카운터, 집중 타이머, 생산성 추이 | 집중 타이머는 자동 카운터를 갱신 |
 | `dashboardLayout`, `dashboardActive`, `uiScale` | `users/{uid}` | 대시보드, 대시보드 편집, 프로필 | 기존 레이아웃·활성 위젯 호환 원본과 화면 밀도 |
-| `dashboardConfig` | `users/{uid}` | 대시보드, 대시보드 편집 | SC-17 진행 중: `configVersion 1`, PC·태블릿 독립 `gridVersion 2`, 모바일 순서·노출. 기존 필드는 일괄 삭제하지 않고 새 설정이 없을 때만 변환 원본으로 사용 |
+| `dashboardConfig` | `users/{uid}` | 대시보드, 대시보드 편집 | SC-17 운영 구조: `configVersion 1`, PC·태블릿 독립 `gridVersion 2`, 모바일 순서·노출. 기존 필드는 일괄 삭제하지 않고 새 설정이 없을 때만 변환 원본으로 사용 |
 | `nickname` | `users/{uid}` | 프로필 | 사용자 표시용 |
 | `notificationPreferences` | `users/{uid}` | 프로필, Codex/Gmail/Slack/Discord 알림 후보 | 내 계정 브리핑 알림 설정, 범위는 `ownAccount` 고정 |
 | `inquiries` | `inquiries/{id}` | 문의 | Firestore rules로 본인/관리자 접근 제한 |
@@ -64,7 +64,7 @@ _후속 감사 메모: 2026-07-28_
 - 일반 상태 변경은 `AppContext`에서 1초 debounce로 저장합니다.
 - 로그아웃 전 `saveNow()`로 최대 3초 안에 저장을 시도합니다.
 - 대시보드 레이아웃과 화면 비율은 `saveWithOverrides()`로 즉시 저장합니다.
-- SC-17의 목표 저장 경계는 PC·태블릿 공통 활성 위젯, 두 독립 레이아웃과 모바일 순서·노출을 `DashboardConfig` 한 구조로 관리하는 것입니다. 변환·병합은 UI에서 분리한 순수 함수로 처리하며 구현·검증 완료 전에는 현재 운영 구조로 단정하지 않습니다.
+- SC-17 저장 경계는 PC·태블릿 공통 활성 위젯, 두 독립 레이아웃과 모바일 순서·노출을 `DashboardConfig` 한 구조로 관리합니다. 변환·병합은 UI에서 분리한 순수 함수로 처리하고, 기존 필드는 새 설정이 없을 때만 호환 원본으로 사용합니다.
 - 계정 전환 시 이전 계정 pending save가 새 계정으로 섞이지 않도록 UID와 사용자 메타데이터를 캡처합니다.
 - `quickMemo`, `review`, 날짜 없는 `topGoals`, 오래된 habit/project/career/job 데이터는 로드 시 안전한 기본값으로 보정합니다.
 - 한국 날짜 계산은 `src/utils/date.ts`의 `toLocalDateKey()`와 `T12:00:00` 기준을 우선 사용합니다.
@@ -165,7 +165,7 @@ _후속 감사 메모: 2026-07-28_
 | 우선순위 | 항목 | 이유 | 제안 |
 |---|---|---|---|
 | 완료 | `NEXT_CHAT_HANDOFF.md`의 현재 HEAD/로컬 상태 문구 오래됨 | 최근 커밋 `d339be2`와 맞지 않았음 | 2026-07-04 감사 기준으로 갱신 완료 |
-| P0 | 운영 배포에서 지원 공고 Reader API 부재 | Vite 미들웨어는 Hosting에서 동작하지 않음 | v0.4.0에서 Firebase Functions 이관 |
+| 완료 | 운영 공개 링크 Reader 경계 | Cloudflare `planner-reader` 배포와 Firebase Hosting 연결·운영 사례 확인 | 로그인/동적 렌더링·접근 차단 페이지는 후속 범위로 유지 |
 | 완료 | Reader URL 조합부 재확인 필요 | `vite.config.js`의 `toReaderUrl()`이 `r.jina.ai` 경로를 중복 조합하는 형태였음 | 2026-07-04 KDB 인크루트 샘플로 재검증 후 Reader URL과 인크루트 `http` 대상 재시도 수정 |
 | P1 | 실제 기기 반응형 QA 미완료 | 문서상 코드 기준 완료, 실기기 확인 필요 | 모바일 390px, 태블릿 768/1024px 체크리스트화 |
 | P1 | 디자인 시스템 불균일 | 인라인 스타일, 카드 반경/폼 밀도/패널 패턴이 페이지별로 다름 | v0.3.17 UI System Pass 진행 |

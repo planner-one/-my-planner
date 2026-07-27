@@ -14,15 +14,17 @@ _마지막 업데이트: 2026-07-28_
 | v0.4.x | Integration Ready | 추후 백엔드/API 연결을 고려한 서비스 경계와 외부 연동 준비 |
 | v0.5.x | Paid Intelligence Candidate | 링크 자동 분석, 유료 기능, 사용량 제한, 약관/개인정보 흐름 검토 |
 
-## 미릴리즈 작업 메모 - SC-17 Dashboard Layout Stability
+## 2026-07-28 운영 패치 - Dashboard Layout Stability
 
 - `DashboardConfig configVersion 1`, PC 48열·태블릿 24열 독립 `gridVersion 2`, 모바일 위젯 순서·노출과 레거시 픽셀 보존 변환 구현
 - 보기·편집 공통 캔버스, 실제 배율 좌표, 빈칸 고정, 점유 위치 1초 대기·고스트 후 드롭 자동 밀기, 충돌 리사이즈 정지 구현
 - 저장 중 편집 잠금, 취소 무변경, 미등록 위젯 보존·계산 격리, 순수 배치 엔진과 공통 위젯 규격 레지스트리 보강
 - 온보딩 기록이 없는 기존 사용자도 대시보드 저장 시 Firestore에 `undefined` 선택 필드를 전달하지 않도록 병합·트랜잭션 저장 경계 정규화와 회귀 검사 추가
 - 집중 자동 검사, 프로덕션 빌드와 비인증 로컬 390~1440px·80~110% 주요 조작 QA 통과
-- 로그인 Firestore·실기기 터치·15개 위젯 성능 QA, 사용자 확인, 커밋·push·운영 배포는 아직 완료되지 않음
-- 앱 버전은 v0.3.17을 유지하며 이 항목은 릴리즈 또는 배포 완료 기록이 아님
+- GitHub `main`에 `c84549a` push 후 Firebase Hosting 36개 파일 배포와 운영 HTML·메인/대시보드 자산 HTTP 200 확인
+- 기존 `readerPage`·`readerImage` Functions rewrite 엔드포인트 경고는 남아 있으나 Hosting release는 완료됐고 운영 Reader는 Cloudflare Worker 우선 경로 유지
+- 실제 로그인 Firestore 재저장·실기기 터치·15개 위젯 성능 QA는 후속 확인으로 유지
+- 앱 버전은 v0.3.17을 유지
 
 ## 2026-07-26 운영 패치 - Link Reader Accuracy & Quick Memo
 
