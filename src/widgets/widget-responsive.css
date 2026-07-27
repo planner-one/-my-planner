@@ -1,0 +1,591 @@
+.widget-responsive {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+  container-name: planner-widget;
+  container-type: size;
+}
+
+.widget-content-shell {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+.memo-widget-row {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+}
+
+.memo-widget-open {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 6px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.memo-widget-row:hover {
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+
+.memo-widget-open:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.memo-widget-dot {
+  width: 5px;
+  height: 5px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.memo-widget-row-main {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.memo-widget-row-main time {
+  color: var(--muted);
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.memo-widget-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.memo-widget-row-actions button {
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg2);
+  color: var(--muted);
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.memo-widget-row-actions button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.memo-widget-row-actions button.is-danger:hover {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+.todo-widget-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  overflow: hidden;
+}
+
+.todo-widget-entry,
+.todo-widget-date-row,
+.todo-widget-filters {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.todo-widget-entry {
+  gap: 5px;
+}
+
+.todo-widget-entry > * {
+  min-width: 0;
+}
+
+.todo-widget-date-row,
+.todo-widget-filters {
+  gap: 4px;
+}
+
+.todo-widget-filters {
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
+}
+
+.todo-widget-filters button {
+  flex-shrink: 0;
+}
+
+.todo-widget-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.todo-widget-item {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.todo-widget-item > input,
+.todo-widget-item > select,
+.todo-widget-item > button {
+  min-width: 0;
+}
+
+.scheduled-widget-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.scheduled-widget-item {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.scheduled-widget-check,
+.scheduled-widget-category,
+.scheduled-widget-time,
+.scheduled-widget-date {
+  flex-shrink: 0;
+}
+
+.scheduled-widget-category {
+  width: 72px;
+}
+
+.scheduled-widget-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.scheduled-widget-time {
+  display: inline-flex;
+}
+
+.menu-widget-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-rows: minmax(36px, auto);
+  align-content: start;
+  gap: 4px;
+  padding: 8px 10px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.menu-widget-link {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.menu-widget-link > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.review-widget-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-rows: min-content;
+  align-content: start;
+  gap: 10px;
+  padding: 10px 14px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.review-widget-question {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.review-widget-answer {
+  width: 100%;
+  min-width: 0;
+  min-height: 64px;
+}
+
+.journal-widget-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.journal-widget-carousel {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.journal-widget-viewport {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.journal-widget-track {
+  min-width: 0;
+}
+
+.journal-widget-slide.has-copy {
+  padding: 16px 18px;
+}
+
+.journal-widget-copy,
+.journal-widget-message {
+  min-width: 0;
+}
+
+.journal-widget-dots {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.work-overview-widget-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  overflow: hidden;
+}
+
+.work-overview-metrics {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  flex-shrink: 0;
+}
+
+.work-overview-list {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.work-overview-heading {
+  min-width: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.work-overview-heading > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.work-overview-item {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.work-overview-metric {
+  min-width: 0;
+}
+
+/* src/utils/widgetSize.ts의 공통 크기 단계와 같은 경계를 사용합니다. */
+@container planner-widget (max-width: 339px) {
+  .memo-widget-row {
+    gap: 5px;
+    padding: 7px 4px;
+  }
+
+  .memo-widget-open {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .memo-widget-dot {
+    display: none;
+  }
+
+  .memo-widget-row-actions {
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .memo-widget-row-actions button {
+    width: 27px;
+    min-width: 27px;
+    height: 27px;
+  }
+
+  .todo-widget-content {
+    gap: 6px;
+    padding: 8px 9px;
+  }
+
+  .todo-widget-entry {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .todo-widget-category {
+    grid-column: 1;
+    grid-row: 1;
+    width: 100%;
+  }
+
+  .todo-widget-input {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+  }
+
+  .todo-widget-add {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .todo-widget-date-row {
+    flex-wrap: wrap;
+  }
+
+  .todo-widget-progress {
+    flex-basis: 100%;
+    margin-left: 0 !important;
+  }
+
+  .todo-widget-item.is-editing {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    align-items: center;
+  }
+
+  .todo-widget-item-category {
+    display: none;
+  }
+
+  .todo-widget-edit-category {
+    grid-column: 2;
+    grid-row: 1;
+    width: 100%;
+  }
+
+  .todo-widget-edit-input {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+  }
+
+  .todo-widget-edit-save {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .todo-widget-edit-cancel {
+    grid-column: 4;
+    grid-row: 1;
+  }
+
+  .scheduled-widget-content {
+    padding: 7px 8px;
+  }
+
+  .scheduled-widget-item {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 5px 7px;
+  }
+
+  .scheduled-widget-check {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .scheduled-widget-main {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .scheduled-widget-date {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .scheduled-widget-category {
+    grid-column: 2;
+    grid-row: 2;
+    width: 100%;
+  }
+
+  .scheduled-widget-time {
+    grid-column: 3;
+    grid-row: 2;
+    justify-self: end;
+  }
+
+  .menu-widget-content {
+    padding: 6px 8px;
+  }
+
+  .menu-widget-link {
+    gap: 6px;
+    padding-inline: 8px !important;
+  }
+
+  .review-widget-content {
+    gap: 8px;
+    padding: 8px 10px;
+  }
+
+  .journal-widget-error {
+    padding-inline: 10px !important;
+  }
+
+  .journal-widget-slide.has-copy {
+    padding: 12px 28px;
+  }
+
+  .journal-widget-message {
+    font-size: 13px !important;
+    line-height: 1.4 !important;
+  }
+
+  .journal-widget-arrow {
+    width: 24px !important;
+    height: 24px !important;
+    font-size: 15px !important;
+  }
+
+  .work-overview-widget-content {
+    gap: 8px;
+    padding: 9px;
+  }
+
+  .work-overview-metrics {
+    grid-template-columns: repeat(3, minmax(72px, 1fr));
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+  }
+
+  .work-overview-item {
+    grid-template-columns: 54px minmax(0, 1fr);
+    gap: 4px 7px;
+  }
+
+  .work-overview-item-due {
+    grid-column: 2;
+    font-size: 9px !important;
+  }
+}
+
+@container planner-widget (min-width: 480px) {
+  .menu-widget-content {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .review-widget-content {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@container planner-widget (max-height: 199px) {
+  .memo-widget-row {
+    padding-block: 5px;
+  }
+
+  .todo-widget-content,
+  .scheduled-widget-content,
+  .menu-widget-content,
+  .review-widget-content,
+  .work-overview-widget-content {
+    padding-block: 6px;
+  }
+
+  .review-widget-answer {
+    min-height: 48px;
+    height: 48px;
+  }
+
+  .journal-widget-content,
+  .journal-widget-carousel {
+    gap: 4px;
+  }
+
+  .journal-widget-dots {
+    display: none;
+  }
+
+  .work-overview-widget-content {
+    gap: 6px;
+  }
+
+  .work-overview-metric {
+    padding-block: 5px !important;
+  }
+
+  .work-overview-metric small {
+    display: none !important;
+  }
+}

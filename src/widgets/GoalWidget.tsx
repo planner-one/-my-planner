@@ -57,14 +57,14 @@ type ModalType = 'top' | 'goal' | null
 export default function GoalWidget() {
   const { goals, setGoals, topGoals, setTopGoals } = useApp()
   const { setPage } = useRouter()
-  const { ref, w, h } = useWidgetSize()
+  const { ref, h, widthTier } = useWidgetSize()
   const [modal, setModal] = useState<ModalType>(null)
   const [draft, setDraft] = useState('')
   const [composing, setComposing] = useState(false)
 
   const today = toLocalDateKey()
   const todayTopGoals = getTodayTopGoals(topGoals, today)
-  const compact = w > 0 && w < 340
+  const compact = widthTier === 'compact'
   const hasAnyGoal = todayTopGoals.length > 0 || goals.length > 0
   const atMax = todayTopGoals.length >= TOP_GOAL_MAX
 

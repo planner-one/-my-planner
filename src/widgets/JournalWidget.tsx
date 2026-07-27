@@ -119,15 +119,14 @@ export default function JournalWidget() {
   }, [])
 
   return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', height: '100%',
-      boxSizing: 'border-box', gap: 8, overflow: 'hidden',
-    }}>
-      {error && (
-        <div style={{ fontSize: 11, color: 'var(--red)', flexShrink: 0, padding: '8px 14px 0' }}>{error}</div>
-      )}
+    <div className="widget-responsive">
+      <div className="widget-content-shell journal-widget-content">
+        {error && (
+          <div className="journal-widget-error" style={{ fontSize: 11, color: 'var(--red)', flexShrink: 0, padding: '8px 14px 0' }}>{error}</div>
+        )}
 
-      <JournalCarousel items={items.slice(0, MAX_ITEMS)} slide={slide} setSlide={setSlide} />
+        <JournalCarousel items={items.slice(0, MAX_ITEMS)} slide={slide} setSlide={setSlide} />
+      </div>
     </div>
   )
 }
@@ -152,9 +151,9 @@ function JournalCarousel({ items, slide, setSlide }: JournalCarouselProps) {
   }
 
   return (
-    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div style={{ flex: 1, minHeight: 0, position: 'relative', borderRadius: 12, overflow: 'hidden' }}>
-        <div style={{
+    <div className="journal-widget-carousel">
+      <div className="journal-widget-viewport">
+        <div className="journal-widget-track" style={{
           display: 'flex', height: '100%', width: `${count * 100}%`,
           transform: `translateX(-${slide * (100 / count)}%)`,
           transition: 'transform 0.3s ease',
@@ -166,12 +165,13 @@ function JournalCarousel({ items, slide, setSlide }: JournalCarouselProps) {
             return (
               <Wrapper
                 key={i}
+                className={`journal-widget-slide ${image ? 'has-image' : 'has-copy'}`}
                 {...(item.link ? { href: item.link, target: '_blank', rel: 'noreferrer' } : {})}
                 style={{
                   flex: `0 0 ${100 / count}%`, minWidth: 0, boxSizing: 'border-box',
                   height: '100%', display: 'flex', flexDirection: 'column',
                   justifyContent: image ? 'flex-start' : 'center', gap: 8,
-                  padding: image ? 0 : '16px 18px',
+                  padding: image ? 0 : undefined,
                   background: 'var(--bg3)', textDecoration: 'none',
                   cursor: item.link ? 'pointer' : 'default', overflow: 'hidden',
                 }}
@@ -184,11 +184,11 @@ function JournalCarousel({ items, slide, setSlide }: JournalCarouselProps) {
                     onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
                   />
                 ) : (
-                <div style={{
+                <div className="journal-widget-copy" style={{
                   display: 'flex', flexDirection: 'column', gap: 8,
                   flex: 1, minHeight: 0, justifyContent: 'center',
                 }}>
-                <span style={{
+                <span className="journal-widget-message" style={{
                   fontSize: 16, color: 'var(--text)', fontWeight: 700, lineHeight: 1.5,
                   display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden',
                 }}>
@@ -205,6 +205,7 @@ function JournalCarousel({ items, slide, setSlide }: JournalCarouselProps) {
         </div>
 
         <button
+          className="journal-widget-arrow"
           type="button"
           onClick={goPrev}
           disabled={count < 2}
@@ -214,6 +215,7 @@ function JournalCarousel({ items, slide, setSlide }: JournalCarouselProps) {
           ‹
         </button>
         <button
+          className="journal-widget-arrow"
           type="button"
           onClick={goNext}
           disabled={count < 2}
@@ -225,7 +227,7 @@ function JournalCarousel({ items, slide, setSlide }: JournalCarouselProps) {
       </div>
 
       {count > 1 && (
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 5, flexShrink: 0 }}>
+        <div className="journal-widget-dots">
           {items.map((_, i) => (
             <button
               key={i}

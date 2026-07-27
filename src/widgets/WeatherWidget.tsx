@@ -72,7 +72,7 @@ function weatherLabel(sky: number, pty: number) {
 }
 
 export default function WeatherWidget() {
-  const { ref, h } = useWidgetSize()
+  const { ref, h, widthTier } = useWidgetSize()
   const [forecast, setForecast] = useState<DayForecast[]>([])
   const [historicalForecast, setHistoricalForecast] = useState<DayForecast[]>([])
   const [weekOffset, setWeekOffset] = useState<0 | 1>(0)
@@ -195,7 +195,7 @@ export default function WeatherWidget() {
   const detailWeatherUrl = location?.source === 'auto' && location.latitude != null && location.longitude != null
     ? `https://weather.com/ko-KR/weather/today/l/${location.latitude},${location.longitude}`
     : `https://search.naver.com/search.naver?query=${encodeURIComponent(`${locationLabel} 날씨`)}`
-  const compact = h > 0 && h < 210
+  const compact = widthTier === 'compact' || (h > 0 && h < 210)
   const cardGap = compact ? 2 : 4
 
   return (

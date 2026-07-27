@@ -11,6 +11,15 @@ const assert = (condition, message) => {
   if (!condition) throw new Error(message)
 }
 
+const findUndefinedPaths = (value, path = 'root') => {
+  if (value === undefined) return [path]
+  if (!value || typeof value !== 'object') return []
+
+  return Object.entries(value).flatMap(([key, child]) =>
+    findUndefinedPaths(child, `${path}.${key}`),
+  )
+}
+
 const findFile = (dir, fileName) => {
   for (const entry of readdirSync(dir)) {
     const path = join(dir, entry)
@@ -48,10 +57,77 @@ try {
     compiledPath,
     readFileSync(compiledPath, 'utf8')
       .replace("from './todos'", "from './todos.js'")
-      .replace("from './productivityCategories'", "from './productivityCategories.js'"),
+      .replace("from './productivityCategories'", "from './productivityCategories.js'")
+      .replace("from './dashboardLayout'", "from './dashboardLayout.js'")
+      .replace("from './userDataSerialization'", "from './userDataSerialization.js'"),
   )
 
   const { mergeUserDataForStaleSave, rebaseUserDataAfterSave } = await import(pathToFileURL(compiledPath).href)
+
+  const legacyDashboardSave = mergeUserDataForStaleSave(
+    {
+      _lastSaved: '2026-07-28T00:00:00.000Z',
+    },
+    {
+      _lastSaved: '2026-07-28T00:00:01.000Z',
+      notes: [{
+        id: 'legacy-note',
+        title: '기존 메모',
+        content: '',
+        fav: false,
+        sourceUrl: undefined,
+      }],
+      dashboardConfig: {
+        configVersion: 1,
+        activeIds: ['memo'],
+        activeUpdatedAt: '2026-07-28T00:00:01.000Z',
+        desktop: {
+          gridVersion: 2,
+          layout: [{ i: 'memo', x: 0, y: 0, w: 16, h: 12 }],
+          updatedAt: '2026-07-28T00:00:01.000Z',
+        },
+      },
+    },
+  )
+  const legacyDashboardUndefinedPaths = findUndefinedPaths(legacyDashboardSave)
+  assert(
+    legacyDashboardUndefinedPaths.length === 0,
+    `legacy dashboard save must not emit undefined Firestore fields: ${legacyDashboardUndefinedPaths.join(', ')}`,
+  )
+  assert(
+    !Object.prototype.hasOwnProperty.call(legacyDashboardSave, 'onboarding'),
+    'a legacy user without onboarding must omit the field instead of storing undefined',
+  )
+  assert(
+    legacyDashboardSave.dashboardConfig?.activeIds[0] === 'memo'
+      && legacyDashboardSave.notes?.[0]?.id === 'legacy-note'
+      && !Object.prototype.hasOwnProperty.call(legacyDashboardSave.notes[0], 'sourceUrl'),
+    'storage sanitization must preserve valid dashboard and nested data while omitting undefined fields',
+  )
+  const initialSave = mergeUserDataForStaleSave(null, {
+    nickname: '신규 사용자',
+    onboarding: undefined,
+    notes: [{
+      id: 'initial-note',
+      title: '첫 메모',
+      content: '',
+      fav: false,
+      referenceUrl: undefined,
+    }],
+  })
+  assert(
+    findUndefinedPaths(initialSave).length === 0
+      && !Object.prototype.hasOwnProperty.call(initialSave, 'onboarding')
+      && !Object.prototype.hasOwnProperty.call(initialSave.notes[0], 'referenceUrl'),
+    'an initial save without remote data must obey the same no-undefined storage contract',
+  )
+  const emptyOnboardingRebase = rebaseUserDataAfterSave({}, {}, {})
+  assert(
+    findUndefinedPaths(emptyOnboardingRebase).length === 0
+      && !Object.prototype.hasOwnProperty.call(emptyOnboardingRebase, 'onboarding')
+      && !Object.prototype.hasOwnProperty.call(emptyOnboardingRebase, '_lastSaved'),
+    'save reconciliation without onboarding must not recreate undefined fields',
+  )
 
   const remote = {
     _lastSaved: '2026-07-06T10:00:00.000Z',
@@ -547,6 +623,14 @@ try {
   assert(
     !/saveSyncedUserData\(uid,\s*payload,\s*true\)/.test(strictSaveSource),
     'strict preference saves should not force stale merge',
+  )
+
+  const userServiceSource = readFileSync(join(root, 'src/services/userService.ts'), 'utf8')
+  assert(
+    /const persistedData = sanitizeUserDataForStorage\(nextData\)/.test(userServiceSource)
+      && /transaction\.set\(userRef,\s*persistedData,\s*\{\s*merge:\s*true\s*\}\)/.test(userServiceSource)
+      && /return persistedData/.test(userServiceSource),
+    'the Firestore transaction boundary must persist and return sanitized user data',
   )
 
   console.log('User data stale-save merge checks passed.')

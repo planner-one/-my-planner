@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { useApp } from '../store/AppContext'
-import { useWidgetSize } from '../hooks/useWidgetSize'
 import {
   Chart as ChartJS, CategoryScale, LinearScale,
   PointElement, LineElement, Tooltip, Filler,
@@ -65,7 +64,6 @@ export default function ChartWidget() {
     todos, todoHistory, chartHistory,
     habits, habitHistory, scheduledTasks, counters, productivityTimeHistory,
   } = useApp()
-  const { ref } = useWidgetSize()
   const [accent, setAccent] = useState(getThemeAccent)
 
   useEffect(() => {
@@ -153,7 +151,7 @@ export default function ChartWidget() {
   }
 
   return (
-    <div ref={ref} style={{ height: '100%', padding: '8px 12px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <div style={{ height: '100%', padding: '8px 12px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 6 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexShrink: 0 }}>
         <span style={{ color: 'var(--muted)', fontSize: 11, fontWeight: 700 }}>하루 생산성 점수</span>
         {latestScore && (

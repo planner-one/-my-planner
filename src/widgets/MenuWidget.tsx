@@ -36,26 +36,28 @@ export default function MenuWidget() {
   const { setPage } = useRouter()
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '8px 10px', boxSizing: 'border-box', gap: 4, overflowY: 'auto' }}>
-      {PAGES.map(p => (
-        <button
-          key={p.id}
-          onClick={() => setPage(p.id)}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            padding: '7px 10px', borderRadius: 8,
-            border: '1px solid var(--border)', background: 'var(--bg3)',
-            color: 'var(--text)', cursor: 'pointer', fontSize: 13,
-            textAlign: 'left', fontFamily: 'inherit',
-            transition: 'background 0.1s',
-          }}
-          onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg4)')}
-          onMouseLeave={e => (e.currentTarget.style.background = 'var(--bg3)')}
-        >
-          <span>{p.icon}</span>
-          <span>{p.name}</span>
-        </button>
-      ))}
+    <div className="widget-responsive">
+      <div className="widget-content-shell menu-widget-content">
+        {PAGES.map(p => (
+          <button
+            className="menu-widget-link"
+            key={p.id}
+            onClick={() => setPage(p.id)}
+            style={{
+              padding: '7px 10px', borderRadius: 8,
+              border: '1px solid var(--border)', background: 'var(--bg3)',
+              color: 'var(--text)', cursor: 'pointer', fontSize: 13,
+              textAlign: 'left', fontFamily: 'inherit',
+              transition: 'background 0.1s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg4)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'var(--bg3)')}
+          >
+            <span>{p.icon}</span>
+            <span>{p.name}</span>
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

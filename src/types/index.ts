@@ -328,6 +328,30 @@ export interface LayoutItem {
   minH?: number
 }
 
+export type DashboardGridMode = 'desktop' | 'tablet'
+export type DashboardViewportMode = 'phone' | DashboardGridMode
+
+export interface DashboardGridProfile {
+  gridVersion: 2
+  layout: LayoutItem[]
+  updatedAt: string
+}
+
+export interface DashboardMobileProfile {
+  order: string[]
+  hidden: string[]
+  updatedAt: string
+}
+
+export interface DashboardConfig {
+  configVersion: 1
+  activeIds: string[]
+  activeUpdatedAt: string
+  desktop: DashboardGridProfile
+  tablet?: DashboardGridProfile
+  mobile?: DashboardMobileProfile
+}
+
 export type NotificationChannel = 'codex' | 'gmail' | 'slack' | 'discord'
 
 export interface NotificationPreferences {
@@ -428,6 +452,7 @@ export interface UserData {
   chartHistory?: number[]
   dashboardLayout?: LayoutItem[]
   dashboardActive?: string[]
+  dashboardConfig?: DashboardConfig
   uiScale?: number
   nickname?: string
   notificationPreferences?: NotificationPreferences

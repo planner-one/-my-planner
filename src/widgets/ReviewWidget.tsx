@@ -42,24 +42,27 @@ export default function ReviewWidget() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '10px 14px', boxSizing: 'border-box', gap: 10, overflowY: 'auto' }}>
-      {QUESTIONS.map(q => (
-        <div key={q.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <label style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>{q.label}</label>
-          <textarea
-            value={todayEntry?.[q.key] ?? ''}
-            onChange={e => updateField(q.key, e.target.value)}
-            rows={3}
-            placeholder="내용을 입력하세요..."
-            style={{
-              resize: 'none', border: '1px solid var(--border)', borderRadius: 8,
-              background: 'var(--bg3)', color: 'var(--text)', fontSize: 13,
-              padding: '8px 10px', outline: 'none', fontFamily: 'inherit',
-              lineHeight: 1.5,
-            }}
-          />
-        </div>
-      ))}
+    <div className="widget-responsive">
+      <div className="widget-content-shell review-widget-content">
+        {QUESTIONS.map(q => (
+          <div key={q.key} className="review-widget-question">
+            <label style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>{q.label}</label>
+            <textarea
+              className="review-widget-answer"
+              value={todayEntry?.[q.key] ?? ''}
+              onChange={e => updateField(q.key, e.target.value)}
+              rows={3}
+              placeholder="내용을 입력하세요..."
+              style={{
+                resize: 'none', border: '1px solid var(--border)', borderRadius: 8,
+                background: 'var(--bg3)', color: 'var(--text)', fontSize: 13,
+                padding: '8px 10px', outline: 'none', fontFamily: 'inherit',
+                lineHeight: 1.5,
+              }}
+            />
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

@@ -115,11 +115,13 @@ export default function TodoWidget() {
   const cancelEdit = () => setEditId(null)
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '10px 12px', boxSizing: 'border-box', gap: 8 }}>
+    <div className="widget-responsive">
+      <div className="widget-content-shell todo-widget-content">
 
       {/* 입력 */}
-      <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+      <div className="todo-widget-entry">
         <select
+          className="todo-widget-category"
           value={category}
           onChange={e => setCategory(e.target.value as Category)}
           style={{
@@ -133,6 +135,7 @@ export default function TodoWidget() {
           ))}
         </select>
         <input
+          className="todo-widget-input"
           value={input}
           onChange={e => setInput(e.target.value)}
           onCompositionStart={() => setComposing(true)}
@@ -145,14 +148,14 @@ export default function TodoWidget() {
             padding: '4px 8px', outline: 'none',
           }}
         />
-        <button onClick={add} style={{
+        <button className="todo-widget-add" onClick={add} style={{
           border: 'none', borderRadius: 6, background: 'var(--accent)',
           color: '#fff', fontSize: 13, padding: '4px 10px', cursor: 'pointer', flexShrink: 0,
         }}>+</button>
       </div>
 
       {/* 날짜 선택 */}
-      <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+      <div className="todo-widget-date-row">
         {DATE_OPTIONS.map(opt => {
           const active = dateScope === opt.id
           return (
@@ -165,13 +168,13 @@ export default function TodoWidget() {
             }}>{opt.label}</button>
           )
         })}
-        <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--muted)', alignSelf: 'center' }}>
+        <span className="todo-widget-progress" style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--muted)', alignSelf: 'center' }}>
           {completedCount}/{selectedTodos.length} · {completionRate}%
         </span>
       </div>
 
       {/* 필터 */}
-      <div style={{ display: 'flex', gap: 4, flexShrink: 0, overflowX: 'auto' }}>
+      <div className="todo-widget-filters">
         {FILTER_OPTIONS.map(opt => {
           const active = filter === opt.id
           const color = opt.id !== 'all' ? CATEGORY_CONFIG[opt.id as Category].color : 'var(--accent)'
@@ -189,7 +192,7 @@ export default function TodoWidget() {
       </div>
 
       {/* 목록 */}
-      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div className="todo-widget-list">
         {sorted.length === 0 && (
           <p style={{ color: 'var(--muted)', fontSize: 12, textAlign: 'center', marginTop: 20 }}>
             할 일이 없어요
@@ -200,8 +203,7 @@ export default function TodoWidget() {
           const isEditing = editId === t.id
 
           return (
-            <div key={t.id} style={{
-              display: 'flex', alignItems: 'center', gap: 7,
+            <div key={t.id} className={`todo-widget-item${isEditing ? ' is-editing' : ''}`} style={{
               padding: '6px 8px', borderRadius: 8,
               background: t.done ? 'var(--bg3)' : 'var(--bg2)',
               border: `1px solid ${t.done ? 'var(--border)' : cfg.color}28`,
@@ -218,6 +220,7 @@ export default function TodoWidget() {
               {isEditing ? (
                 <>
                   <select
+                    className="todo-widget-edit-category"
                     value={editCategory}
                     onChange={e => setEditCategory(e.target.value as Category)}
                     style={{
@@ -231,6 +234,7 @@ export default function TodoWidget() {
                     ))}
                   </select>
                   <input
+                    className="todo-widget-edit-input"
                     ref={editRef}
                     value={editText}
                     onChange={e => setEditText(e.target.value)}
@@ -244,11 +248,11 @@ export default function TodoWidget() {
                       fontSize: 13, padding: '2px 6px', outline: 'none',
                     }}
                   />
-                  <button onClick={saveEdit} style={{
+                  <button className="todo-widget-edit-save" onClick={saveEdit} style={{
                     border: 'none', background: 'var(--accent)', color: '#fff',
                     borderRadius: 5, fontSize: 11, padding: '2px 7px', cursor: 'pointer', flexShrink: 0,
                   }}>저장</button>
-                  <button onClick={cancelEdit} style={{
+                  <button className="todo-widget-edit-cancel" onClick={cancelEdit} style={{
                     border: 'none', background: 'transparent', color: 'var(--muted)',
                     fontSize: 13, padding: 0, cursor: 'pointer', lineHeight: 1, flexShrink: 0,
                   }}>✕</button>
@@ -256,7 +260,7 @@ export default function TodoWidget() {
               ) : (
                 <>
                   {/* 카테고리 배지 */}
-                  <span style={{
+                  <span className="todo-widget-item-category" style={{
                     fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 4,
                     background: `${cfg.color}18`, color: cfg.color, flexShrink: 0,
                   }}>{cfg.label}</span>
@@ -282,6 +286,7 @@ export default function TodoWidget() {
             </div>
           )
         })}
+      </div>
       </div>
     </div>
   )

@@ -231,24 +231,25 @@ export default function MemoWidget() {
   }
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100%',
-      padding: '2px 14px 12px',
-      boxSizing: 'border-box',
-    }}>
-      <div
-        className={`memo-scroll-region${isScrolling ? ' is-scrolling' : ''}`}
-        onScroll={handleMemoScroll}
-        style={{
-          flex: 1,
-          minHeight: 0,
-          overflowY: 'auto',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
+    <div className="widget-responsive">
+      <div className="widget-content-shell memo-widget-content" style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        padding: '2px 14px 12px',
+        boxSizing: 'border-box',
+      }}>
+        <div
+          className={`memo-scroll-region${isScrolling ? ' is-scrolling' : ''}`}
+          onScroll={handleMemoScroll}
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
         {activeMemos.length === 0 && (
           <div style={{
             flex: 1,
@@ -316,6 +317,7 @@ export default function MemoWidget() {
             )}
           </div>
         ))}
+        </div>
       </div>
 
       <style>{`
@@ -323,6 +325,7 @@ export default function MemoWidget() {
           scrollbar-gutter: stable;
           scrollbar-width: thin;
           scrollbar-color: transparent transparent;
+          overscroll-behavior: contain;
         }
         .memo-scroll-region::-webkit-scrollbar { width: 8px; }
         .memo-scroll-region::-webkit-scrollbar-track { background: transparent; }
@@ -338,85 +341,6 @@ export default function MemoWidget() {
         }
         .memo-scroll-region.is-scrolling::-webkit-scrollbar-thumb {
           background-color: color-mix(in srgb, var(--muted) 55%, transparent);
-        }
-        .memo-widget-row {
-          width: 100%;
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) auto;
-          align-items: start;
-          gap: 8px;
-          padding: 8px;
-          border-bottom: 1px solid var(--border);
-          background: transparent;
-        }
-        .memo-widget-open {
-          min-width: 0;
-          display: grid;
-          grid-template-columns: 6px minmax(0, 1fr);
-          align-items: start;
-          gap: 8px;
-          padding: 0;
-          border: 0;
-          background: transparent;
-          color: var(--text);
-          font: inherit;
-          text-align: left;
-          cursor: pointer;
-        }
-        .memo-widget-row:hover {
-          background: color-mix(in srgb, var(--accent) 7%, transparent);
-        }
-        .memo-widget-open:focus-visible {
-          outline: 2px solid var(--accent);
-          outline-offset: 3px;
-          border-radius: 4px;
-        }
-        .memo-widget-dot {
-          width: 5px;
-          height: 5px;
-          margin-top: 6px;
-          border-radius: 50%;
-          background: var(--accent);
-        }
-        .memo-widget-row-main {
-          min-width: 0;
-          display: grid;
-          gap: 4px;
-          font-size: 12px;
-          line-height: 1.5;
-        }
-        .memo-widget-row-main time {
-          color: var(--muted);
-          font-size: 9px;
-          white-space: nowrap;
-        }
-        .memo-widget-row-actions {
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          gap: 4px;
-        }
-        .memo-widget-row-actions button {
-          width: 30px;
-          min-width: 30px;
-          height: 30px;
-          display: grid;
-          place-items: center;
-          padding: 0;
-          border: 1px solid var(--border);
-          border-radius: 6px;
-          background: var(--bg2);
-          color: var(--muted);
-          font-family: inherit;
-          cursor: pointer;
-        }
-        .memo-widget-row-actions button:hover {
-          border-color: var(--accent);
-          color: var(--accent);
-        }
-        .memo-widget-row-actions button.is-danger:hover {
-          border-color: var(--red);
-          color: var(--red);
         }
       `}</style>
 

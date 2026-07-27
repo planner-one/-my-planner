@@ -20,12 +20,17 @@ import {
   normalizeNavigationPreferences,
   resolveDisplayScale,
 } from '../utils/responsiveUi'
+import {
+  createDashboardConfigFromLegacy,
+  normalizeDashboardConfig,
+} from '../utils/dashboardLayout'
 import { normalizeProductivityTimeHistory } from '../utils/productivityCategories'
+import { sanitizeUserDataForStorage } from '../utils/userDataSerialization'
 import type {
   Todo, TodoDailyResult, DeletedTodoDailyResult, Habit, Task, Goal, Project, TopGoal, Counters,
-  Note, QuickMemoEntry, WeekTask, ScheduledTask, CareerEvent, JournalEntry, LayoutItem, UserData,
+  Note, QuickMemoEntry, WeekTask, ScheduledTask, CareerEvent, JournalEntry, UserData,
   ReviewDailyEntry, PersonalApplication, JobPosting, NotificationPreferences, NavigationPreferences,
-  DisplayPreferences,
+  DisplayPreferences, DashboardConfig,
   ProductivityTimeHistory,
   OnboardingFirstEntry, OnboardingPurpose, OnboardingState,
 } from '../types'
@@ -73,10 +78,10 @@ interface AppContextValue {
   setJobPostings: React.Dispatch<React.SetStateAction<JobPosting[]>>
   journal: JournalEntry[];   setJournal: React.Dispatch<React.SetStateAction<JournalEntry[]>>
   chartHistory: number[];    setChartHistory: React.Dispatch<React.SetStateAction<number[]>>
-  dashboardLayout: LayoutItem[]
-  setDashboardLayout: React.Dispatch<React.SetStateAction<LayoutItem[]>>
+  dashboardConfig: DashboardConfig
+  setDashboardConfig: React.Dispatch<React.SetStateAction<DashboardConfig>>
+  dashboardLayout: DashboardConfig['desktop']['layout']
   dashboardActive: string[]
-  setDashboardActive: React.Dispatch<React.SetStateAction<string[]>>
   uiScale: number
   setUiScale: React.Dispatch<React.SetStateAction<number>>
   nickname: string;          setNickname: React.Dispatch<React.SetStateAction<string>>
@@ -114,7 +119,7 @@ const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   timezone: 'Asia/Seoul',
 }
 
-const sanitize = (data: UserData): UserData => JSON.parse(JSON.stringify(data))
+const sanitize = sanitizeUserDataForStorage
 
 const getUserDataFingerprint = (data: UserData): string => {
   const comparable = { ...data }
@@ -220,8 +225,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [jobPostings, setJobPostings] = useState<JobPosting[]>([])
   const [journal, setJournal] = useState<JournalEntry[]>([])
   const [chartHistory, setChartHistory] = useState<number[]>([])
-  const [dashboardLayout, setDashboardLayout] = useState<LayoutItem[]>([])
-  const [dashboardActive, setDashboardActive] = useState<string[]>([])
+  const [dashboardConfig, setDashboardConfig] = useState<DashboardConfig>(() =>
+    normalizeDashboardConfig(undefined),
+  )
+  const dashboardLayout = dashboardConfig.desktop.layout
+  const dashboardActive = dashboardConfig.activeIds
   const [uiScale, setUiScale] = useState<number>(90)
   const [nickname, setNickname] = useState<string>('')
   const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES)
@@ -322,7 +330,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       notes, weekTasks, timeBlockData, productivityTimeHistory, scheduledTasks, careerEvents,
       personalApplications, jobPostings,
       journal, chartHistory,
-      dashboardLayout, dashboardActive,
+      dashboardConfig,
       uiScale,
       nickname,
       notificationPreferences,
@@ -408,8 +416,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setJobPostings([])
     setJournal([])
     setChartHistory([])
-    setDashboardLayout([])
-    setDashboardActive([])
+    setDashboardConfig(normalizeDashboardConfig(undefined))
     setUiScale(90)
     setNickname('')
     setNotificationPreferences(DEFAULT_NOTIFICATION_PREFERENCES)
@@ -492,8 +499,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setJobPostings(migrateJobPostings(d?.jobPostings))
       setJournal(d?.journal ?? [])
       setChartHistory(d?.chartHistory ?? [])
-      setDashboardLayout(d?.dashboardLayout ?? [])
-      setDashboardActive(d?.dashboardActive ?? [])
+      setDashboardConfig(normalizeDashboardConfig(
+        d?.dashboardConfig,
+        d?.dashboardActive,
+        d?.dashboardLayout,
+        d?._lastSaved,
+      ))
       setNickname(d?.nickname ?? '')
       setUiScale(d?.uiScale ?? 90)
       setNotificationPreferences(migrateNotificationPreferences(d?.notificationPreferences))
@@ -596,7 +607,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     energy, counters, quickMemos, reviewHistory, notes, weekTasks,
     timeBlockData, productivityTimeHistory, scheduledTasks, careerEvents, personalApplications, jobPostings,
     journal, chartHistory,
-    dashboardLayout, dashboardActive, uiScale, nickname, notificationPreferences, onboarding, dataLoaded,
+    dashboardConfig, uiScale, nickname, notificationPreferences, onboarding, dataLoaded,
     navigationPreferences, displayPreferences,
   ])
 
@@ -632,8 +643,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setJobPostings(migrateJobPostings(saved.jobPostings))
     setJournal(saved.journal ?? [])
     setChartHistory(saved.chartHistory ?? [])
-    setDashboardLayout(saved.dashboardLayout ?? [])
-    setDashboardActive(saved.dashboardActive ?? [])
+    setDashboardConfig(normalizeDashboardConfig(
+      saved.dashboardConfig,
+      saved.dashboardActive,
+      saved.dashboardLayout,
+      saved._lastSaved,
+    ))
     setUiScale(saved.uiScale ?? 90)
     setNickname(saved.nickname ?? '')
     setNotificationPreferences(migrateNotificationPreferences(saved.notificationPreferences))
@@ -736,10 +751,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       || startedAt.replace(/\D/g, '')
       || 'v1'
     const preset = buildStarterDashboard(entry.purpose)
-    const shouldApplyPreset = (base.dashboardActive?.length ?? 0) === 0
+    const baseDashboardConfig = normalizeDashboardConfig(
+      base.dashboardConfig,
+      base.dashboardActive,
+      base.dashboardLayout,
+      base._lastSaved,
+    )
+    const shouldApplyPreset = baseDashboardConfig.activeIds.length === 0
     const overrides: Partial<UserData> = {
-      dashboardActive: shouldApplyPreset ? preset.dashboardActive : base.dashboardActive,
-      dashboardLayout: shouldApplyPreset ? preset.dashboardLayout : base.dashboardLayout,
       onboarding: {
         version: 1,
         status: 'completed',
@@ -748,6 +767,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updatedAt: now,
         completedAt: now,
       },
+    }
+    if (shouldApplyPreset) {
+      const dashboardConfig = createDashboardConfigFromLegacy(
+        preset.dashboardActive,
+        preset.dashboardLayout,
+        now,
+      )
+      overrides.dashboardConfig = dashboardConfig
+      overrides.dashboardActive = preset.dashboardActive
+      overrides.dashboardLayout = preset.dashboardLayout
     }
 
     if (entry.purpose === 'daily') {
@@ -837,7 +866,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const now = new Date().toISOString()
     const base = currentDataRef.current
     const preset = buildStarterDashboard()
-    const shouldApplyPreset = (base.dashboardActive?.length ?? 0) === 0
+    const baseDashboardConfig = normalizeDashboardConfig(
+      base.dashboardConfig,
+      base.dashboardActive,
+      base.dashboardLayout,
+      base._lastSaved,
+    )
+    const shouldApplyPreset = baseDashboardConfig.activeIds.length === 0
     const nextOnboarding: OnboardingState = {
       version: 1,
       status: 'skipped',
@@ -846,11 +881,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updatedAt: now,
       skippedAt: now,
     }
-    await saveWithOverridesStrict({
-      dashboardActive: shouldApplyPreset ? preset.dashboardActive : base.dashboardActive,
-      dashboardLayout: shouldApplyPreset ? preset.dashboardLayout : base.dashboardLayout,
-      onboarding: nextOnboarding,
-    })
+    const overrides: Partial<UserData> = { onboarding: nextOnboarding }
+    if (shouldApplyPreset) {
+      const dashboardConfig = createDashboardConfigFromLegacy(
+        preset.dashboardActive,
+        preset.dashboardLayout,
+        now,
+      )
+      overrides.dashboardConfig = dashboardConfig
+      overrides.dashboardActive = preset.dashboardActive
+      overrides.dashboardLayout = preset.dashboardLayout
+    }
+    await saveWithOverridesStrict(overrides)
     setOnboardingOpen(false)
   }
 
@@ -918,8 +960,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     jobPostings, setJobPostings,
     journal, setJournal,
     chartHistory, setChartHistory,
-    dashboardLayout, setDashboardLayout,
-    dashboardActive, setDashboardActive,
+    dashboardConfig, setDashboardConfig,
+    dashboardLayout,
+    dashboardActive,
     uiScale, setUiScale,
     nickname, setNickname,
     notificationPreferences, setNotificationPreferences,

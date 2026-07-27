@@ -2,6 +2,7 @@ import { doc, getDoc, runTransaction } from 'firebase/firestore'
 import { db } from '../config/firebase'
 import type { UserData } from '../types'
 import { mergeUserDataForStaleSave } from '../utils/userDataMerge'
+import { sanitizeUserDataForStorage } from '../utils/userDataSerialization'
 
 export const loadUserData = async (uid: string): Promise<UserData | null> => {
   const snap = await getDoc(doc(db, 'users', uid))
@@ -25,8 +26,9 @@ export const saveUserData = async (
     const nextData = shouldMerge
       ? mergeUserDataForStaleSave(remoteData, data)
       : data
+    const persistedData = sanitizeUserDataForStorage(nextData)
 
-    transaction.set(userRef, nextData, { merge: true })
-    return nextData
+    transaction.set(userRef, persistedData, { merge: true })
+    return persistedData
   })
 }

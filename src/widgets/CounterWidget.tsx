@@ -32,11 +32,11 @@ const makeCounter = (): CounterItem => ({
 })
 
 export default function CounterWidget() {
-  const { ref, w, h } = useWidgetSize()
+  const { ref, h, widthTier } = useWidgetSize()
   const { counters, setCounters } = useApp()
   const [editingId, setEditingId] = useState<string | null>(null)
 
-  const compact = w > 0 && w < 340
+  const compact = widthTier === 'compact'
   const tight = h > 0 && h < 205
   const veryTight = h > 0 && h < 175
   const padding = veryTight ? 8 : compact || tight ? 10 : 12

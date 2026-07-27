@@ -83,23 +83,16 @@ export default function WorkOverviewWidget() {
   }, [activeGoals, activeProjects, activeTasks])
 
   return (
-    <div style={{
-      height: '100%',
-      padding: 12,
-      boxSizing: 'border-box',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 10,
-      overflow: 'hidden',
-    }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 7, flexShrink: 0 }}>
+    <div className="widget-responsive">
+      <div className="widget-content-shell work-overview-widget-content">
+      <div className="work-overview-metrics">
         <Metric label="작업" value={activeTasks.length} sub="실행 대기" onClick={() => setPage('tasks')} />
         <Metric label="프로젝트" value={`${projectAvg}%`} sub={`${activeProjects.length}개 진행`} onClick={() => setPage('projects')} />
         <Metric label="목표" value={`${goalAvg}%`} sub={`오늘 방향 ${focusDone}/${todayTopGoals.length}`} onClick={() => setPage('goals')} />
       </div>
 
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+      <div className="work-overview-list">
+        <div className="work-overview-heading">
           <strong style={{ fontSize: 12, color: 'var(--text)' }}>다음에 볼 것</strong>
           <span style={{ fontSize: 10, color: 'var(--muted)' }}>마감·진행률 기준</span>
         </div>
@@ -123,6 +116,7 @@ export default function WorkOverviewWidget() {
           <button
             type="button"
             key={item.key}
+            className="work-overview-item"
             onClick={() => setPage(item.page)}
             style={{
               minHeight: 0,
@@ -131,14 +125,10 @@ export default function WorkOverviewWidget() {
               background: 'var(--bg3)',
               padding: '8px 9px',
               cursor: 'pointer',
-              display: 'grid',
-              gridTemplateColumns: '70px minmax(0, 1fr) auto',
-              gap: 8,
-              alignItems: 'center',
               textAlign: 'left',
             }}
           >
-            <span style={{
+            <span className="work-overview-item-type" style={{
               borderRadius: 999,
               background: 'var(--accent-soft)',
               color: 'var(--accent)',
@@ -147,7 +137,7 @@ export default function WorkOverviewWidget() {
               fontWeight: 800,
               textAlign: 'center',
             }}>{item.type}</span>
-            <span style={{
+            <span className="work-overview-item-title" style={{
               minWidth: 0,
               overflow: 'hidden',
               textOverflow: 'ellipsis',
@@ -156,11 +146,12 @@ export default function WorkOverviewWidget() {
               fontSize: 12,
               fontWeight: 800,
             }}>{item.title}</span>
-            <span style={{ color: daysUntil(item.due) <= 1 ? 'var(--accent)' : 'var(--muted)', fontSize: 10, fontWeight: 800 }}>
+            <span className="work-overview-item-due" style={{ color: daysUntil(item.due) <= 1 ? 'var(--accent)' : 'var(--muted)', fontSize: 10, fontWeight: 800 }}>
               {dueLabel(item.due)}
             </span>
           </button>
         ))}
+      </div>
       </div>
     </div>
   )
@@ -180,6 +171,7 @@ function Metric({
   return (
     <button
       type="button"
+      className="work-overview-metric"
       onClick={onClick}
       style={{
         minWidth: 0,

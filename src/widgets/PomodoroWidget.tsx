@@ -34,7 +34,7 @@ const getStoredCategory = (): ProductivityCategory => {
 }
 
 export default function PomodoroWidget() {
-  const { ref, w, h } = useWidgetSize()
+  const { ref, w, h, widthTier } = useWidgetSize()
   const { setCounters, setProductivityTimeHistory } = useApp()
   const [mode, setMode] = useState<Mode>('focus')
   const [category, setCategory] = useState<ProductivityCategory>(getStoredCategory)
@@ -112,7 +112,7 @@ export default function PomodoroWidget() {
   const mm = String(Math.floor(remaining / 60)).padStart(2, '0')
   const ss = String(remaining % 60).padStart(2, '0')
 
-  const compact = w > 0 && w < 340
+  const compact = widthTier === 'compact'
   const veryShort = h > 0 && h < 170
   const short = h > 0 && h < 235
   const shellPadding = veryShort ? 5 : short ? 7 : compact ? 10 : 12

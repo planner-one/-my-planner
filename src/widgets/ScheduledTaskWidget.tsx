@@ -107,7 +107,8 @@ export default function ScheduledTaskWidget() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '8px 12px', boxSizing: 'border-box', gap: 6, overflowY: 'auto' }}>
+    <div className="widget-responsive">
+      <div className="widget-content-shell scheduled-widget-content">
       {upcoming.length === 0 && (
         <p style={{ color: 'var(--muted)', fontSize: 12, textAlign: 'center', marginTop: 16 }}>
           예정된 작업이 없어요
@@ -116,14 +117,15 @@ export default function ScheduledTaskWidget() {
       {upcoming.map(t => (
         <div
           key={t.id}
+          className="scheduled-widget-item"
           onClick={() => toggle(t.id)}
           style={{
-            display: 'flex', alignItems: 'center', gap: 8,
             padding: '7px 10px', borderRadius: 8, cursor: 'pointer',
             background: 'var(--bg3)',
           }}
         >
           <input
+            className="scheduled-widget-check"
             type="checkbox"
             checked={t.done}
             onClick={event => event.stopPropagation()}
@@ -132,6 +134,7 @@ export default function ScheduledTaskWidget() {
             style={{ cursor: 'pointer', flexShrink: 0 }}
           />
           <select
+            className="scheduled-widget-category"
             value={normalizeProductivityCategory(t.category)}
             aria-label={`${t.title} 분야`}
             onClick={event => event.stopPropagation()}
@@ -141,7 +144,7 @@ export default function ScheduledTaskWidget() {
               setScheduledTasks(prev => prev.map(task => task.id === t.id ? { ...task, category: next } : task))
             }}
             style={{
-              width: 72, height: 28, flexShrink: 0,
+              height: 28,
               border: '1px solid var(--border)', borderRadius: 6,
               background: 'var(--bg2)', color: 'var(--muted)', fontSize: 10,
               padding: '0 4px', outline: 'none', fontFamily: 'inherit',
@@ -151,7 +154,7 @@ export default function ScheduledTaskWidget() {
               <option key={item} value={item}>{PRODUCTIVITY_CATEGORY_LABELS[item]}</option>
             ))}
           </select>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="scheduled-widget-main">
             <div style={{
               fontSize: 13, color: t.done ? 'var(--muted)' : 'var(--text)',
               textDecoration: t.done ? 'line-through' : 'none',
@@ -166,8 +169,8 @@ export default function ScheduledTaskWidget() {
               </div>
             )}
           </div>
-          <ScheduledTaskTimeButton task={t} compact />
-          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+          <span className="scheduled-widget-time"><ScheduledTaskTimeButton task={t} compact /></span>
+          <div className="scheduled-widget-date" style={{ textAlign: 'right', flexShrink: 0 }}>
             <div style={{ fontSize: 11, color: t.date === today ? 'var(--accent)' : 'var(--muted)', fontWeight: t.date === today ? 700 : 400 }}>
               {formatDate(t.date)}
             </div>
@@ -240,6 +243,7 @@ export default function ScheduledTaskWidget() {
           </div>
         </QuickAddModal>
       )}
+      </div>
     </div>
   )
 }

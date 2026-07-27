@@ -17,6 +17,11 @@ import type {
 } from '../types'
 import { getTodoCarryKey } from './todos'
 import { mergeProductivityTimeHistory } from './productivityCategories'
+import {
+  mergeDashboardConfigs,
+  normalizeDashboardConfig,
+} from './dashboardLayout'
+import { sanitizeUserDataForStorage } from './userDataSerialization'
 
 type Identified =
   | Habit
@@ -146,7 +151,7 @@ export const rebaseUserDataAfterSave = (
     ? savedData.onboarding
     : mergeOnboardingState(savedData.onboarding, currentData.onboarding)
   rebased._lastSaved = savedData._lastSaved
-  return rebased
+  return sanitizeUserDataForStorage(rebased)
 }
 
 const ONBOARDING_STATUS_WEIGHT: Record<OnboardingState['status'], number> = {
@@ -340,7 +345,7 @@ export function mergeUserDataForStaleSave(
   remoteData: UserData | null | undefined,
   incomingData: UserData,
 ): UserData {
-  if (!remoteData) return incomingData
+  if (!remoteData) return sanitizeUserDataForStorage(incomingData)
 
   const latestRemoteTodoDate = getLatestTodoDate(remoteData)
   const merged: UserData = {
@@ -388,6 +393,12 @@ export function mergeUserDataForStaleSave(
     remoteData.navigationPreferences,
     incomingData.navigationPreferences,
   )
+  if (remoteData.dashboardConfig || incomingData.dashboardConfig) {
+    merged.dashboardConfig = mergeDashboardConfigs(
+      remoteData.dashboardConfig,
+      incomingData.dashboardConfig,
+    )
+  }
   if (remoteData.displayPreferences && incomingData.displayPreferences) {
     const incomingDisplayIsNewer = incomingData.displayPreferences.updatedAt
       > remoteData.displayPreferences.updatedAt
@@ -413,11 +424,22 @@ export function mergeUserDataForStaleSave(
       || (incomingOnboardingVersion === remoteOnboardingVersion
         && ONBOARDING_STATUS_WEIGHT[incomingData.onboarding.status]
           > ONBOARDING_STATUS_WEIGHT[remoteData.onboarding.status]))
-  const remoteDashboardIsEmpty = (remoteData.dashboardActive?.length ?? 0) === 0
+  const remoteDashboardIsEmpty = normalizeDashboardConfig(
+    remoteData.dashboardConfig,
+    remoteData.dashboardActive,
+    remoteData.dashboardLayout,
+    remoteData._lastSaved,
+  ).activeIds.length === 0
   if (incomingOnboardingAdvanced && remoteDashboardIsEmpty) {
     merged.dashboardActive = incomingData.dashboardActive ?? remoteData.dashboardActive
     merged.dashboardLayout = incomingData.dashboardLayout ?? remoteData.dashboardLayout
+    merged.dashboardConfig = normalizeDashboardConfig(
+      incomingData.dashboardConfig,
+      incomingData.dashboardActive,
+      incomingData.dashboardLayout,
+      incomingData._lastSaved,
+    )
   }
 
-  return merged
+  return sanitizeUserDataForStorage(merged)
 }
